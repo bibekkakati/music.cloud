@@ -82,6 +82,10 @@ export const PlaylistModal: React.FC<PlaylistModalProps> = ({
                     );
                 }
             } else if (mode === "edit" && playlistToEdit) {
+                if (playlistToEdit.is_deletable === false) {
+                    showToast("Error", "error", "This playlist cannot be edited");
+                    return;
+                }
                 await playlistService.updatePlaylist({
                     id: playlistToEdit.id,
                     label: label.trim(),

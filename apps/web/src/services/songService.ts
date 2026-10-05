@@ -14,7 +14,7 @@ export const songService = {
   },
 
   searchSuggestions: async (query: string, limit = 20): Promise<SongMetadata[]> => {
-    if (!query || !query.trim()) {
+    if (!query || query.trim().length <= 2) {
       return [];
     }
     const response = await apiClient.get<SongMetadata[]>('/api/v1/song/search/suggestions', {

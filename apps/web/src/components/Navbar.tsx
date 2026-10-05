@@ -41,7 +41,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
     // Autocomplete suggestions dropdown on non-search pages
     useEffect(() => {
-        if (isSearchPage || query.trim().length < 1) {
+        if (isSearchPage || query.trim().length <= 2) {
             setSuggestions([]);
             setIsOpen(false);
             return;

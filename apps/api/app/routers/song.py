@@ -56,7 +56,7 @@ def search_song_suggestions(
     limit: Annotated[int, Query(ge=1, le=50, title="Result limit")] = 20,
 ) -> list[SongPublicResponsePayload]:
     clean_q = q.strip()
-    if not clean_q:
+    if len(clean_q) <= 2:
         return []
     
     results = song_search.search_song(clean_q, limit=limit)

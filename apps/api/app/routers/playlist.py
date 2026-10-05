@@ -95,7 +95,7 @@ def update_playlist(
     if not playlist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Playlist not found or access denied",
+            detail="Playlist not found, unauthorized, or not editable",
         )
     return playlist
 

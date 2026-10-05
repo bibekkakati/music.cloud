@@ -57,6 +57,8 @@ class PlaylistService:
             return None
         if str(playlist.owner_id) != str(user_id):
             return None
+        if not playlist.is_deletable:
+            return None
         playlist.label = label
         self.db.commit()
         self.db.refresh(playlist)

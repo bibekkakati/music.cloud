@@ -50,7 +50,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onAddToPlaylist }) => {
 
     useEffect(() => {
         const trimmed = query.trim();
-        if (trimmed.length >= 1) {
+        if (trimmed.length > 2) {
             const timer = setTimeout(async () => {
                 try {
                     setLoading(true);
@@ -144,8 +144,8 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onAddToPlaylist }) => {
                 </div>
             </div>
 
-            {/* When no search query: Browse All Categories */}
-            {!query.trim() ? (
+            {/* When no search query or <= 2 characters: Browse All Categories */}
+            {query.trim().length <= 2 ? (
                 <div>
                     <h2
                         style={{

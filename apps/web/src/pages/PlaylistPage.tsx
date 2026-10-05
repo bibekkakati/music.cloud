@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 
 interface PlaylistPageProps {
-    onEditPlaylist: (playlist: { id: string; label: string }) => void;
+    onEditPlaylist: (playlist: {
+        id: string;
+        label: string;
+        is_deletable?: boolean;
+    }) => void;
     onPlaylistDeleted: () => void;
 }
 
@@ -259,18 +263,21 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
                     )}
                 </button>
 
-                <button
-                    onClick={() =>
-                        onEditPlaylist({
-                            id: playlist.id,
-                            label: playlist.label,
-                        })
-                    }
-                    className="app-btn-ghost"
-                    title="Rename playlist"
-                >
-                    <Edit2 size={20} />
-                </button>
+                {playlist.is_deletable && (
+                    <button
+                        onClick={() =>
+                            onEditPlaylist({
+                                id: playlist.id,
+                                label: playlist.label,
+                                is_deletable: playlist.is_deletable,
+                            })
+                        }
+                        className="app-btn-ghost"
+                        title="Rename playlist"
+                    >
+                        <Edit2 size={20} />
+                    </button>
+                )}
 
                 {playlist.is_deletable && (
                     <button

@@ -92,7 +92,7 @@ class SongSearchService:
             return []
 
         q = q.strip().lower()
-        if not q:
+        if len(q) <= 2:
             return []
 
         tokens = [t for t in q.split() if t]

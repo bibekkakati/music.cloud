@@ -73,11 +73,17 @@ const AppContent: React.FC = () => {
         setPlaylistModalOpen(true);
     };
 
-    const handleEditPlaylist = (playlist: { id: string; label: string }) => {
+    const handleEditPlaylist = (playlist: {
+        id: string;
+        label: string;
+        is_deletable?: boolean;
+    }) => {
+        if (playlist.is_deletable === false) return;
         setPlaylistModalMode("edit");
         setPlaylistToEdit({
             id: playlist.id,
             label: playlist.label,
+            is_deletable: playlist.is_deletable,
             created_at: "",
             updated_at: "",
         });
