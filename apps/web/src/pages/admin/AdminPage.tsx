@@ -44,7 +44,6 @@ export const AdminPage: React.FC = () => {
     // --- Catalog State ---
     const [songs, setSongs] = useState<SongDetail[]>([]);
     const [loadingSongs, setLoadingSongs] = useState(false);
-    const [cursor, setCursor] = useState<string | undefined>(undefined);
     const [refreshingSongIds, setRefreshingSongIds] = useState<Set<string>>(
         new Set(),
     );
@@ -63,26 +62,20 @@ export const AdminPage: React.FC = () => {
     >(new Set());
 
     // Load Catalog
-    const loadSongs = useCallback(
-        async (cursorVal?: string) => {
-            try {
-                setLoadingSongs(true);
-                const data = await adminService.getAllSongs(cursorVal);
-                setSongs(data);
-                if (data.length > 0) {
-                    setCursor(data[data.length - 1].id);
-                }
-            } catch (err: unknown) {
-                const msg =
-                    (err as { response?: { data?: { detail?: string } } })
-                        ?.response?.data?.detail || "Failed to load songs";
-                showToast("Catalog Error", "error", msg);
-            } finally {
-                setLoadingSongs(false);
-            }
-        },
-        [showToast],
-    );
+    const loadSongs = useCallback(async () => {
+        try {
+            setLoadingSongs(true);
+            const data = await adminService.getAllSongs();
+            setSongs(data);
+        } catch (err: unknown) {
+            const msg =
+                (err as { response?: { data?: { detail?: string } } })
+                    ?.response?.data?.detail || "Failed to load songs";
+            showToast("Catalog Error", "error", msg);
+        } finally {
+            setLoadingSongs(false);
+        }
+    }, [showToast]);
 
     useEffect(() => {
         if (isAuthenticated && isAdmin) {
@@ -191,24 +184,17 @@ export const AdminPage: React.FC = () => {
             );
 
             if (updatedStatus?.toUpperCase() === "DONE") {
-                showToast(
-                    "Processing Complete",
-                    "success",
-                    "Song is now ready.",
-                );
-                loadSongs();
-            } else {
-                showToast(
-                    "Status Updated",
-                    "info",
-                    `Status: ${updatedStatus?.toUpperCase() || "UNKNOWN"}`,
-                );
+                try {
+                    const fullSong = await adminService.getSongById(songId);
+                    setSongs((prev) =>
+                        prev.map((s) => (s.id === songId ? fullSong : s)),
+                    );
+                } catch {
+                    // ignore
+                }
             }
         } catch (err: unknown) {
-            const msg =
-                (err as { response?: { data?: { detail?: string } } })?.response
-                    ?.data?.detail || "Failed to refresh song status";
-            showToast("Status Check Failed", "error", msg);
+            console.error("Failed to refresh song status:", err);
         } finally {
             setRefreshingSongIds((prev) => {
                 const next = new Set(prev);
@@ -254,7 +240,16 @@ export const AdminPage: React.FC = () => {
                 `Updated "${updated.title}"`,
             );
             setEditingSong(null);
-            loadSongs(cursor);
+            setSongs((prev) =>
+                prev.map((s) =>
+                    s.id === updated.id ? { ...s, ...updated } : s,
+                ),
+            );
+            if (inspectingSong?.id === updated.id) {
+                setInspectingSong((prev) =>
+                    prev ? { ...prev, ...updated } : null,
+                );
+            }
         } catch (err: unknown) {
             const msg =
                 (err as { response?: { data?: { detail?: string } } })?.response
@@ -277,10 +272,17 @@ export const AdminPage: React.FC = () => {
             setSongs((prev) =>
                 prev.map((s) =>
                     s.id === song.id
-                        ? { ...s, is_public: updated.is_public }
+                        ? { ...s, ...updated, is_public: updated.is_public }
                         : s,
                 ),
             );
+            if (inspectingSong?.id === song.id) {
+                setInspectingSong((prev) =>
+                    prev
+                        ? { ...prev, ...updated, is_public: updated.is_public }
+                        : null,
+                );
+            }
             showToast(
                 nextIsPublic ? "Song is now Public" : "Song is now Private",
                 "success",
@@ -1161,8 +1163,9 @@ export const AdminPage: React.FC = () => {
                                 </thead>
                                 <tbody>
                                     {songs.map((song) => {
-                                        const isPrivate =
-                                            song.is_public === false;
+                                        const isPrivateAndDone =
+                                            song.is_public === false &&
+                                            song.status?.toLowerCase() === "done";
                                         return (
                                             <tr
                                                 key={song.id}
@@ -1171,25 +1174,25 @@ export const AdminPage: React.FC = () => {
                                                         "1px solid rgba(255, 255, 255, 0.04)",
                                                     transition:
                                                         "all 0.15s ease",
-                                                    opacity: isPrivate
-                                                        ? 0.45
+                                                    opacity: isPrivateAndDone
+                                                        ? 0.5
                                                         : 1,
-                                                    filter: isPrivate
+                                                    filter: isPrivateAndDone
                                                         ? "grayscale(0.35)"
                                                         : "none",
-                                                    background: isPrivate
+                                                    background: isPrivateAndDone
                                                         ? "rgba(0, 0, 0, 0.25)"
                                                         : "transparent",
                                                 }}
                                                 onMouseEnter={(e) =>
                                                     (e.currentTarget.style.background =
-                                                        isPrivate
+                                                        isPrivateAndDone
                                                             ? "rgba(255, 255, 255, 0.06)"
                                                             : "rgba(255, 255, 255, 0.03)")
                                                 }
                                                 onMouseLeave={(e) =>
                                                     (e.currentTarget.style.background =
-                                                        isPrivate
+                                                        isPrivateAndDone
                                                             ? "rgba(0, 0, 0, 0.25)"
                                                             : "transparent")
                                                 }

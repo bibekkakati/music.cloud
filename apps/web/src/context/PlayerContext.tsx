@@ -592,13 +592,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     return;
                 }
 
-                // Fast-path: By targeting the direct variant playlist (aac/256k/playlist.m3u8),
-                // we eliminate the master manifest roundtrip entirely (saving ~300ms on click play)
-                const directMediaUrl = masterUrl.includes("master_aac.m3u8")
-                    ? masterUrl.replace("master_aac.m3u8", "aac/256k/playlist.m3u8")
-                    : masterUrl;
-
-                const hlsStreamUrl = streamService.getHlsStreamUrl(directMediaUrl);
+                // Pass the master playlist URL so HLS.js can detect all available renditions (256k, 320k) and perform ABR
+                const hlsStreamUrl = streamService.getHlsStreamUrl(masterUrl);
 
                 if (!audio) return;
 
