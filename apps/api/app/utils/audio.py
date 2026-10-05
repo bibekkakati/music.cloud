@@ -46,6 +46,7 @@ Format = Literal["aac"]
 
 BITRATES: list[int] = settings.config.audio_processing.target_bitrates_kbps
 FORMATS: list[Format] = settings.config.audio_processing.target_format
+HLS_FIRST_SEGMENT_SECONDS: int = settings.config.audio_processing.hls_first_segment_duration_seconds
 HLS_SEGMENT_SECONDS: int = settings.config.audio_processing.hls_segment_duration_seconds
 FFMPEG_TIMEOUT_SECONDS: int = settings.config.audio_processing.ffmpeg_timeout_seconds
 FFPROBE_TIMEOUT_SECONDS: int = settings.config.audio_processing.ffprobe_timeout_seconds
@@ -87,6 +88,7 @@ class _RenditionJob:
     format: Format
     bitrate_kbps: int
     trim_start_sec: float = 0.0  # seconds to skip from the front
+    duration_sec: float = 0.0  # source duration, used to compute cut times
 
 
 @dataclass
@@ -503,6 +505,9 @@ class AudioProcessor:
 
         Static method so it remains picklable for ProcessPoolExecutor.
         """
+        if not 0 < HLS_FIRST_SEGMENT_SECONDS <= HLS_SEGMENT_SECONDS:
+            raise ValueError("hls_first_segment_duration_seconds must be > 0 and <= hls_segment_duration_seconds")
+
         settings = FORMAT_SETTINGS[job.format]
         out_dir = Path(job.output_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -510,32 +515,30 @@ class AudioProcessor:
         playlist_path = out_dir / "playlist.m3u8"
         segment_pattern = out_dir / "seg_%03d.ts"
 
+        # Cut points: 4, 14, 24, ... (first segment short, rest HLS_SEGMENT_SECONDS)
+        remaining = job.duration_sec - job.trim_start_sec
+        cuts, t = [], float(HLS_FIRST_SEGMENT_SECONDS)
+        while t < remaining - 1.0:  # skip a cut that would leave a <1s tail
+            cuts.append(t)
+            t += HLS_SEGMENT_SECONDS
+        segment_times = ",".join(f"{c:g}" for c in cuts)
+
         cmd = ["ffmpeg", "-y"]
         if job.trim_start_sec > 0:
-            cmd += ["-ss", str(job.trim_start_sec)]  # input seek - must precede -i
+            cmd += ["-ss", str(job.trim_start_sec)]
 
-        cmd += [
-            "-i",
-            job.source_path,
-            "-vn",  # drop any embedded artwork/video stream
-            "-c:a",
-            settings["codec"],
-            "-b:a",
-            f"{job.bitrate_kbps}k",
-            "-f",
-            "hls",
-            "-hls_time",
-            str(HLS_SEGMENT_SECONDS),
-            "-hls_playlist_type",
-            "vod",
-            "-hls_list_size",
-            "0",
-            "-hls_segment_type",
-            settings["hls_segment_type"],
-            "-hls_segment_filename",
-            str(segment_pattern),
-            str(playlist_path),
-        ]
+        cmd += ["-i", job.source_path, "-vn",
+                "-c:a", settings["codec"],
+                "-b:a", f"{job.bitrate_kbps}k",
+                "-f", "segment",
+                "-segment_format", settings["hls_segment_type"],
+                "-segment_list", str(playlist_path),
+                "-segment_list_type", "m3u8",
+                "-segment_list_size", "0"]
+        
+        if segment_times:
+            cmd += ["-segment_times", segment_times]
+        cmd += [str(segment_pattern)]
 
         try:
             subprocess.run(
@@ -638,6 +641,7 @@ class AudioProcessor:
                         fmt,
                         bitrate,
                         self.trim_start_sec,
+                        self._info.duration_sec,
                     )
                 )
         return jobs

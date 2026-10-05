@@ -14,6 +14,7 @@ import {
     Edit3,
     Eye,
     RefreshCw,
+    RotateCw,
     Loader2,
     X,
     Play,
@@ -53,6 +54,7 @@ export const AdminPage: React.FC = () => {
         null,
     );
     const [editingSong, setEditingSong] = useState<SongDetail | null>(null);
+    const [reprocessingSongIds, setReprocessingSongIds] = useState<Set<string>>(new Set());
     const [editTitle, setEditTitle] = useState("");
     const [editArtist, setEditArtist] = useState("");
     const [editIsPublic, setEditIsPublic] = useState(true);
@@ -199,6 +201,45 @@ export const AdminPage: React.FC = () => {
             setRefreshingSongIds((prev) => {
                 const next = new Set(prev);
                 next.delete(songId);
+                return next;
+            });
+        }
+    };
+
+    const handleReprocessSong = async (song: SongDetail) => {
+        const confirmed = window.confirm(
+            `Are you sure you want to reprocess "${song.title}"?\n\nThis will re-transcode and package all HLS renditions from the original master file.`
+        );
+        if (!confirmed) return;
+
+        try {
+            setReprocessingSongIds((prev) => new Set(prev).add(song.id));
+            await adminService.processSong({
+                song_id: song.id,
+                trim_start_sec: 0,
+            });
+
+            // Optimistically update song status in the list
+            setSongs((prev) =>
+                prev.map((s) =>
+                    s.id === song.id ? { ...s, status: "UPLOADED" } : s,
+                ),
+            );
+
+            showToast(
+                "Processing Triggered",
+                "success",
+                `Reprocessing queued for "${song.title}"`,
+            );
+        } catch (err: unknown) {
+            const msg =
+                (err as { response?: { data?: { detail?: string } } })?.response
+                    ?.data?.detail || "Failed to trigger reprocessing";
+            showToast("Reprocess Failed", "error", msg);
+        } finally {
+            setReprocessingSongIds((prev) => {
+                const next = new Set(prev);
+                next.delete(song.id);
                 return next;
             });
         }
@@ -1587,6 +1628,34 @@ export const AdminPage: React.FC = () => {
                                                             }}
                                                         >
                                                             <Edit3 size={15} />
+                                                        </button>
+
+                                                        <button
+                                                            onClick={() =>
+                                                                handleReprocessSong(
+                                                                    song,
+                                                                )
+                                                            }
+                                                            disabled={reprocessingSongIds.has(
+                                                                song.id,
+                                                            )}
+                                                            className="btn-ghost"
+                                                            title="Reprocess Audio (Transcode & Segment)"
+                                                            style={{
+                                                                padding: 6,
+                                                                color: "var(--primary)",
+                                                            }}
+                                                        >
+                                                            {reprocessingSongIds.has(
+                                                                song.id,
+                                                            ) ? (
+                                                                <Loader2
+                                                                    size={15}
+                                                                    className="animate-spin"
+                                                                />
+                                                            ) : (
+                                                                <RotateCw size={15} />
+                                                            )}
                                                         </button>
                                                     </div>
                                                 </td>

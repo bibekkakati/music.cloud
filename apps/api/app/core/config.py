@@ -21,6 +21,7 @@ class AuthConfig(BaseModel):
 class AudioProcessingConfig(BaseModel):
     target_bitrates_kbps: list[int] = [256, 320]
     target_format: list[str] = ["aac"]
+    hls_first_segment_duration_seconds: int = 4
     hls_segment_duration_seconds: int = 10
     ffmpeg_timeout_seconds: int = 600
     ffprobe_timeout_seconds: int = 60
