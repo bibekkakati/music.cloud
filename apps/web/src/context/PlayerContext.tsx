@@ -182,7 +182,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const [isLiked, setIsLiked] = useState<boolean>(false);
     const [isLikeLoading, setIsLikeLoading] = useState<boolean>(false);
 
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
     const { showToast } = useToast();
 
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -246,12 +246,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         localStorage.removeItem(PLAYER_STORAGE_KEY);
     }, []);
 
-    // Trigger cleanup when user gets logged out or is unauthenticated
+    // Trigger cleanup when user gets logged out or is unauthenticated (only after auth check finishes)
     useEffect(() => {
-        if (!isAuthenticated) {
+        if (!isAuthLoading && !isAuthenticated) {
             resetAndStopPlayer();
         }
-    }, [isAuthenticated, resetAndStopPlayer]);
+    }, [isAuthenticated, isAuthLoading, resetAndStopPlayer]);
 
     // Direct event listener for auth:unauthorized and auth:logout
     useEffect(() => {

@@ -33,14 +33,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const profile = await userService.getCurrentProfile();
       setUser(profile);
-    } catch {
-      // If fetching profile fails (token expired), clear token and player state
-      setUser(null);
-      setToken(null);
-      localStorage.removeItem('music_cloud_token');
-      localStorage.removeItem('music_cloud_player_state');
-      streamService.clearToken();
-      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      // Only clear credentials if backend explicitly returned 401 Unauthorized.
+      // Do NOT log out on network disconnects, Render cold-starts (502/503), or server timeouts.
+      if (status === 401) {
+        setUser(null);
+        setToken(null);
+        localStorage.removeItem('music_cloud_token');
+        localStorage.removeItem('music_cloud_player_state');
+        streamService.clearToken();
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      } else {
+        console.warn('Could not refresh profile due to temporary network or server error:', err);
+      }
     } finally {
       setIsLoading(false);
     }
