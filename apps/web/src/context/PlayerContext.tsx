@@ -78,6 +78,37 @@ const loadSavedPlayerState = (): SavedPlayerState | null => {
     return null;
 };
 
+/**
+ * Real-world measured bandwidth (bps) persisted in-memory across tracks in current session.
+ */
+let sessionEstimatedBandwidth: number | null = null;
+
+function getInitialStartLevel(): number {
+    // 1. Check if user turned on Data Saver or has a known slow connection (2G)
+    if (typeof navigator !== "undefined") {
+        const conn = (navigator as unknown as {
+            connection?: { saveData?: boolean; effectiveType?: string };
+        })?.connection;
+        if (
+            conn?.saveData ||
+            conn?.effectiveType === "2g" ||
+            conn?.effectiveType === "slow-2g"
+        ) {
+            return 0; // Safely force lowest level (256k / 132k)
+        }
+    }
+
+    // 2. If we already measured this user's speed in this session:
+    if (sessionEstimatedBandwidth !== null) {
+        // If speed is >= 600 kbps (well above 320 kbps), let HLS.js pick top level (-1 with high estimate)
+        // If speed is struggling (< 600 kbps), start at lowest level (0)
+        return sessionEstimatedBandwidth >= 600_000 ? -1 : 0;
+    }
+
+    // 3. First song on standard/fast network (broadband, Wi-Fi, 4G, 5G): Auto ABR starting at highest available (320k)
+    return -1;
+}
+
 interface PlayerContextValue {
     currentSong: PlayableSong | null;
     queue: PlayableSong[];
@@ -604,6 +635,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                         hlsRef.current = null;
                     }
 
+                    const initialStartLevel = getInitialStartLevel();
+
                     const hls = new Hls({
                         xhrSetup: (xhr) => {
                             xhr.withCredentials = true;
@@ -614,10 +647,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                         },
                         enableWorker: true,
                         lowLatencyMode: false,
-                        // Always start safely at lowest bitrate (Level 0, e.g. 256k) to guarantee
-                        // instant playback and eliminate buffering stalls on cold/degraded network.
-                        // ABR will dynamically upgrade to 320k once throughput is verified.
-                        startLevel: 0,
+                        // Intelligent initial level:
+                        // - 2G / Data Saver / struggling network: 0 (256k / lowest)
+                        // - Fast network / Wi-Fi / 4G / 5G / broadband: -1 (Auto ABR choosing 320k)
+                        startLevel: initialStartLevel,
+                        // Provide a healthy 5 Mbps initial estimate so auto ABR starts at top quality (320k) on fast networks
+                        abrEwmaDefaultEstimate:
+                            sessionEstimatedBandwidth && sessionEstimatedBandwidth > 0
+                                ? sessionEstimatedBandwidth
+                                : 5_000_000,
                         // Progressive loading: buffer segments ahead
                         maxBufferLength:
                             appConfig.player.default_target_duration_seconds *
@@ -628,6 +666,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                         // Retain played segments behind playhead for seamless repeat/loop
                         backBufferLength:
                             appConfig.player.back_buffer_length_seconds,
+                    });
+
+                    // Track real-world measured bandwidth across loaded segments in the current session
+                    hls.on(Hls.Events.FRAG_LOADED, () => {
+                        if (hls.bandwidthEstimate && hls.bandwidthEstimate > 0) {
+                            sessionEstimatedBandwidth = hls.bandwidthEstimate;
+                        }
                     });
 
                     hlsRef.current = hls;
