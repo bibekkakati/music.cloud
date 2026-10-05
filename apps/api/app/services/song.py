@@ -112,7 +112,7 @@ class SongService:
         artist: str,
         extension: str,
         content_type: str,
-        is_public: bool = True,
+        is_public: bool = False,
     ) -> SongUploadResponsePayload:
         """
         Generates a pre-signed S3 PUT URL for uploading the original song file.
@@ -130,7 +130,7 @@ class SongService:
         return SongUploadResponsePayload(id=song_id, url=url, key=original_key)
 
     def create_song(
-        self, user: User, title: str, artist: str, key: str, is_public: bool = True
+        self, user: User, title: str, artist: str, key: str, is_public: bool = False
     ) -> Song:
         """
         Creates a song record in the database with status UPLOADING.

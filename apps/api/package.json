@@ -1,13 +1,14 @@
 {
-  "name": "@music-cloud/api",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "uv run fastapi dev",
-    "start": "uv run fastapi run",
-    "test": "uv run pytest",
-    "lint": "echo 'Python linting via uv/ruff'",
-    "docker:build": "docker build -t music-cloud-api .",
-    "docker:run": "docker run --rm -p 8000:8000 --env-file .env music-cloud-api"
-  }
+    "name": "@music-cloud/api",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "uv run fastapi dev",
+        "start": "uv run --active fastapi run",
+        "build": "uv sync --active --frozen && uv cache prune --ci",
+        "test": "uv run pytest",
+        "lint": "echo 'Python linting via uv/ruff'",
+        "docker:build": "docker build -t music-cloud-api .",
+        "docker:run": "docker run --rm -p 8000:8000 --env-file .env music-cloud-api"
+    }
 }

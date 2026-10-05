@@ -26,7 +26,7 @@ class Song(SQLModel, table=True):
     cover_art_key: str = Field(nullable=True)
     source_bitrate_kbps: int = Field(nullable=True)
     status: SongProcessingStatus = Field(default=SongProcessingStatus.UPLOADING)
-    is_public: bool = Field(default=True, nullable=False)
+    is_public: bool = Field(default=False, nullable=False)
 
     uploaded_by: UUID = Field(nullable=False, foreign_key="users.id")
     created_at: datetime = Field(

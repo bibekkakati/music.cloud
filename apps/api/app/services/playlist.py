@@ -190,7 +190,7 @@ class PlaylistService:
 
         songs_data = []
         for ps, song in results:
-            if not song or not getattr(song, "is_public", True):
+            if not song or not getattr(song, "is_public", False):
                 continue
             songs_data.append({
                 "id": ps.id,

@@ -27,7 +27,7 @@ class AdminSongResponsePayload(BaseModel):
     cover_art_url: str | None = None
     source_bitrate_kbps: int | None = None
     status: str | None = None
-    is_public: bool = True
+    is_public: bool = False
     created_at: datetime
     updated_at: datetime
 
