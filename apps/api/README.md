@@ -69,7 +69,7 @@ The API server provides the core backend services for the Music Cloud platform:
 ### 3. Catalog and Discovery Engine
 
 - **Fuzzy Search**: Implements rapid in-memory searching using RapidFuzz for high-speed query matching resilient to typos and partial titles.
-- **Track Visibility**: Administrative flag allows toggling tracks between public and private status.
+- **Track Visibility**: Uploaded tracks are private by default. Administrators can review and toggle tracks between public and private status in the Admin Studio.
 
 ### 4. Edge-First Static Delivery
 

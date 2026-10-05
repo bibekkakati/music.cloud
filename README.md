@@ -25,6 +25,26 @@ Music Cloud is a private audio streaming service engineered as a polyglot monore
 
 ---
 
+## User Interface & Experience
+
+<p align="center">
+  <img src="assets/homeview.png" alt="Music Cloud Web Player View" width="100%" />
+</p>
+<p align="center">
+  <em><strong>Web Player</strong> — High-fidelity audio playback, queue management, and library browsing</em>
+</p>
+
+<br />
+
+<p align="center">
+  <img src="assets/adminview.png" alt="Music Cloud Admin Studio View" width="100%" />
+</p>
+<p align="center">
+  <em><strong>Admin Studio</strong> — Audio ingestion, automated transcoding pipeline triggers, and catalog curation</em>
+</p>
+
+---
+
 ## Architecture and Structure
 
 The codebase is organized as a workspace monorepo powered by Turborepo and npm workspaces:
@@ -40,7 +60,7 @@ music-cloud/
 │   ├── types/           # Shared TypeScript models, API contracts, and JWT claims (@music-cloud/types)
 │   └── tsconfig/        # Shared TypeScript compiler configuration presets (@music-cloud/tsconfig)
 │
-├── assets/              # Branding assets and logos
+├── assets/              # Branding assets, UI screenshots, and logos
 ├── package.json         # Workspace manifests, task definitions, and devDependencies
 ├── turbo.json           # Turborepo task pipeline configuration
 └── .env.example         # Central environment variable template

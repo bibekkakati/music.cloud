@@ -9,7 +9,7 @@ Single-page web application for Music Cloud, built with React, TypeScript, and V
 The web application provides the user interface for Music Cloud:
 - **Audio Streaming Experience**: Full-featured player with gapless HLS playback, volume memory, repeat/shuffle controls, persistent state preservation, and queue handling.
 - **Collection Management**: Personal and system playlists, track likes, dynamic additions, and typo-tolerant search filtering.
-- **Admin Studio**: Dedicated administration view for direct audio uploads, processing triggers, catalog curation, and track visibility toggling.
+- **Admin Studio**: Dedicated administration view for direct audio uploads (private by default), processing triggers, catalog curation, and track visibility toggling.
 
 ---
 
