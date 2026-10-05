@@ -304,6 +304,7 @@ export default {
 				"Content-Range",
 				`bytes ${offset}-${offset + length - 1}/${object.size}`
 			);
+			headers.set("X-Cache-Status", "MISS-RANGE");
 			return new Response(object.body, {
 				status: 206,
 				headers,
@@ -328,6 +329,7 @@ export default {
 			});
 		}
 
+		headers.set("X-Cache-Status", "MISS");
 		return new Response(object.body, {
 			status: 200,
 			headers,
@@ -579,7 +581,7 @@ function getCorsHeaders(request) {
 		"Access-Control-Allow-Origin": origin || "*",
 		"Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
 		"Access-Control-Allow-Headers": "Content-Type, Authorization, Cookie, Range, If-None-Match",
-		"Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges, ETag, X-Cache-Status",
+		"Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges, ETag, X-Cache-Status, X-Cache-Expires-At",
 		"Access-Control-Max-Age": "86400",
 	});
 
