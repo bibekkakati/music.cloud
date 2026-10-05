@@ -1,13 +1,21 @@
-# Music Cloud
+<p align="center">
+  <img src="assets/logo.png" alt="Music Cloud Logo" width="120" height="120" />
+</p>
 
-> High-fidelity, self-hosted private music streaming platform and automated audio transcode pipeline.
+<h1 align="center">Music Cloud</h1>
 
-[![Monorepo](https://img.shields.io/badge/monorepo-turborepo-blue.svg)](https://turbo.build/repo)
-[![Backend](https://img.shields.io/badge/backend-FastAPI%20%7C%20Python-009688.svg)](https://fastapi.tiangolo.com/)
-[![Frontend](https://img.shields.io/badge/frontend-React%20%7C%20Vite-61DAFB.svg)](https://react.dev/)
-[![Streaming](https://img.shields.io/badge/streaming-HLS%20%7C%20Cloudflare%20R2-F38020.svg)](https://www.cloudflare.com/developer-platform/r2/)
-[![Processing](https://img.shields.io/badge/audio-FFmpeg-007808.svg)](https://ffmpeg.org/)
-[![License](https://img.shields.io/badge/license-Private-red.svg)](#)
+<p align="center">
+  <strong>High-fidelity, self-hosted private music streaming platform and automated audio transcode pipeline.</strong>
+</p>
+
+<p align="center">
+  <a href="https://turbo.build/repo"><img src="https://img.shields.io/badge/monorepo-turborepo-blue.svg" alt="Monorepo" /></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/backend-FastAPI%20%7C%20Python-009688.svg" alt="Backend" /></a>
+  <a href="https://react.dev/"><img src="https://img.shields.io/badge/frontend-React%20%7C%20Vite-61DAFB.svg" alt="Frontend" /></a>
+  <a href="https://www.cloudflare.com/developer-platform/r2/"><img src="https://img.shields.io/badge/streaming-HLS%20%7C%20Cloudflare%20R2-F38020.svg" alt="Streaming" /></a>
+  <a href="https://ffmpeg.org/"><img src="https://img.shields.io/badge/audio-FFmpeg-007808.svg" alt="Processing" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/license-Private-red.svg" alt="License" /></a>
+</p>
 
 ---
 
@@ -32,6 +40,7 @@ music-cloud/
 │   ├── types/           # Shared TypeScript models, API contracts, and JWT claims (@music-cloud/types)
 │   └── tsconfig/        # Shared TypeScript compiler configuration presets (@music-cloud/tsconfig)
 │
+├── assets/              # Branding assets and logos
 ├── package.json         # Workspace manifests, task definitions, and devDependencies
 ├── turbo.json           # Turborepo task pipeline configuration
 └── .env.example         # Central environment variable template
