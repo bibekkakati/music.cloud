@@ -48,7 +48,9 @@ const loadSavedPlayerState = (): SavedPlayerState | null => {
         ) {
             return {
                 currentSong: parsed.currentSong,
-                queue: Array.isArray(parsed.queue) ? parsed.queue : [parsed.currentSong],
+                queue: Array.isArray(parsed.queue)
+                    ? parsed.queue
+                    : [parsed.currentSong],
                 currentTime:
                     typeof parsed.currentTime === "number" &&
                     !isNaN(parsed.currentTime) &&
@@ -86,15 +88,17 @@ let sessionEstimatedBandwidth: number | null = null;
 function getInitialStartLevel(): number {
     // 1. Check if user turned on Data Saver or has a known slow connection (2G)
     if (typeof navigator !== "undefined") {
-        const conn = (navigator as unknown as {
-            connection?: { saveData?: boolean; effectiveType?: string };
-        })?.connection;
+        const conn = (
+            navigator as unknown as {
+                connection?: { saveData?: boolean; effectiveType?: string };
+            }
+        )?.connection;
         if (
             conn?.saveData ||
             conn?.effectiveType === "2g" ||
             conn?.effectiveType === "slow-2g"
         ) {
-            return 0; // Safely force lowest level (256k / 132k)
+            return 0; // Safely force lowest level
         }
     }
 
@@ -170,11 +174,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             : appConfig.player.default_volume,
     );
     const [isMuted, setIsMuted] = useState<boolean>(false);
-    const [isLoop, setIsLoop] = useState<boolean>(
-        () => Boolean(savedState.current?.isLoop),
+    const [isLoop, setIsLoop] = useState<boolean>(() =>
+        Boolean(savedState.current?.isLoop),
     );
-    const [isShuffle, setIsShuffle] = useState<boolean>(
-        () => Boolean(savedState.current?.isShuffle),
+    const [isShuffle, setIsShuffle] = useState<boolean>(() =>
+        Boolean(savedState.current?.isShuffle),
     );
     const [streamToken, setStreamToken] = useState<string | null>(null);
 
@@ -258,11 +262,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const handleLogoutOrUnauthorized = () => {
             resetAndStopPlayer();
         };
-        window.addEventListener("auth:unauthorized", handleLogoutOrUnauthorized);
+        window.addEventListener(
+            "auth:unauthorized",
+            handleLogoutOrUnauthorized,
+        );
         window.addEventListener("auth:logout", handleLogoutOrUnauthorized);
         return () => {
-            window.removeEventListener("auth:unauthorized", handleLogoutOrUnauthorized);
-            window.removeEventListener("auth:logout", handleLogoutOrUnauthorized);
+            window.removeEventListener(
+                "auth:unauthorized",
+                handleLogoutOrUnauthorized,
+            );
+            window.removeEventListener(
+                "auth:logout",
+                handleLogoutOrUnauthorized,
+            );
         };
     }, [resetAndStopPlayer]);
 
@@ -335,8 +348,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 savePlayerState({
                     currentTime:
                         audioRef.current?.currentTime || currentTimeRef.current,
-                    duration:
-                        audioRef.current?.duration || durationRef.current,
+                    duration: audioRef.current?.duration || durationRef.current,
                 });
             }
         };
@@ -356,7 +368,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 duration,
             });
         }
-    }, [isAuthenticated, volume, isShuffle, isLoop, queue, duration, currentSong, savePlayerState]);
+    }, [
+        isAuthenticated,
+        volume,
+        isShuffle,
+        isLoop,
+        queue,
+        duration,
+        currentSong,
+        savePlayerState,
+    ]);
 
     // Fetch liked status when currentSong or auth changes
     useEffect(() => {
@@ -395,7 +416,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const toggleLike = useCallback(async () => {
         if (!currentSong) return;
         if (!isAuthenticated) {
-            showToast("Sign In Required", "info", "Please log in to like songs");
+            showToast(
+                "Sign In Required",
+                "info",
+                "Please log in to like songs",
+            );
             return;
         }
 
@@ -412,7 +437,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             if (res.liked) {
                 showToast("Added to Liked Songs", "success", currentSong.title);
             } else {
-                showToast("Removed from Liked Songs", "info", currentSong.title);
+                showToast(
+                    "Removed from Liked Songs",
+                    "info",
+                    currentSong.title,
+                );
             }
             // Notify UI so playlists refresh if a new Liked playlist was generated
             window.dispatchEvent(new CustomEvent("playlist-mutation"));
@@ -420,8 +449,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             // 2. Undo optimistic state on error
             setIsLiked(previousLiked);
             const msg =
-                (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-                "Failed to update liked status";
+                (err as { response?: { data?: { detail?: string } } })?.response
+                    ?.data?.detail || "Failed to update liked status";
             showToast("Error", "error", msg);
         }
     }, [currentSong, isAuthenticated, isLiked, showToast]);
@@ -522,7 +551,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             initialSeekTime?: number,
         ) => {
             if (!isAuthenticated) {
-                showToast("Sign In Required", "info", "Please log in to play music");
+                showToast(
+                    "Sign In Required",
+                    "info",
+                    "Please log in to play music",
+                );
                 window.dispatchEvent(new CustomEvent("auth:required"));
                 return;
             }
@@ -531,10 +564,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             const isSameSong = currentSongRef.current?.id === song.id;
             const hasActiveSource = Boolean(
                 hlsRef.current ||
-                    (audio &&
-                        audio.src &&
-                        audio.src !== window.location.href &&
-                        audio.src !== ""),
+                (audio &&
+                    audio.src &&
+                    audio.src !== window.location.href &&
+                    audio.src !== ""),
             );
 
             const seekTarget =
@@ -647,13 +680,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                         },
                         enableWorker: true,
                         lowLatencyMode: false,
+                        // Prevent HLS.js from loading segment 0 at lowest bitrate (256k) as a "bitrate test"
+                        testBandwidth: false,
                         // Intelligent initial level:
                         // - 2G / Data Saver / struggling network: 0 (256k / lowest)
                         // - Fast network / Wi-Fi / 4G / 5G / broadband: -1 (Auto ABR choosing 320k)
                         startLevel: initialStartLevel,
                         // Provide a healthy 5 Mbps initial estimate so auto ABR starts at top quality (320k) on fast networks
                         abrEwmaDefaultEstimate:
-                            sessionEstimatedBandwidth && sessionEstimatedBandwidth > 0
+                            sessionEstimatedBandwidth &&
+                            sessionEstimatedBandwidth > 0
                                 ? sessionEstimatedBandwidth
                                 : 5_000_000,
                         // Progressive loading: buffer segments ahead
@@ -670,7 +706,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
                     // Track real-world measured bandwidth across loaded segments in the current session
                     hls.on(Hls.Events.FRAG_LOADED, () => {
-                        if (hls.bandwidthEstimate && hls.bandwidthEstimate > 0) {
+                        if (
+                            hls.bandwidthEstimate &&
+                            hls.bandwidthEstimate > 0
+                        ) {
                             sessionEstimatedBandwidth = hls.bandwidthEstimate;
                         }
                     });
@@ -678,6 +717,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     hlsRef.current = hls;
                     hls.loadSource(hlsStreamUrl);
                     hls.attachMedia(audio);
+
+                    // For fast connections (initialStartLevel === -1), dynamically set startLevel to the highest quality rendition
+                    // (e.g. index 1 = 320k) as soon as manifest is loaded, so it NEVER loads 256k first
+                    hls.on(Hls.Events.MANIFEST_LOADED, (_event, data) => {
+                        if (initialStartLevel === -1 && data.levels && data.levels.length > 1) {
+                            hls.startLevel = data.levels.length - 1;
+                        }
+                    });
 
                     // Dynamically lock buffer ahead to configured segments based on playlist target duration
                     hls.on(Hls.Events.LEVEL_LOADED, (_event, data) => {
@@ -755,7 +802,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const togglePlay = useCallback(() => {
         if (!isAuthenticated) {
-            showToast("Sign In Required", "info", "Please log in to play music");
+            showToast(
+                "Sign In Required",
+                "info",
+                "Please log in to play music",
+            );
             window.dispatchEvent(new CustomEvent("auth:required"));
             return;
         }
@@ -768,10 +819,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const audio = audioRef.current;
         const hasActiveSource = Boolean(
             hlsRef.current ||
-                (audio &&
-                    audio.src &&
-                    audio.src !== window.location.href &&
-                    audio.src !== ""),
+            (audio &&
+                audio.src &&
+                audio.src !== window.location.href &&
+                audio.src !== ""),
         );
 
         if (!hasActiveSource) {
@@ -797,7 +848,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }, [currentSong, queue, currentTime, playSong]);
 
     const handleNext = useCallback(() => {
-        if (!isAuthenticated || !queue.length || !currentSongRef.current) return;
+        if (!isAuthenticated || !queue.length || !currentSongRef.current)
+            return;
         const currentId = currentSongRef.current.id;
         const currentIndex = queue.findIndex((s) => s.id === currentId);
         if (currentIndex === -1) {
@@ -824,7 +876,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     }, [isAuthenticated, queue, isShuffle, playSong]);
 
     const handlePrev = useCallback(() => {
-        if (!isAuthenticated || !queue.length || !currentSongRef.current) return;
+        if (!isAuthenticated || !queue.length || !currentSongRef.current)
+            return;
         const audio = audioRef.current;
         // If more than 3 seconds played, restart the current track without refetching
         if (audio && audio.currentTime > 3) {
@@ -893,17 +946,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsShuffle((prev) => !prev);
     }, []);
 
-    const addToQueue = useCallback((song: PlayableSong) => {
-        if (!isAuthenticated) {
-            showToast("Sign In Required", "info", "Please log in to add to queue");
-            window.dispatchEvent(new CustomEvent("auth:required"));
-            return;
-        }
-        setQueue((prev) => {
-            if (prev.some((s) => s.id === song.id)) return prev;
-            return [...prev, song];
-        });
-    }, [isAuthenticated, showToast]);
+    const addToQueue = useCallback(
+        (song: PlayableSong) => {
+            if (!isAuthenticated) {
+                showToast(
+                    "Sign In Required",
+                    "info",
+                    "Please log in to add to queue",
+                );
+                window.dispatchEvent(new CustomEvent("auth:required"));
+                return;
+            }
+            setQueue((prev) => {
+                if (prev.some((s) => s.id === song.id)) return prev;
+                return [...prev, song];
+            });
+        },
+        [isAuthenticated, showToast],
+    );
 
     return (
         <PlayerContext.Provider
