@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+wheels/
+*.egg-info/
+.turbo/
+
+# Python
+__pycache__/
+*.py[oc]
+*.pyo
+.pytest_cache/
+.venv/
+tmp/
+*.sqlite3
+
+# Cloudflare
+.wrangler/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment & Local overrides
+.env
+.env.*
+!.env.example
+*.local
+
+# System & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.sw?

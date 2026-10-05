@@ -1,0 +1,1124 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
+:root {
+    --app-black: #000000;
+    --app-base: #121212;
+    --app-card: #181818;
+    --app-card-hover: #282828;
+    --app-elevated: #242424;
+    --app-highlight: #1a1a1a;
+    --app-border: rgba(255, 255, 255, 0.08);
+
+    --app-green: #1ed760;
+    --app-green-hover: #1fdf64;
+    --app-green-active: #169c46;
+    --app-green-glow: rgba(30, 215, 96, 0.4);
+
+    --app-text: #ffffff;
+    --app-subtext: #b3b3b3;
+    --app-muted: #6a6a6a;
+    --app-slider-bg: #4d4d4d;
+
+    --sidebar-width: 280px;
+    --player-height: 76px;
+    --topbar-height: 64px;
+    --bottom-nav-height: 56px;
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-pill: 9999px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family:
+        "Plus Jakarta Sans",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Circular",
+        "Segoe UI",
+        Roboto,
+        sans-serif;
+    background-color: var(--app-black);
+    color: var(--app-text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* Island Panels */
+.panel {
+    background: var(--app-base);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+/* Floating Green Play Button */
+.app-play-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--app-green);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    transition:
+        transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 0.2s,
+        opacity 0.2s;
+    color: #000000;
+}
+
+.app-play-btn:hover {
+    background: var(--app-green-hover);
+    transform: scale(1.06);
+}
+
+.app-play-btn:active {
+    background: var(--app-green-active);
+    transform: scale(1);
+}
+
+/* Card */
+.app-card {
+    background: var(--app-card);
+    border-radius: 6px;
+    padding: 16px;
+    position: relative;
+    transition: background-color 0.25s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-card:hover {
+    background: var(--app-card-hover);
+}
+
+.app-card .play-button-overlay {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.app-card:hover .play-button-overlay {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* Pill Buttons */
+.app-btn-pill {
+    background: #ffffff;
+    color: #000000;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: var(--radius-pill);
+    border: none;
+    padding: 12px 28px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition:
+        transform 0.15s ease,
+        background-color 0.15s ease;
+}
+
+.app-btn-pill:hover {
+    transform: scale(1.04);
+    background-color: #f6f6f6;
+}
+
+.app-btn-pill:active {
+    transform: scale(1);
+}
+
+.app-btn-green {
+    background: var(--app-green);
+    color: #000000;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: var(--radius-pill);
+    border: none;
+    padding: 12px 28px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition:
+        transform 0.15s ease,
+        background-color 0.15s ease;
+}
+
+.app-btn-green:hover {
+    transform: scale(1.04);
+    background: var(--app-green-hover);
+}
+
+.app-btn-ghost {
+    background: transparent;
+    color: var(--app-subtext);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    transition:
+        color 0.15s ease,
+        transform 0.15s ease;
+}
+
+.app-btn-ghost:hover {
+    color: var(--app-text);
+    transform: scale(1.05);
+}
+
+/* Filter Tag Pills in Library */
+.app-tag-pill {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--app-text);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.app-tag-pill:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.app-tag-pill.active {
+    background: #ffffff;
+    color: #000000;
+    font-weight: 600;
+}
+
+/* Input */
+.app-input {
+    background: var(--app-elevated);
+    border: 1px solid transparent;
+    color: var(--app-text);
+    border-radius: var(--radius-pill);
+    padding: 10px 16px;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.app-input:focus {
+    border-color: #ffffff;
+    background: #2a2a2a;
+}
+
+.app-input::placeholder {
+    color: var(--app-muted);
+}
+
+/* Sliders (Progress and Volume) */
+.app-slider-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: 100%;
+}
+
+.app-slider-container input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--app-slider-bg);
+    outline: none;
+    cursor: pointer;
+    transition: height 0.1s ease;
+}
+
+.app-slider-container:hover input[type="range"] {
+    height: 6px;
+}
+
+.app-slider-container input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffffff;
+    cursor: pointer;
+    opacity: 0;
+    transition:
+        opacity 0.1s ease,
+        transform 0.1s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.app-slider-container:hover input[type="range"]::-webkit-slider-thumb {
+    opacity: 1;
+}
+
+.app-slider-container:hover input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+/* Header Table Row */
+.app-table-header {
+    display: grid;
+    grid-template-columns: 48px 4fr 3fr 1fr;
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--app-subtext);
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.app-table-row {
+    display: grid;
+    grid-template-columns: 48px 4fr 3fr 1fr;
+    padding: 8px 16px;
+    border-radius: 4px;
+    align-items: center;
+    transition: background-color 0.15s ease;
+    font-size: 14px;
+    color: var(--app-subtext);
+    cursor: pointer;
+}
+
+.app-table-row:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--app-text);
+}
+
+.app-table-row.active {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.app-table-row.active .track-title {
+    color: var(--app-green) !important;
+}
+
+/* Top Greeting Cards (2x3 grid) */
+.app-quick-card {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.25s ease;
+}
+
+.app-quick-card:hover {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.app-quick-card .quick-play-btn {
+    position: absolute;
+    right: 16px;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-quick-card:hover .quick-play-btn {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Modal and Glass compatibility */
+.glass-panel {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    border-radius: var(--radius-md);
+}
+
+.glass-input {
+    background: var(--app-elevated);
+    border: 1px solid transparent;
+    color: var(--app-text);
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.glass-input:focus {
+    border-color: #ffffff;
+}
+
+.btn-primary {
+    background: var(--app-green);
+    color: #000000;
+    font-weight: 700;
+    border-radius: var(--radius-pill);
+    border: none;
+    padding: 12px 24px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+}
+
+.btn-primary:hover {
+    background: var(--app-green-hover);
+    transform: scale(1.03);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--app-text);
+    border: 1px solid var(--app-border);
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    padding: 10px 20px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+}
+
+.btn-secondary:hover {
+    border-color: #ffffff;
+    transform: scale(1.02);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--app-subtext);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    transition: color 0.15s ease;
+}
+
+.btn-ghost:hover {
+    color: var(--app-text);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* Toast Notification Styling */
+@keyframes toastSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.app-toast {
+    animation: toastSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    background-color: var(--app-elevated);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    box-shadow:
+        0 16px 32px rgba(0, 0, 0, 0.65),
+        0 4px 12px rgba(0, 0, 0, 0.45);
+    color: var(--app-text);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    min-width: 300px;
+    max-width: 420px;
+    backdrop-filter: blur(16px);
+    pointer-events: auto;
+    transition:
+        transform 0.15s ease,
+        background-color 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.app-toast:hover {
+    background-color: var(--app-card-hover);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.app-toast-close {
+    background: transparent;
+    border: none;
+    color: var(--app-subtext);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 50%;
+    transition:
+        color 0.15s ease,
+        background-color 0.15s ease;
+    flex-shrink: 0;
+}
+
+.app-toast-close:hover {
+    color: var(--app-text);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ==========================================================================
+   Responsive Architecture: Layout, Island Panels, Player & Navigation
+   ========================================================================== */
+
+/* 1. App Shell Grid / Flex Layout */
+.app-layout {
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+    padding: 8px 8px calc(var(--player-height) + 8px) 8px;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+    background-color: var(--app-black);
+}
+
+/* 2. Main Content Island */
+.main-content-island {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    background: var(--app-base);
+    border-radius: var(--radius-md);
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 3. Left Navigation Sidebar */
+.app-sidebar {
+    width: var(--sidebar-width);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+    height: 100%;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 50;
+}
+
+/* Mobile Sidebar Drawer Backdrop */
+.mobile-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 140;
+    animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* 4. Sticky Navbar */
+.app-navbar {
+    height: var(--topbar-height);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background-color: rgba(18, 18, 18, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.navbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.navbar-center {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 480px;
+    min-width: 0;
+}
+
+.navbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.mobile-only-btn {
+    display: none !important;
+}
+
+.navbar-history-arrows {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.navbar-search-box {
+    position: relative;
+    width: 100%;
+}
+
+/* 5. Fixed Bottom Player */
+.app-footer-player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--player-height);
+    background-color: #000000;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 70;
+}
+
+.mobile-mini-progressbar {
+    display: none;
+}
+
+.mobile-mini-controls {
+    display: none;
+}
+
+.player-left-section {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 30%;
+    min-width: 180px;
+}
+
+.player-center-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 40%;
+    max-width: 720px;
+}
+
+.player-right-section {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 30%;
+    min-width: 180px;
+}
+
+.player-track-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-track-artist {
+    font-size: 12px;
+    color: var(--app-subtext);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.player-play-circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.player-play-circle:hover {
+    transform: scale(1.06);
+}
+
+.player-play-circle:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.app-btn-ghost:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.desktop-volume-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* 6. Playlist Hero Section */
+.playlist-hero-header {
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    padding: 40px 24px 24px;
+    background: linear-gradient(180deg, #3d3d3d 0%, #121212 100%);
+}
+
+.playlist-cover-box {
+    width: 192px;
+    height: 192px;
+    background: #282828;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    flex-shrink: 0;
+}
+
+.playlist-meta-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.playlist-title {
+    font-size: clamp(32px, 5vw, 64px);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    color: #ffffff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.playlist-action-bar {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+}
+
+.playlist-tracklist-container {
+    padding: 0 24px;
+}
+
+/* 7. Home & Search Page Layout Containers */
+.home-page-container {
+    padding: 16px 24px 100px;
+}
+
+.home-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.app-music-card {
+    padding: 12px;
+    border-radius: 6px;
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.app-music-card:hover {
+    transform: translateY(-2px);
+}
+
+.home-song-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+    gap: 14px;
+}
+
+.search-page-container {
+    padding: 24px 32px 100px;
+}
+
+.search-categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 20px;
+}
+
+.search-top-results-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 1.2fr) minmax(320px, 2fr);
+    gap: 24px;
+    margin-bottom: 40px;
+}
+
+.admin-page-container {
+    padding: 28px 40px 120px;
+}
+
+.admin-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 16px;
+}
+
+/* ==========================================================================
+   iPad & Tablet Viewports (769px to 1024px)
+   ========================================================================== */
+@media (min-width: 769px) and (max-width: 1024px) {
+    :root {
+        --sidebar-width: 230px;
+    }
+
+    .app-sidebar {
+        width: var(--sidebar-width);
+    }
+
+    .app-table-header,
+    .app-table-row {
+        grid-template-columns: 40px 5fr 3fr 70px;
+    }
+
+    .search-top-results-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .playlist-hero-header {
+        gap: 18px;
+        padding: 28px 20px 20px;
+    }
+
+    .playlist-cover-box {
+        width: 160px;
+        height: 160px;
+    }
+
+    .home-quick-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .home-song-grid {
+        grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+        gap: 12px;
+    }
+}
+
+/* ==========================================================================
+   Mobile Viewports (< 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+    /* App Root Layout */
+    .app-layout {
+        padding: 0;
+        padding-bottom: calc(
+            var(--bottom-nav-height) + 64px + env(safe-area-inset-bottom, 0px)
+        );
+        height: 100dvh;
+        width: 100%;
+    }
+
+    .main-content-island {
+        border-radius: 0;
+        height: 100%;
+    }
+
+    /* Slide-in Mobile Drawer for Sidebar/Library */
+    .app-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: min(320px, 84vw);
+        height: 100dvh;
+        z-index: 150;
+        transform: translateX(-100%);
+        box-shadow: 12px 0 36px rgba(0, 0, 0, 0.85);
+        padding: 8px;
+        background-color: #000000;
+        overflow-y: auto;
+    }
+
+    .app-sidebar.mobile-open {
+        transform: translateX(0);
+    }
+
+    /* Sticky Top Bar on Mobile */
+    .app-navbar {
+        padding: 0 16px;
+        height: 56px;
+        gap: 12px;
+    }
+
+    .navbar-left {
+        gap: 0;
+    }
+
+    .navbar-center {
+        max-width: 100%;
+    }
+
+    .navbar-right {
+        gap: 10px;
+    }
+
+    .mobile-only-btn {
+        display: flex !important;
+    }
+
+    .navbar-history-arrows {
+        display: none !important;
+    }
+
+    .navbar-search-box {
+        width: 100% !important;
+    }
+
+    /* Bottom Navigation Bar (3-tab layout) */
+    .mobile-bottom-nav {
+        display: flex !important;
+        height: calc(56px + env(safe-area-inset-bottom, 0px)) !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    }
+
+    /* Floating Mini Player above Bottom Navigation */
+    .app-footer-player {
+        bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 6px);
+        left: 8px;
+        right: 8px;
+        height: 56px;
+        border-radius: 8px;
+        background-color: #282828;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+        border: none;
+        padding: 0 10px;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .mobile-mini-progressbar {
+        display: block !important;
+    }
+
+    .player-left-section {
+        width: auto !important;
+        min-width: 0 !important;
+        flex: 1;
+        gap: 10px;
+    }
+
+    .player-track-title {
+        font-size: 13px;
+    }
+
+    .player-track-artist {
+        font-size: 11px;
+    }
+
+    .player-actions-desktop {
+        display: none !important;
+    }
+
+    .player-center-section {
+        display: none !important;
+    }
+
+    .desktop-volume-controls {
+        display: none !important;
+    }
+
+    .player-right-section {
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    .mobile-mini-controls {
+        display: flex !important;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Mobile Track Rows: Clean Title/Artist + Actions */
+    .app-table-header {
+        display: none !important;
+    }
+
+    .app-table-row {
+        grid-template-columns: 1fr auto !important;
+        padding: 8px 10px !important;
+    }
+
+    .songrow-col-index {
+        display: none !important;
+    }
+
+    .songrow-col-album,
+    .songrow-col-date {
+        display: none !important;
+    }
+
+    .songrow-col-duration {
+        padding-right: 0 !important;
+    }
+
+    /* Mobile Playlist Page */
+    .playlist-hero-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 24px 16px 16px;
+        gap: 14px;
+    }
+
+    .playlist-cover-box {
+        width: 148px;
+        height: 148px;
+    }
+
+    .playlist-meta-details {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .playlist-title {
+        font-size: 26px;
+        margin: 4px 0;
+    }
+
+    .playlist-action-bar {
+        padding: 12px 14px 6px !important;
+    }
+
+    .playlist-tracklist-container {
+        padding: 0 8px !important;
+    }
+
+    /* Mobile Home & Search Views */
+    .home-page-container {
+        padding: 12px 14px 120px;
+    }
+
+    .home-quick-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .home-song-grid {
+        grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+        gap: 8px;
+    }
+
+    .app-music-card {
+        padding: 8px !important;
+        border-radius: 6px;
+    }
+
+    .app-music-card .card-song-title {
+        font-size: 12px !important;
+    }
+
+    .app-music-card .card-song-artist {
+        font-size: 11px !important;
+    }
+
+    .app-music-card .play-button-overlay {
+        display: none !important;
+    }
+
+    .search-page-container {
+        padding: 14px 14px 120px;
+    }
+
+    .search-top-results-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .search-categories-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .admin-page-container {
+        padding: 14px 14px 120px;
+    }
+
+    .admin-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

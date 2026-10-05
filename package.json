@@ -1,0 +1,28 @@
+{
+    "name": "music-cloud",
+    "version": "0.1.0",
+    "private": true,
+    "packageManager": "npm@11.19.1",
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "scripts": {
+        "dev": "concurrently -n \"api,web,worker\" -c \"blue,green,magenta\" \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:worker\"",
+        "dev:turbo": "turbo run dev --parallel",
+        "dev:api": "npm run dev --workspace=@music-cloud/api",
+        "dev:web": "npm run dev --workspace=@music-cloud/web",
+        "dev:worker": "npm run dev --workspace=@music-cloud/edge-worker",
+        "build": "turbo run build",
+        "lint": "turbo run lint",
+        "test": "turbo run test",
+        "typecheck": "turbo run typecheck",
+        "clean": "turbo run clean && rm -rf node_modules",
+        "docker:build:api": "npm run docker:build --workspace=@music-cloud/api",
+        "docker:run:api": "npm run docker:run --workspace=@music-cloud/api"
+    },
+    "devDependencies": {
+        "concurrently": "^9.1.2",
+        "turbo": "^2.4.4"
+    }
+}

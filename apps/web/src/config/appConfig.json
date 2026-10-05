@@ -1,0 +1,24 @@
+{
+    "streaming": {
+        "token_refresh_margin_ms": 600000,
+        "token_fallback_lifetime_ms": 14400000,
+        "token_refresh_check_interval_ms": 60000
+    },
+    "player": {
+        "default_volume": 1.0,
+        "max_buffer_ahead_segments": 5,
+        "back_buffer_length_seconds": 600,
+        "default_target_duration_seconds": 10,
+        "seek_step_seconds": 5
+    },
+    "ui": {
+        "toast_auto_dismiss_ms": 4000,
+        "search_debounce_ms": 250,
+        "infinite_scroll_page_size": 30,
+        "localStorage_keys": {
+            "player_state": "music_cloud_player_state",
+            "session_token": "mc_session_token",
+            "stream_token": "mc_stream_token"
+        }
+    }
+}

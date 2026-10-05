@@ -1,0 +1,21 @@
+{
+	"name": "@music-cloud/edge-worker",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"test": "vitest run --passWithNoTests"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-plugin": "^1.0.0",
+		"@music-cloud/tsconfig": "*",
+		"vitest": "~4.1.0",
+		"wrangler": "^4.147.0"
+	},
+	"dependencies": {
+		"@music-cloud/types": "*",
+		"jose": "^6.2.12"
+	}
+}

@@ -1,0 +1,20 @@
+# Python & Virtual Environments
+.venv/
+__pycache__/
+*.py[oc]
+*.pyo
+.pytest_cache/
+
+# Local Environment Secrets & Overrides
+.env
+.env.*
+!.env.example
+
+# Temporary audio scratch directory
+tmp/
+
+# Logs & System
+*.log
+.DS_Store
+.idea/
+.vscode/

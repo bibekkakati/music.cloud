@@ -1,0 +1,15 @@
+{
+  "name": "@music-cloud/tsconfig",
+  "version": "0.1.0",
+  "private": true,
+  "tsconfig": "./base.json",
+  "files": [
+    "base.json"
+  ],
+  "exports": {
+    ".": "./base.json",
+    "./base.json": "./base.json",
+    "./base": "./base.json",
+    "./*": "./*"
+  }
+}
