@@ -54,7 +54,9 @@ export const AdminPage: React.FC = () => {
         null,
     );
     const [editingSong, setEditingSong] = useState<SongDetail | null>(null);
-    const [reprocessingSongIds, setReprocessingSongIds] = useState<Set<string>>(new Set());
+    const [reprocessingSongIds, setReprocessingSongIds] = useState<Set<string>>(
+        new Set(),
+    );
     const [editTitle, setEditTitle] = useState("");
     const [editArtist, setEditArtist] = useState("");
     const [editIsPublic, setEditIsPublic] = useState(true);
@@ -71,8 +73,8 @@ export const AdminPage: React.FC = () => {
             setSongs(data);
         } catch (err: unknown) {
             const msg =
-                (err as { response?: { data?: { detail?: string } } })
-                    ?.response?.data?.detail || "Failed to load songs";
+                (err as { response?: { data?: { detail?: string } } })?.response
+                    ?.data?.detail || "Failed to load songs";
             showToast("Catalog Error", "error", msg);
         } finally {
             setLoadingSongs(false);
@@ -207,16 +209,27 @@ export const AdminPage: React.FC = () => {
     };
 
     const handleReprocessSong = async (song: SongDetail) => {
-        const confirmed = window.confirm(
-            `Are you sure you want to reprocess "${song.title}"?\n\nThis will re-transcode and package all HLS renditions from the original master file.`
+        const input = window.prompt(
+            `Reprocess "${song.title}"\n\nEnter trim start seconds:`,
+            "0",
         );
-        if (!confirmed) return;
+        if (input === null) return; // User pressed Cancel
+
+        const trimSec = parseFloat(input.trim());
+        if (isNaN(trimSec) || trimSec < 0) {
+            showToast(
+                "Invalid Input",
+                "error",
+                "Trim start seconds must be a positive number or 0.",
+            );
+            return;
+        }
 
         try {
             setReprocessingSongIds((prev) => new Set(prev).add(song.id));
             await adminService.processSong({
                 song_id: song.id,
-                trim_start_sec: 0,
+                trim_start_sec: trimSec,
             });
 
             // Optimistically update song status in the list
@@ -229,7 +242,7 @@ export const AdminPage: React.FC = () => {
             showToast(
                 "Processing Triggered",
                 "success",
-                `Reprocessing queued for "${song.title}"`,
+                `Reprocessing queued for "${song.title}" (trim: ${trimSec}s)`,
             );
         } catch (err: unknown) {
             const msg =
@@ -1206,7 +1219,8 @@ export const AdminPage: React.FC = () => {
                                     {songs.map((song) => {
                                         const isPrivateAndDone =
                                             song.is_public === false &&
-                                            song.status?.toLowerCase() === "done";
+                                            song.status?.toLowerCase() ===
+                                                "done";
                                         return (
                                             <tr
                                                 key={song.id}
@@ -1460,7 +1474,8 @@ export const AdminPage: React.FC = () => {
                                                         padding: "12px 14px",
                                                     }}
                                                 >
-                                                    {song.is_public !== false ? (
+                                                    {song.is_public !==
+                                                    false ? (
                                                         <span
                                                             style={{
                                                                 fontSize: 11,
@@ -1654,7 +1669,9 @@ export const AdminPage: React.FC = () => {
                                                                     className="animate-spin"
                                                                 />
                                                             ) : (
-                                                                <RotateCw size={15} />
+                                                                <RotateCw
+                                                                    size={15}
+                                                                />
                                                             )}
                                                         </button>
                                                     </div>
