@@ -614,6 +614,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                         },
                         enableWorker: true,
                         lowLatencyMode: false,
+                        // Always start safely at lowest bitrate (Level 0, e.g. 256k) to guarantee
+                        // instant playback and eliminate buffering stalls on cold/degraded network.
+                        // ABR will dynamically upgrade to 320k once throughput is verified.
+                        startLevel: 0,
                         // Progressive loading: buffer segments ahead
                         maxBufferLength:
                             appConfig.player.default_target_duration_seconds *
