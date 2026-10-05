@@ -1,5 +1,15 @@
 import { jwtVerify } from "jose";
 
+// Segment Sliding Cache Constants (12h initial, extend by 6h if remaining TTL < 6h)
+const SEGMENT_DEFAULT_TTL_SECONDS = 12 * 3600; // 12 hours (43,200s)
+const SEGMENT_EXTEND_THRESHOLD_SECONDS = 6 * 3600; // 6 hours (21,600s)
+const SEGMENT_EXTENSION_SECONDS = 6 * 3600; // 6 hours (21,600s)
+
+// Cover Art Sliding Cache Constants (24h initial, extend by 12h if remaining TTL < 12h)
+const COVER_ART_DEFAULT_TTL_SECONDS = 24 * 3600; // 24 hours (86,400s)
+const COVER_ART_EXTEND_THRESHOLD_SECONDS = 12 * 3600; // 12 hours (43,200s)
+const COVER_ART_EXTENSION_SECONDS = 12 * 3600; // 12 hours (43,200s)
+
 // 1. In-memory cache for playlists (.m3u8 files are ~1-2KB, perfectly suited for RAM)
 // Cloudflare Worker isolates keep globals warm across subsequent requests.
 const memoryPlaylistCache = new Map();
@@ -175,6 +185,18 @@ export default {
 						});
 					}
 
+					// Sliding TTL for audio segments:
+					// Default is 12h. If requested by user and remaining TTL < 6h, extend TTL by 6h.
+					if (isSegment && ctx?.waitUntil) {
+						ctx.waitUntil(maybeExtendSegmentCache(cacheKey, cachedResponse, cache));
+					}
+
+					// Sliding TTL for cover art / static images:
+					// Default is 24h. If requested by user and remaining TTL < 12h, extend TTL by 12h.
+					if (isStaticAsset && ctx?.waitUntil) {
+						ctx.waitUntil(maybeExtendCoverArtCache(cacheKey, cachedResponse, cache));
+					}
+
 					return new Response(cachedResponse.body, {
 						status: cachedResponse.status,
 						headers: cachedHeaders,
@@ -224,23 +246,27 @@ export default {
 
 		// Set caching and Content-Type directives based on media type
 		if (isStaticAsset) {
-			// Static assets (Cover Art / Images): Aggressive immutable caching (1 year)
+			// Cover Art & Images: 24-hour sliding TTL (extends by +12h on access when remaining < 12h)
 			const detectedType = getImageContentType(objectKey);
 			if (!headers.has("Content-Type") || headers.get("Content-Type") === "application/octet-stream") {
 				headers.set("Content-Type", detectedType);
 			}
+			const expiresAt = Date.now() + COVER_ART_DEFAULT_TTL_SECONDS * 1000;
 			headers.set(
 				"Cache-Control",
-				"public, max-age=31536000, s-maxage=31536000, immutable"
+				`public, max-age=${COVER_ART_DEFAULT_TTL_SECONDS}, s-maxage=${COVER_ART_DEFAULT_TTL_SECONDS}`
 			);
+			headers.set("X-Cache-Expires-At", String(expiresAt));
 		} else if (isPlaylist) {
 			headers.set("Content-Type", "application/vnd.apple.mpegurl");
 			headers.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
 		} else if (isSegment) {
+			const expiresAt = Date.now() + SEGMENT_DEFAULT_TTL_SECONDS * 1000;
 			headers.set(
 				"Cache-Control",
-				"public, max-age=31536000, s-maxage=31536000, immutable"
+				`public, max-age=${SEGMENT_DEFAULT_TTL_SECONDS}, s-maxage=${SEGMENT_DEFAULT_TTL_SECONDS}`
 			);
+			headers.set("X-Cache-Expires-At", String(expiresAt));
 		}
 
 		// 5. If playlist, read text, populate memory cache, and trigger background preloading
@@ -315,49 +341,148 @@ export default {
  * - If media playlist: pre-fetches the first segment (seg_000.ts) into edge cache
  * This ensures that by the time the browser requests them, they are already warm in Edge Cache!
  */
+/**
+ * Sliding TTL Helper for Audio Segments:
+ * - Default TTL is 12 hours.
+ * - When a user requests an existing segment from cache and remaining TTL < 6 hours,
+ *   we extend the TTL by 6 hours.
+ */
+async function maybeExtendSegmentCache(cacheKey, cachedResponse, cache) {
+	try {
+		const expiresHeader = cachedResponse.headers.get("X-Cache-Expires-At");
+		const now = Date.now();
+		let remainingMs = 0;
+
+		if (expiresHeader) {
+			const expiresAt = parseInt(expiresHeader, 10);
+			remainingMs = expiresAt - now;
+		}
+
+		// If remaining TTL is less than 6 hours (or expired header), extend by 6 hours
+		if (remainingMs < SEGMENT_EXTEND_THRESHOLD_SECONDS * 1000) {
+			const newTtlSeconds = Math.max(
+				SEGMENT_EXTENSION_SECONDS,
+				Math.floor(remainingMs / 1000) + SEGMENT_EXTENSION_SECONDS
+			);
+			const newExpiresAt = now + newTtlSeconds * 1000;
+
+			const newHeaders = new Headers(cachedResponse.headers);
+			newHeaders.set("Cache-Control", `public, max-age=${newTtlSeconds}, s-maxage=${newTtlSeconds}`);
+			newHeaders.set("X-Cache-Expires-At", String(newExpiresAt));
+
+			// Re-save in Cloudflare Edge Cache with updated TTL
+			await cache.put(
+				cacheKey,
+				new Response(cachedResponse.body, {
+					status: cachedResponse.status,
+					headers: newHeaders,
+				})
+			);
+		}
+	} catch (e) {
+		// Silent best-effort
+	}
+}
+
+/**
+ * Sliding TTL Helper for Cover Art & Images:
+ * - Default TTL is 24 hours.
+ * - When a user requests an existing cover art from cache and remaining TTL < 12 hours,
+ *   we extend the TTL by 12 hours.
+ */
+async function maybeExtendCoverArtCache(cacheKey, cachedResponse, cache) {
+	try {
+		const expiresHeader = cachedResponse.headers.get("X-Cache-Expires-At");
+		const now = Date.now();
+		let remainingMs = 0;
+
+		if (expiresHeader) {
+			const expiresAt = parseInt(expiresHeader, 10);
+			remainingMs = expiresAt - now;
+		}
+
+		// If remaining TTL is less than 12 hours (or expired header), extend by 12 hours
+		if (remainingMs < COVER_ART_EXTEND_THRESHOLD_SECONDS * 1000) {
+			const newTtlSeconds = Math.max(
+				COVER_ART_EXTENSION_SECONDS,
+				Math.floor(remainingMs / 1000) + COVER_ART_EXTENSION_SECONDS
+			);
+			const newExpiresAt = now + newTtlSeconds * 1000;
+
+			const newHeaders = new Headers(cachedResponse.headers);
+			newHeaders.set("Cache-Control", `public, max-age=${newTtlSeconds}, s-maxage=${newTtlSeconds}`);
+			newHeaders.set("X-Cache-Expires-At", String(newExpiresAt));
+
+			// Re-save in Cloudflare Edge Cache with updated TTL
+			await cache.put(
+				cacheKey,
+				new Response(cachedResponse.body, {
+					status: cachedResponse.status,
+					headers: newHeaders,
+				})
+			);
+		}
+	} catch (e) {
+		// Silent best-effort
+	}
+}
+
+/**
+ * Background preloader:
+ * - If master playlist: pre-fetches ALL variant playlists (e.g. 256k & 320k) and segment 0 for each variant
+ * - If media playlist: pre-fetches the first segment (seg_000.ts) into edge cache
+ * Ensures instant near-zero latency playback whether user requests 256k or 320k!
+ */
 async function preloadPlaylistTargets(objectKey, playlistText, origin, env) {
 	try {
 		const cache = caches.default;
 		const basePath = objectKey.substring(0, objectKey.lastIndexOf("/") + 1);
 
-		// Case A: Multivariant / Master playlist
+		// Case A: Multivariant / Master playlist -> Preload ALL variants & their segment 0
 		if (playlistText.includes("#EXT-X-STREAM-INF")) {
 			const lines = playlistText.split("\n");
-			let firstVariantRel = null;
+			const variantPaths = [];
+
 			for (let i = 0; i < lines.length; i++) {
 				const line = lines[i].trim();
 				if (line.startsWith("#EXT-X-STREAM-INF") && i + 1 < lines.length) {
-					firstVariantRel = lines[i + 1].trim();
-					break;
+					const relPath = lines[i + 1].trim();
+					if (relPath && !relPath.startsWith("#")) {
+						variantPaths.push(relPath);
+					}
 				}
 			}
 
-			if (firstVariantRel && !firstVariantRel.startsWith("#")) {
-				const variantKey = basePath + firstVariantRel;
-				const variantCacheKey = new Request(`${origin}/${encodeURIComponent(variantKey)}`, { method: "GET" });
+			if (variantPaths.length > 0) {
+				await Promise.allSettled(
+					variantPaths.map(async (variantRel) => {
+						const variantKey = basePath + variantRel;
+						const variantCacheKey = new Request(`${origin}/${encodeURIComponent(variantKey)}`, { method: "GET" });
 
-				let variantObj = await cache.match(variantCacheKey);
-				let variantText = "";
-				if (variantObj) {
-					variantText = await variantObj.text();
-				} else {
-					const r2Obj = await env.R2_BUCKET.get(variantKey);
-					if (r2Obj) {
-						variantText = await r2Obj.text();
-						setToMemoryCache(variantKey, variantText);
+						let variantObj = await cache.match(variantCacheKey);
+						let variantText = "";
+						if (variantObj) {
+							variantText = await variantObj.text();
+						} else {
+							const r2Obj = await env.R2_BUCKET.get(variantKey);
+							if (r2Obj) {
+								variantText = await r2Obj.text();
+								setToMemoryCache(variantKey, variantText);
 
-						const vHeaders = new Headers();
-						r2Obj.writeHttpMetadata(vHeaders);
-						vHeaders.set("Content-Type", "application/vnd.apple.mpegurl");
-						vHeaders.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
-						vHeaders.set("Access-Control-Allow-Origin", "*");
-						await cache.put(variantCacheKey, new Response(variantText, { status: 200, headers: vHeaders }));
-					}
-				}
+								const vHeaders = new Headers();
+								r2Obj.writeHttpMetadata(vHeaders);
+								vHeaders.set("Content-Type", "application/vnd.apple.mpegurl");
+								vHeaders.set("Cache-Control", "public, max-age=3600, s-maxage=86400");
+								vHeaders.set("Access-Control-Allow-Origin", "*");
+								await cache.put(variantCacheKey, new Response(variantText, { status: 200, headers: vHeaders }));
+							}
+						}
 
-				if (variantText) {
-					await preloadFirstSegmentFromMediaPlaylist(variantKey, variantText, origin, env);
-				}
+						if (variantText) {
+							await preloadFirstSegmentFromMediaPlaylist(variantKey, variantText, origin, env);
+						}
+					})
+				);
 			}
 			return;
 		}
@@ -393,15 +518,20 @@ async function preloadFirstSegmentFromMediaPlaylist(playlistKey, playlistText, o
 		const existing = await cache.match(segCacheKey);
 		if (existing) return;
 
-		// Pull segment into Edge Cache
+		// Pull segment into Edge Cache with 12h initial TTL
 		const segObject = await env.R2_BUCKET.get(segmentKey);
 		if (!segObject) return;
 
+		const expiresAt = Date.now() + SEGMENT_DEFAULT_TTL_SECONDS * 1000;
 		const segHeaders = new Headers();
 		segObject.writeHttpMetadata(segHeaders);
-		segHeaders.set("ETag", segObject.httpEtag);
+		if (segObject.httpEtag) segHeaders.set("ETag", segObject.httpEtag);
 		segHeaders.set("Accept-Ranges", "bytes");
-		segHeaders.set("Cache-Control", "public, max-age=31536000, s-maxage=31536000, immutable");
+		segHeaders.set(
+			"Cache-Control",
+			`public, max-age=${SEGMENT_DEFAULT_TTL_SECONDS}, s-maxage=${SEGMENT_DEFAULT_TTL_SECONDS}`
+		);
+		segHeaders.set("X-Cache-Expires-At", String(expiresAt));
 		segHeaders.set("Access-Control-Allow-Origin", "*");
 
 		await cache.put(
