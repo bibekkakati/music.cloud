@@ -110,7 +110,7 @@ export default {
 		const meta = buildMeta(object, info);
 
 		// Range response (audio only): serve 206 now, warm the full file for next time
-		if (object.range) {
+		if (range && object.range) {
 			const { offset, length } = object.range;
 			const h = withCors(meta, cors, "MISS-RANGE");
 			h.set("Content-Range", `bytes ${offset}-${offset + length - 1}/${object.size}`);

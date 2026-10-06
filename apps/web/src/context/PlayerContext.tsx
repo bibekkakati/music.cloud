@@ -1025,6 +1025,198 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         [isAuthenticated, showToast],
     );
 
+    // =========================================================================
+    // System-level Media Session Integration (macOS Control Center / Top Bar,
+    // Windows SMTC, Android/iOS Lock Screen & Media Keys)
+    // =========================================================================
+
+    // 1. Synchronize Metadata (Track Title, Artist, Album, Cover Art)
+    useEffect(() => {
+        if (!("mediaSession" in navigator)) return;
+
+        if (!currentSong) {
+            navigator.mediaSession.metadata = null;
+            return;
+        }
+
+        let isCancelled = false;
+        let createdBlobUrl: string | null = null;
+
+        const defaultFallbackArtwork: MediaImage[] = [
+            {
+                src: new URL("/logo-512.png", window.location.origin).href,
+                sizes: "512x512",
+                type: "image/png",
+            },
+            {
+                src: new URL("/logo-192.png", window.location.origin).href,
+                sizes: "192x192",
+                type: "image/png",
+            },
+        ];
+
+        const setMetadata = (artwork: MediaImage[]) => {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: currentSong.title,
+                artist: currentSong.artist || "Unknown Artist",
+                album: (currentSong as { album?: string }).album || "Music Cloud",
+                artwork,
+            });
+        };
+
+        if (currentSong.cover_art_url) {
+            const absoluteCoverUrl = currentSong.cover_art_url.startsWith("http")
+                ? currentSong.cover_art_url
+                : new URL(currentSong.cover_art_url, window.location.origin).href;
+
+            // Initial metadata with direct URL and multiple standard sizes
+            const initialArtwork: MediaImage[] = [
+                { src: absoluteCoverUrl, sizes: "512x512" },
+                { src: absoluteCoverUrl, sizes: "384x384" },
+                { src: absoluteCoverUrl, sizes: "256x256" },
+                { src: absoluteCoverUrl, sizes: "192x192" },
+                { src: absoluteCoverUrl, sizes: "128x128" },
+                { src: absoluteCoverUrl, sizes: "96x96" },
+            ];
+            setMetadata(initialArtwork);
+
+            // Fetch the image to create a local in-memory Blob URL and base64 Data URL.
+            // Chrome on macOS requires in-memory image bytes to reliably pass MPMediaItemArtwork
+            // to macOS Now Playing without network/CORS/Range-header failures.
+            fetch(absoluteCoverUrl)
+                .then((res) => {
+                    if (!res.ok && res.status !== 206) {
+                        throw new Error(`Failed to fetch cover art: ${res.status}`);
+                    }
+                    return res.blob();
+                })
+                .then((blob) => {
+                    if (isCancelled) return;
+                    createdBlobUrl = URL.createObjectURL(blob);
+                    const mimeType = blob.type || "image/jpeg";
+
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        if (isCancelled) return;
+                        const dataUrl = reader.result as string;
+                        setMetadata([
+                            { src: dataUrl, sizes: "512x512", type: mimeType },
+                            { src: createdBlobUrl!, sizes: "512x512", type: mimeType },
+                            { src: dataUrl, sizes: "256x256", type: mimeType },
+                            { src: createdBlobUrl!, sizes: "256x256", type: mimeType },
+                            { src: absoluteCoverUrl, sizes: "512x512", type: mimeType },
+                        ]);
+                    };
+                    reader.readAsDataURL(blob);
+                })
+                .catch((err) => {
+                    console.warn("MediaSession in-memory artwork load:", err);
+                });
+        } else {
+            setMetadata(defaultFallbackArtwork);
+        }
+
+        return () => {
+            isCancelled = true;
+            if (createdBlobUrl) {
+                URL.revokeObjectURL(createdBlobUrl);
+            }
+        };
+    }, [currentSong]);
+
+    // 2. Synchronize Web Page Title (reflect current song title in browser tab)
+    useEffect(() => {
+        const DEFAULT_TITLE = "Music Cloud | Private Streaming";
+        if (currentSong) {
+            const artistPart = currentSong.artist ? ` • ${currentSong.artist}` : "";
+            document.title = `${currentSong.title}${artistPart}`;
+        } else {
+            document.title = DEFAULT_TITLE;
+        }
+    }, [currentSong]);
+
+    // 2. Synchronize Playback State (Playing vs Paused)
+    useEffect(() => {
+        if (!("mediaSession" in navigator)) return;
+        navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
+    }, [isPlaying]);
+
+    // 3. Synchronize Position State (Timeline scrubber in OS widgets)
+    useEffect(() => {
+        if (
+            !("mediaSession" in navigator) ||
+            !("setPositionState" in navigator.mediaSession) ||
+            !currentSong ||
+            duration <= 0 ||
+            isNaN(duration) ||
+            isNaN(currentTime)
+        ) {
+            return;
+        }
+
+        try {
+            navigator.mediaSession.setPositionState({
+                duration: Math.max(duration, 0),
+                playbackRate: audioRef.current?.playbackRate || 1,
+                position: Math.max(0, Math.min(currentTime, duration)),
+            });
+        } catch {
+            // Guard against temporary invalid state during rapid track switches
+        }
+    }, [currentTime, duration, currentSong]);
+
+    // 4. Bind Hardware Media Key & System Player Actions (Play, Pause, Next, Prev, Seek)
+    useEffect(() => {
+        if (!("mediaSession" in navigator)) return;
+
+        const actionHandlers: [MediaSessionAction, MediaSessionActionHandler | null][] = [
+            ["play", () => togglePlay()],
+            ["pause", () => togglePlay()],
+            ["previoustrack", () => handlePrev()],
+            ["nexttrack", () => handleNext()],
+            [
+                "seekto",
+                (details) => {
+                    if (details.seekTime !== undefined) {
+                        seek(details.seekTime);
+                    }
+                },
+            ],
+            [
+                "seekforward",
+                (details) => {
+                    const cur = audioRef.current?.currentTime || currentTimeRef.current;
+                    seek(Math.min(cur + (details.seekOffset || 10), durationRef.current));
+                },
+            ],
+            [
+                "seekbackward",
+                (details) => {
+                    const cur = audioRef.current?.currentTime || currentTimeRef.current;
+                    seek(Math.max(cur - (details.seekOffset || 10), 0));
+                },
+            ],
+        ];
+
+        actionHandlers.forEach(([action, handler]) => {
+            try {
+                navigator.mediaSession.setActionHandler(action, handler);
+            } catch {
+                // Unsupported in some browsers
+            }
+        });
+
+        return () => {
+            actionHandlers.forEach(([action]) => {
+                try {
+                    navigator.mediaSession.setActionHandler(action, null);
+                } catch {
+                    // Ignore cleanup error
+                }
+            });
+        };
+    }, [togglePlay, handlePrev, handleNext, seek]);
+
     return (
         <PlayerContext.Provider
             value={{
