@@ -85,6 +85,13 @@ export interface SongMetadataUpdatePayload {
   title: string;
   artist: string;
   is_public?: boolean;
+  cover_art_key?: string | null;
+}
+
+export interface CoverArtUploadResponse {
+  song_id: string;
+  url: string;
+  key: string;
 }
 
 export interface SongVisibilityUpdatePayload {

@@ -49,11 +49,22 @@ class SongProcessRequestPayload(BaseModel):
     trim_start_sec: float = 0.0
 
 
+class CoverArtUploadResponsePayload(BaseModel):
+    song_id: str
+    url: str
+    key: str
+
+
+class CoverArtUpdateRequestPayload(BaseModel):
+    cover_art_key: str
+
+
 class SongMetaDataUpdateRequestPayload(BaseModel):
     song_id: str
     title: str
-    artist: str
+    artist: str = "Unknown"
     is_public: bool | None = None
+    cover_art_key: str | None = None
 
 
 class SongVisibilityUpdateRequestPayload(BaseModel):

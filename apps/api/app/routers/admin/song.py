@@ -8,6 +8,8 @@ from app.infra.database import DatabaseSession
 from app.models.song import Song
 from app.schemas.song import (
     AdminSongResponsePayload,
+    CoverArtUpdateRequestPayload,
+    CoverArtUploadResponsePayload,
     SongMetaDataUpdateRequestPayload,
     SongProcessRequestPayload,
     SongUploadResponsePayload,
@@ -28,6 +30,13 @@ SUPPORTED_CONTENT_TYPES = [
     "audio/webm",
 ]
 SUPPORTED_FORMATS = ["mp3", "aac", "flac", "wav"]
+SUPPORTED_COVER_ART_CONTENT_TYPES = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+]
+SUPPORTED_COVER_ART_FORMATS = ["jpg", "jpeg", "png", "webp"]
 
 
 @router.get(
@@ -200,19 +209,106 @@ def update_song_metadata(
     if not payload.title:
         raise HTTPException(status_code=400, detail="Title is required")
 
-    if not payload.artist:
-        raise HTTPException(status_code=400, detail="Artist is required")
-
     song_service = SongService(db)
     try:
         song = song_service.update_song_metadata(
-            payload.song_id, payload.title, payload.artist, payload.is_public
+            payload.song_id,
+            payload.title,
+            payload.artist,
+            payload.is_public,
+            payload.cover_art_key,
         )
         cover_art_url = song_service.get_cover_art_url(song.cover_art_key)
         if song.is_public:
             song_search.update_song(song, cover_art_url)
         else:
             song_search.remove_song(str(song.id))
+        return AdminSongResponsePayload(
+            **song.model_dump(),
+            cover_art_url=cover_art_url,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.get(
+    "/{song_id}/cover-art/upload-url",
+    response_model=CoverArtUploadResponsePayload,
+    summary="Request a presigned URL to upload song cover art",
+    status_code=status.HTTP_200_OK,
+)
+def get_cover_art_upload_url(
+    song_id: Annotated[str, Path(..., title="Song ID")],
+    extension: Annotated[str, Query(..., title="File extension (jpg, png, webp)")],
+    content_type: Annotated[str, Query(..., title="Content type (image/jpeg, etc.)")],
+    user: AdminUser,
+    db: DatabaseSession,
+):
+    """
+    Returns a pre-signed S3/R2 URL for uploading song cover art.
+    Key follows the format: cover_art/{song_id}.{extension}
+    """
+    norm_content_type = content_type.lower().strip()
+    norm_ext = extension.lstrip(".").lower().strip()
+
+    if norm_content_type not in SUPPORTED_COVER_ART_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported cover art content type. Allowed: {', '.join(SUPPORTED_COVER_ART_CONTENT_TYPES)}",
+        )
+
+    if norm_ext not in SUPPORTED_COVER_ART_FORMATS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported cover art format. Allowed: {', '.join(SUPPORTED_COVER_ART_FORMATS)}",
+        )
+
+    song_service = SongService(db)
+    try:
+        return song_service.get_cover_art_upload_url(
+            song_id, norm_ext, norm_content_type
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="Song not found") from e
+
+
+@router.get(
+    "/cover-art/upload/url",
+    response_model=CoverArtUploadResponsePayload,
+    summary="Request a presigned URL to upload song cover art (query parameter)",
+    status_code=status.HTTP_200_OK,
+)
+def get_cover_art_upload_url_by_query(
+    song_id: Annotated[str, Query(..., title="Song ID")],
+    extension: Annotated[str, Query(..., title="File extension (jpg, png, webp)")],
+    content_type: Annotated[str, Query(..., title="Content type (image/jpeg, etc.)")],
+    user: AdminUser,
+    db: DatabaseSession,
+):
+    return get_cover_art_upload_url(song_id, extension, content_type, user, db)
+
+
+@router.put(
+    "/{song_id}/cover-art",
+    response_model=AdminSongResponsePayload,
+    summary="Update song cover art key directly",
+    status_code=status.HTTP_200_OK,
+)
+def update_song_cover_art(
+    song_id: Annotated[str, Path(..., title="Song ID")],
+    payload: Annotated[CoverArtUpdateRequestPayload, Body(..., embed=True)],
+    user: AdminUser,
+    db: DatabaseSession,
+) -> AdminSongResponsePayload:
+    if not payload.cover_art_key:
+        raise HTTPException(status_code=400, detail="cover_art_key is required")
+
+    song_service = SongService(db)
+    try:
+        song = song_service.update_song_cover_art(song_id, payload.cover_art_key)
+        cover_art_url = song_service.get_cover_art_url(song.cover_art_key)
+        if song.is_public:
+            song_search.update_song(song, cover_art_url)
         return AdminSongResponsePayload(
             **song.model_dump(),
             cover_art_url=cover_art_url,

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import logging
 from uuid import UUID, uuid7
 
@@ -7,7 +8,7 @@ from app.core.config import settings
 from app.infra.mq import queue
 from app.models.song import Song, SongProcessingStatus
 from app.models.user import User
-from app.schemas.song import SongUploadResponsePayload
+from app.schemas.song import CoverArtUploadResponsePayload, SongUploadResponsePayload
 from app.services.storage import storage
 
 logger = logging.getLogger("uvicorn.error")
@@ -125,7 +126,9 @@ class SongService:
         song_id = str(song.id)
 
         url = storage.generate_presigned_upload_url(
-            key=original_key, content_type=content_type
+            key=original_key,
+            content_type=content_type,
+            expires_in=settings.config.storage.presigned_upload_expiry_seconds,
         )
         return SongUploadResponsePayload(id=song_id, url=url, key=original_key)
 
@@ -148,11 +151,61 @@ class SongService:
 
         return song
 
-    def update_song_metadata(
-        self, song_id: str, title: str, artist: str, is_public: bool | None = None
+    def get_cover_art_upload_url(
+        self,
+        song_id: str,
+        extension: str,
+        content_type: str,
+    ) -> CoverArtUploadResponsePayload:
+        """
+        Generates a pre-signed S3/R2 PUT URL for uploading song cover art.
+        Key format: cover_art/{song_id}.{extension} (standard format used across system).
+        """
+        song = self.get_song(song_id)
+        ext = extension.lstrip(".").lower()
+        if ext == "jpeg":
+            ext = "jpg"
+        cover_art_key = f"{settings.config.storage.cover_art_folder}/{song.id}.{ext}"
+
+        url = storage.generate_presigned_upload_url(
+            key=cover_art_key,
+            content_type=content_type,
+            expires_in=settings.config.storage.presigned_upload_expiry_seconds,
+        )
+        return CoverArtUploadResponsePayload(
+            song_id=str(song.id),
+            url=url,
+            key=cover_art_key,
+        )
+
+    def update_song_cover_art(
+        self,
+        song_id: str,
+        cover_art_key: str,
     ) -> Song:
         """
-        Updates the metadata of a song.
+        Updates the cover_art_key of a song.
+        """
+        song = self.get_song(song_id)
+        song.cover_art_key = cover_art_key
+        song.updated_at = datetime.now(timezone.utc)
+
+        self.db.add(song)
+        self.db.commit()
+        self.db.refresh(song)
+
+        return song
+
+    def update_song_metadata(
+        self,
+        song_id: str,
+        title: str,
+        artist: str,
+        is_public: bool | None = None,
+        cover_art_key: str | None = None,
+    ) -> Song:
+        """
+        Updates the metadata of a song, optionally including cover art key.
         """
         song = self.get_song(song_id)
 
@@ -160,6 +213,9 @@ class SongService:
         song.artist = artist
         if is_public is not None:
             song.is_public = is_public
+        if cover_art_key is not None:
+            song.cover_art_key = cover_art_key
+        song.updated_at = datetime.now(timezone.utc)
 
         self.db.add(song)
         self.db.commit()

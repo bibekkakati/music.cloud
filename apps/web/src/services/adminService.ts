@@ -5,6 +5,7 @@ import type {
   SongUploadResponse,
   SongProcessPayload,
   SongMetadataUpdatePayload,
+  CoverArtUploadResponse,
 } from '../types';
 
 export interface GetUploadUrlParams {
@@ -12,6 +13,12 @@ export interface GetUploadUrlParams {
   content_type: string;
   title: string;
   artist: string;
+}
+
+export interface GetCoverArtUploadUrlParams {
+  songId: string;
+  extension: string;
+  contentType: string;
 }
 
 export const adminService = {
@@ -86,6 +93,48 @@ export const adminService = {
         is_public: isPublic,
       },
     });
+    return response.data;
+  },
+
+  getCoverArtUploadUrl: async (
+    params: GetCoverArtUploadUrlParams
+  ): Promise<CoverArtUploadResponse> => {
+    const response = await apiClient.get<CoverArtUploadResponse>(
+      `/api/v1/admin/song/${params.songId}/cover-art/upload-url`,
+      {
+        params: {
+          extension: params.extension,
+          content_type: params.contentType,
+        },
+      }
+    );
+    return response.data;
+  },
+
+  uploadCoverArtToPresignedUrl: async (
+    presignedUrl: string,
+    file: File,
+    contentType?: string
+  ): Promise<void> => {
+    await axios.put(presignedUrl, file, {
+      headers: {
+        'Content-Type': contentType || file.type || 'image/jpeg',
+      },
+    });
+  },
+
+  updateSongCoverArt: async (
+    songId: string,
+    coverArtKey: string
+  ): Promise<SongDetail> => {
+    const response = await apiClient.put<SongDetail>(
+      `/api/v1/admin/song/${songId}/cover-art`,
+      {
+        payload: {
+          cover_art_key: coverArtKey,
+        },
+      }
+    );
     return response.data;
   },
 };

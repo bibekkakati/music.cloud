@@ -458,6 +458,20 @@ body {
     animation: fadeIn 0.25s ease-out forwards;
 }
 
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 0.85s linear infinite;
+    transform-origin: center;
+}
+
 /* Toast Notification Styling */
 @keyframes toastSlideUp {
     from {

@@ -113,6 +113,41 @@ function getInitialStartLevel(): number {
     return -1;
 }
 
+/**
+ * Appends or updates the `token` query parameter on a stream URL.
+ */
+function appendTokenToUrl(rawUrl: string, token: string | null): string {
+    if (!token || !rawUrl) return rawUrl;
+    try {
+        const u = new URL(rawUrl, window.location.href);
+        u.searchParams.set("token", token);
+        return u.toString();
+    } catch {
+        const separator = rawUrl.includes("?") ? "&" : "?";
+        return `${rawUrl}${separator}token=${encodeURIComponent(token)}`;
+    }
+}
+
+/** Module-level active stream token reference for Hls.js loader */
+let activeStreamToken: string | null = null;
+
+/**
+ * Custom Hls.js loader that ensures every playlist and segment request includes
+ * the JWT stream token in URL query parameters (`?token=...`).
+ * By authenticating via query parameter rather than a custom `Authorization` HTTP header,
+ * all HLS segment fetches qualify as CORS "Simple Requests" (standard GET with no custom headers).
+ * This completely eliminates browser CORS preflight (OPTIONS) round-trips for every 10-second segment.
+ */
+const QueryTokenLoader = class extends (Hls.DefaultConfig.loader as any) {
+    load(context: any, config: any, callbacks: any) {
+        const token = activeStreamToken || streamService.getCurrentToken();
+        if (context?.url && token) {
+            context.url = appendTokenToUrl(context.url, token);
+        }
+        super.load(context, config, callbacks);
+    }
+} as unknown as typeof Hls.DefaultConfig.loader;
+
 interface PlayerContextValue {
     currentSong: PlayableSong | null;
     queue: PlayableSong[];
@@ -240,6 +275,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             hlsRef.current.destroy();
             hlsRef.current = null;
         }
+        activeStreamToken = null;
         setCurrentSong(null);
         setQueue([]);
         setIsPlaying(false);
@@ -525,6 +561,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         // Listen for background stream token renewals (at < 10 mins remaining)
         const unsubscribe = streamService.onTokenRenewed((newToken) => {
             setStreamToken(newToken);
+            activeStreamToken = newToken;
+            if (hlsRef.current) {
+                const currentLevel =
+                    hlsRef.current.levels?.[hlsRef.current.currentLevel];
+                if (currentLevel?.details?.fragments) {
+                    currentLevel.details.fragments.forEach((frag) => {
+                        if (frag.url) {
+                            frag.url = appendTokenToUrl(frag.url, newToken);
+                        }
+                    });
+                }
+            }
         });
 
         return () => {
@@ -643,6 +691,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 // Check if current stream token is expired or missing, request for a new token
                 const token = await streamService.getValidStreamToken();
                 setStreamToken(token);
+                activeStreamToken = token;
 
                 // Master stream URL prepared by backend when loading song list
                 const hlsStreamUrl =
@@ -658,7 +707,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
                 if (!audio) return;
 
-                // REQUIREMENT 3: Enable buffer retention so repeated playback uses local cached segments
+                const streamUrlWithToken = appendTokenToUrl(hlsStreamUrl, token);
+
+                // Enable buffer retention so repeated playback uses local cached segments
                 if (Hls.isSupported()) {
                     if (hlsRef.current) {
                         hlsRef.current.destroy();
@@ -668,13 +719,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     const initialStartLevel = getInitialStartLevel();
 
                     const hls = new Hls({
-                        xhrSetup: (xhr) => {
-                            xhr.withCredentials = true;
-                            xhr.setRequestHeader(
-                                "Authorization",
-                                `Bearer ${token}`,
-                            );
-                        },
+                        loader: QueryTokenLoader,
                         enableWorker: true,
                         lowLatencyMode: false,
                         // Prevent HLS.js from loading segment 0 at lowest bitrate (256k) as a "bitrate test"
@@ -712,7 +757,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     });
 
                     hlsRef.current = hls;
-                    hls.loadSource(hlsStreamUrl);
+                    hls.loadSource(streamUrlWithToken);
                     hls.attachMedia(audio);
 
                     // For fast connections (initialStartLevel === -1), dynamically set startLevel to the highest quality rendition
@@ -737,6 +782,20 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                             appConfig.player.max_buffer_ahead_segments;
                         hls.config.maxBufferLength = maxAheadSecs;
                         hls.config.maxMaxBufferLength = maxAheadSecs;
+
+                        // Ensure all fragment URLs retain ?token= parameter for seamless fetches
+                        const currentToken =
+                            activeStreamToken || streamService.getCurrentToken();
+                        if (data.details?.fragments && currentToken) {
+                            data.details.fragments.forEach((frag) => {
+                                if (frag.url) {
+                                    frag.url = appendTokenToUrl(
+                                        frag.url,
+                                        currentToken,
+                                    );
+                                }
+                            });
+                        }
                     });
 
                     hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -772,7 +831,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     });
                 } else if (audio.canPlayType("application/vnd.apple.mpegurl")) {
                     // Native Safari HLS support
-                    audio.src = hlsStreamUrl;
+                    audio.src = streamUrlWithToken;
                     if (seekTarget > 0) {
                         const onLoaded = () => {
                             audio.currentTime = seekTarget;

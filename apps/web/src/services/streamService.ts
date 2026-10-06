@@ -102,6 +102,13 @@ class StreamService {
     }
 
     /**
+     * Synchronously returns the currently held stream token, or null if none
+     */
+    public getCurrentToken(): string | null {
+        return this.currentToken;
+    }
+
+    /**
      * Clear token and timers on logout
      */
     public clearToken(): void {

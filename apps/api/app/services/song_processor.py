@@ -243,7 +243,7 @@ class SongProcessor:
 
         path = Path(cover_art_path)
 
-        cover_art_key = f"cover_art/{song_id}.{path.suffix.lstrip('.')}"
+        cover_art_key = f"{settings.config.storage.cover_art_folder}/{song_id}.{path.suffix.lstrip('.')}"
 
         uploads.append(
             StorageUpload(
@@ -307,6 +307,11 @@ class SongProcessor:
 
             song.title = metadata.title or song.title
             song.artist = metadata.artist or song.artist
+
+            # multiple artist names are separeted by "/" in metadata
+            # replace "/" by ", " in artist name
+            song.artist = song.artist.replace("/", ", ")
+
             song.duration_sec = metadata.duration_sec
 
             song.master_mp3_key = master_mp3_key

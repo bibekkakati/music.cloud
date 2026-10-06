@@ -88,9 +88,9 @@ Music Cloud streams protected audio via HTTP Live Streaming (HLS) using `hls.js`
 1. Play Action           --> User clicks play on a track
 2. Token Verification   --> streamService checks local stream JWT validity in localStorage
 3. Token Refresh (opt)   --> If token absent or expires in < 10 mins, fetch new 4-hour JWT from API
-4. Master Request        --> hls.js requests master.m3u8 from Edge Worker with Bearer header
+4. Master Request        --> hls.js requests master.m3u8 from Edge Worker with ?token=...
 5. Variant Selection     --> Edge Worker returns AAC variants (256k / 320k)
-6. Segment Streaming     --> hls.js streams 10-second audio segments (.ts) with Bearer token
+6. Segment Streaming     --> hls.js streams 10-second audio segments (.ts) with ?token=... (0 CORS preflight)
 7. Proactive Renewal     --> Background timer refreshes token 10 mins before expiry to avoid drops
 ```
 
@@ -98,7 +98,7 @@ Music Cloud streams protected audio via HTTP Live Streaming (HLS) using `hls.js`
 
 - **Adaptive Bitrate Streaming**: `hls.js` dynamically adapts between 256 kbps and 320 kbps AAC renditions depending on network conditions.
 - **Proactive Token Refresh**: Streaming tokens last 4 hours. A background timer automatically requests a new token when less than 10 minutes remain.
-- **Cookie-Free Authentication**: Tokens are stored in `localStorage` and passed via `Authorization` headers or URL parameters, ensuring native players (Safari, iOS AVPlayer, Android ExoPlayer) stream without cookie limitations.
+- **Zero Preflight URL Parameter Authentication**: Tokens are stored in `localStorage` and passed as URL query parameters (`?token=...`). This transforms segment requests into CORS Simple Requests, completely eliminating preflight (`OPTIONS`) round-trips and ensuring native players (Safari, iOS AVPlayer, Android ExoPlayer) stream without header or cookie limitations.
 - **Session Protection**: When a user logs out or the session expires, the player immediately halts playback, purges streaming tokens, clears cached player data, and resets to an inactive state.
 - **Local State Persistence**: Current track, playback progress, and volume settings are saved to `localStorage` to allow playback resumption across reloads.
 
