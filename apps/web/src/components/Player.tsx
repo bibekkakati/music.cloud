@@ -377,7 +377,7 @@ export const Player: React.FC<PlayerProps> = ({
             {/* ========================================================= */}
             {/* 2. Primary Footer Player (Desktop, iPad & Mobile Mini) */}
             {/* ========================================================= */}
-            <footer className="app-footer-player">
+            <footer className={`app-footer-player ${!currentSong ? "player-idle" : ""}`}>
                 {/* Mobile Top Edge Progress Line */}
                 <div
                     className="mobile-mini-progressbar"

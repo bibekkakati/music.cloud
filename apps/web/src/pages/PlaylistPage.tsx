@@ -195,7 +195,7 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
     }
 
     return (
-        <div style={{ paddingBottom: 120 }}>
+        <div className="playlist-page-container" style={{ paddingBottom: 120 }}>
             {/* 1. Massive Gradient Header */}
             <div className="playlist-hero-header">
                 {/* Playlist Cover Art */}

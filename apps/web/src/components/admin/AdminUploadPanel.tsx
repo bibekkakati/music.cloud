@@ -466,7 +466,7 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                         {isUploadingBatch ? (
                             <>
                                 <Loader2 size={18} className="animate-spin" />
-                                <span>Uploading Queue (2 in parallel)...</span>
+                                <span>Uploading Queue</span>
                             </>
                         ) : (
                             <>

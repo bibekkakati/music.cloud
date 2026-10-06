@@ -336,16 +336,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                                     audio catalog
                                 </p>
                             </div>
-                            <span
-                                style={{
-                                    fontSize: 13,
-                                    fontWeight: 700,
-                                    color: "var(--app-subtext)",
-                                    cursor: "pointer",
-                                }}
-                            >
-                                Show all
-                            </span>
+                            <span></span>
                         </div>
 
                         {loading && songs.length === 0 ? (
