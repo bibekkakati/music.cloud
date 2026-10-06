@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"deploy": "wrangler deploy",
+		"deploy": "wrangler deploy --secrets-file .env.production",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest run --passWithNoTests"

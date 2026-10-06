@@ -71,7 +71,7 @@ export default {
 
 		// ---- Edge cache lookup (no R2 operation) ----
 		const cache = caches.default;
-		const cacheKey = cacheRequest(url.origin, key);
+		const cacheKey = cacheRequest(url.origin, key, env);
 		const matchReq = range ? new Request(cacheKey, { headers: { Range: range } }) : cacheKey;
 
 		try {
@@ -172,7 +172,7 @@ async function warm(key, env, origin) {
 		if (!info || info.kind === "static") return null;
 
 		const cache = caches.default;
-		const cacheKey = cacheRequest(origin, key);
+		const cacheKey = cacheRequest(origin, key, env);
 
 		const hit = await cache.match(cacheKey);
 		if (hit) return info.kind === "playlist" && hit.ok ? hit.text() : null;
@@ -196,9 +196,11 @@ async function warm(key, env, origin) {
 /* ---------------- Helpers ---------------- */
 
 // One cache key format everywhere (used by handler + preloader)
-function cacheRequest(origin, key) {
+// Salts the cache key with env.CACHE_VERSION to allow instant global cache purges
+function cacheRequest(origin, key, env) {
+	const version = env?.CACHE_VERSION || "v1";
 	const path = key.split("/").map(encodeURIComponent).join("/");
-	return new Request(`${origin}/${path}`, { method: "GET" });
+	return new Request(`${origin}/__cache_${version}/${path}`, { method: "GET" });
 }
 
 // Headers stored in cache: R2 metadata + our cache directives. No CORS.

@@ -7,6 +7,7 @@ Single-page web application for Music Cloud, built with React, TypeScript, and V
 ## Purpose and Scope
 
 The web application provides the user interface for Music Cloud:
+
 - **Audio Streaming Experience**: Full-featured player with gapless HLS playback, volume memory, repeat/shuffle controls, persistent state preservation, and queue handling.
 - **Collection Management**: Personal and system playlists, track likes, dynamic additions, and typo-tolerant search filtering.
 - **Admin Studio**: Dedicated administration view for direct audio uploads (private by default), processing triggers, catalog curation, and track visibility toggling.
@@ -64,17 +65,18 @@ apps/web/
 ## Configuration (`appConfig.json`)
 
 Non-secret application behavior is configured via `src/config/appConfig.json`:
+
 - **`streaming`**:
-  - `token_refresh_margin_ms`: Time before token expiration to trigger automatic renewal (default: `600000` / 10 minutes).
-  - `token_fallback_lifetime_ms`: Assumed token validity duration when expiration header is absent (default: `14400000` / 4 hours).
+    - `token_refresh_margin_ms`: Time before token expiration to trigger automatic renewal (default: `600000` / 10 minutes).
+    - `token_fallback_lifetime_ms`: Assumed token validity duration when expiration header is absent (default: `14400000` / 4 hours).
 - **`player`**:
-  - `default_volume`: Initial audio volume (default: `1.0`).
-  - `max_buffer_ahead_segments`: Number of HLS segments to pre-buffer ahead of playhead (default: `5`).
-  - `back_buffer_length_seconds`: Audio history retained in memory for seamless loop/repeat (default: `600`).
+    - `default_volume`: Initial audio volume (default: `1.0`).
+    - `max_buffer_ahead_segments`: Number of HLS segments to pre-buffer ahead of playhead (default: `5`).
+    - `back_buffer_length_seconds`: Audio history retained in memory for seamless loop/repeat (default: `600`).
 - **`ui`**:
-  - `toast_auto_dismiss_ms`: Notification display duration (default: `4000`).
-  - `search_debounce_ms`: Input debounce delay for search queries (default: `250`).
-  - `localStorage_keys`: Keys used for browser persistence (`player_state`, `session_token`, `stream_token`).
+    - `toast_auto_dismiss_ms`: Notification display duration (default: `4000`).
+    - `search_debounce_ms`: Input debounce delay for search queries (default: `250`).
+    - `localStorage_keys`: Keys used for browser persistence (`player_state`, `session_token`, `stream_token`).
 
 ---
 
@@ -86,13 +88,14 @@ Music Cloud streams protected audio via HTTP Live Streaming (HLS) using `hls.js`
 1. Play Action           --> User clicks play on a track
 2. Token Verification   --> streamService checks local stream JWT validity in localStorage
 3. Token Refresh (opt)   --> If token absent or expires in < 10 mins, fetch new 4-hour JWT from API
-4. Master Request        --> hls.js requests master.m3u8 from Edge Worker with Bearer header & ?token=
+4. Master Request        --> hls.js requests master.m3u8 from Edge Worker with Bearer header
 5. Variant Selection     --> Edge Worker returns AAC variants (256k / 320k)
 6. Segment Streaming     --> hls.js streams 10-second audio segments (.ts) with Bearer token
 7. Proactive Renewal     --> Background timer refreshes token 10 mins before expiry to avoid drops
 ```
 
 ### Key Playback Behaviors
+
 - **Adaptive Bitrate Streaming**: `hls.js` dynamically adapts between 256 kbps and 320 kbps AAC renditions depending on network conditions.
 - **Proactive Token Refresh**: Streaming tokens last 4 hours. A background timer automatically requests a new token when less than 10 minutes remain.
 - **Cookie-Free Authentication**: Tokens are stored in `localStorage` and passed via `Authorization` headers or URL parameters, ensuring native players (Safari, iOS AVPlayer, Android ExoPlayer) stream without cookie limitations.
@@ -104,11 +107,13 @@ Music Cloud streams protected audio via HTTP Live Streaming (HLS) using `hls.js`
 ## Development
 
 Run the frontend from the monorepo root:
+
 ```bash
 npm run dev:web
 ```
 
 Or from `apps/web`:
+
 ```bash
 npm run dev
 ```

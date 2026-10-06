@@ -102,16 +102,6 @@ class StreamService {
     }
 
     /**
-     * Construct the R2 Worker HLS master playlist URL with attached token query param
-     */
-    public getHlsStreamUrl(masterUrl: string): string {
-        if (!this.currentToken) return masterUrl;
-        if (masterUrl.includes("token=")) return masterUrl;
-        const separator = masterUrl.includes("?") ? "&" : "?";
-        return `${masterUrl}${separator}token=${encodeURIComponent(this.currentToken)}`;
-    }
-
-    /**
      * Clear token and timers on logout
      */
     public clearToken(): void {

@@ -645,19 +645,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 setStreamToken(token);
 
                 // Master stream URL prepared by backend when loading song list
-                const masterUrl =
+                const hlsStreamUrl =
                     activeSong.stream_url ||
                     (song as SongDetail).master_aac_key ||
                     (song as SongDetail).master_mp3_key;
 
-                if (!masterUrl) {
+                if (!hlsStreamUrl) {
                     console.error("No stream URL available for song:", song.id);
                     setIsPlaying(false);
                     return;
                 }
-
-                // Pass the master playlist URL so HLS.js can detect all available renditions (256k, 320k) and perform ABR
-                const hlsStreamUrl = streamService.getHlsStreamUrl(masterUrl);
 
                 if (!audio) return;
 
@@ -721,7 +718,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     // For fast connections (initialStartLevel === -1), dynamically set startLevel to the highest quality rendition
                     // (e.g. index 1 = 320k) as soon as manifest is loaded, so it NEVER loads 256k first
                     hls.on(Hls.Events.MANIFEST_LOADED, (_event, data) => {
-                        if (initialStartLevel === -1 && data.levels && data.levels.length > 1) {
+                        if (
+                            initialStartLevel === -1 &&
+                            data.levels &&
+                            data.levels.length > 1
+                        ) {
                             hls.startLevel = data.levels.length - 1;
                         }
                     });
