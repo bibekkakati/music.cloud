@@ -1,9 +1,9 @@
 import { jwtVerify } from "jose";
 
 const CACHE_CONTROL = {
-	static: "public, max-age=604800, s-maxage=604800", // cover art: 7d
-	playlist: "public, max-age=3600, s-maxage=86400", // master + media playlists
-	segment: "public, max-age=86400, s-maxage=86400", // .ts/.m4s/.mp3/.aac: 24h
+	static: "public, max-age=3600, s-maxage=86400", // cover art: 1h
+	playlist: "public, max-age=3600, s-maxage=86400", // master + media playlists: 1h
+	segment: "public, max-age=3600, s-maxage=86400", // .ts/.m4s/.mp3/.aac: 1h
 };
 const NOT_FOUND_TTL = 60; // negative-cache 404s so repeat misses don't hit R2
 
