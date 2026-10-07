@@ -313,6 +313,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         style={{
                             flex: 1,
                             overflowY: "auto",
+                            scrollBehavior: "smooth",
                             padding: "0 8px 8px",
                             display: "flex",
                             flexDirection: "column",

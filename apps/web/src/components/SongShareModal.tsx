@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import type { SongMetadata } from "../types";
 import { SongCoverArt } from "./SongCoverArt";
 import { useToast } from "../context/ToastContext";
@@ -81,7 +82,7 @@ export const SongShareModal: React.FC<SongShareModalProps> = ({
         }
     };
 
-    return (
+    return createPortal(
         <div
             style={{
                 position: "fixed",
@@ -499,6 +500,7 @@ export const SongShareModal: React.FC<SongShareModalProps> = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };

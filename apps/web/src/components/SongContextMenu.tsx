@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { SongMetadata } from "../types";
 import { playlistService } from "../services/playlistService";
 import { useToast } from "../context/ToastContext";
@@ -153,7 +154,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
         onClose();
     };
 
-    return (
+    return createPortal(
         <div
             ref={menuRef}
             className="animate-fade-in"
@@ -167,7 +168,7 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                 padding: "4px 0",
                 boxShadow:
                     "0 16px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08)",
-                zIndex: 1200,
+                zIndex: 9999,
                 userSelect: "none",
             }}
             onClick={(e) => e.stopPropagation()}
@@ -245,7 +246,8 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                 <Share2 size={16} color="#ffffff" />
                 <span>Share</span>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 };
 

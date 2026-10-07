@@ -342,6 +342,7 @@ export const Player: React.FC<PlayerProps> = ({
 
                     {/* Volume Row in Expanded View */}
                     <div
+                        className="mobile-expanded-volume-row"
                         style={{
                             display: "flex",
                             alignItems: "center",
@@ -935,7 +936,7 @@ export const Player: React.FC<PlayerProps> = ({
                             </button>
 
                             <div
-                                className="app-slider-container"
+                                className="app-slider-container player-volume-bar"
                                 onMouseEnter={() => setIsVolumeHovered(true)}
                                 onMouseLeave={() => setIsVolumeHovered(false)}
                                 style={{ width: 85 }}
