@@ -155,8 +155,6 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
     };
 
     const handleRemoveSong = async (playlistId: string, songId: string) => {
-        const previousPlaylist = playlist;
-
         // Dynamically update playlist state without component reload or refetching
         setPlaylist((prev) => {
             if (!prev) return prev;
