@@ -129,9 +129,21 @@ export interface CreatePlaylistPayload {
     label: string;
 }
 
+export interface CreatePlaylistResponse {
+    id: string;
+    label: string;
+    is_deletable: boolean;
+}
+
 export interface UpdatePlaylistPayload {
     id: string;
     label: string;
+}
+
+export interface UpdatePlaylistResponse {
+    id: string;
+    label: string;
+    is_deletable: boolean;
 }
 
 export interface AddPlaylistSongPayload {

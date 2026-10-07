@@ -12,12 +12,7 @@ interface HomePageProps {
     onOpenAuthModal?: () => void;
 }
 
-const getGreeting = (): string => {
-    const hours = new Date().getHours();
-    if (hours < 12) return "Good morning";
-    if (hours < 18) return "Good afternoon";
-    return "Good evening";
-};
+import { getGreeting } from "@music-cloud/utils";
 
 export const HomePage: React.FC<HomePageProps> = ({
     onAddToPlaylist,

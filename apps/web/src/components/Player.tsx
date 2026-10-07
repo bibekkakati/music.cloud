@@ -23,12 +23,7 @@ interface PlayerProps {
     onOpenAuthModal?: () => void;
 }
 
-const formatTime = (seconds: number): string => {
-    if (isNaN(seconds) || seconds < 0) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-};
+import { formatTime } from "@music-cloud/utils";
 
 export const Player: React.FC<PlayerProps> = ({
     onOpenPlaylistModal,
@@ -218,12 +213,26 @@ export const Player: React.FC<PlayerProps> = ({
                                         onOpenPlaylistModal(currentSong);
                                     }}
                                     className="app-btn-ghost"
+                                    title="Add to playlist"
                                     style={{
                                         color: "var(--app-subtext)",
-                                        padding: 10,
+                                        padding: 8,
                                     }}
                                 >
-                                    <Plus size={24} />
+                                    <div
+                                        style={{
+                                            width: 24,
+                                            height: 24,
+                                            borderRadius: "50%",
+                                            border: "1.5px solid rgba(255, 255, 255, 0.4)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            color: "rgba(255, 255, 255, 0.85)",
+                                        }}
+                                    >
+                                        <Plus size={14} strokeWidth={2.5} />
+                                    </div>
                                 </button>
                             )}
                         </div>
@@ -333,6 +342,7 @@ export const Player: React.FC<PlayerProps> = ({
 
                     {/* Volume Row in Expanded View */}
                     <div
+                        className="mobile-expanded-volume-row"
                         style={{
                             display: "flex",
                             alignItems: "center",
@@ -542,7 +552,6 @@ export const Player: React.FC<PlayerProps> = ({
                                     }
                                 }}
                                 disabled={isPlayerDisabled}
-                                className="app-btn-ghost"
                                 title={
                                     !isAuthenticated
                                         ? "Sign in required"
@@ -550,8 +559,52 @@ export const Player: React.FC<PlayerProps> = ({
                                           ? "Add to playlist"
                                           : ""
                                 }
+                                style={{
+                                    background: "none",
+                                    border: "none",
+                                    padding: 4,
+                                    cursor: isPlayerDisabled
+                                        ? "default"
+                                        : "pointer",
+                                    opacity: isPlayerDisabled ? 0.35 : 1,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                }}
                             >
-                                <Plus size={18} />
+                                <div
+                                    style={{
+                                        width: 20,
+                                        height: 20,
+                                        borderRadius: "50%",
+                                        border: "1.5px solid rgba(255, 255, 255, 0.4)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        color: "rgba(255, 255, 255, 0.85)",
+                                        transition: "all 0.15s ease",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!isPlayerDisabled) {
+                                            e.currentTarget.style.borderColor =
+                                                "#ffffff";
+                                            e.currentTarget.style.background =
+                                                "rgba(255, 255, 255, 0.1)";
+                                            e.currentTarget.style.color =
+                                                "#ffffff";
+                                        }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor =
+                                            "rgba(255, 255, 255, 0.4)";
+                                        e.currentTarget.style.background =
+                                            "transparent";
+                                        e.currentTarget.style.color =
+                                            "rgba(255, 255, 255, 0.85)";
+                                    }}
+                                >
+                                    <Plus size={12} strokeWidth={2.5} />
+                                </div>
                             </button>
                         )}
                     </div>
@@ -883,7 +936,7 @@ export const Player: React.FC<PlayerProps> = ({
                             </button>
 
                             <div
-                                className="app-slider-container"
+                                className="app-slider-container player-volume-bar"
                                 onMouseEnter={() => setIsVolumeHovered(true)}
                                 onMouseLeave={() => setIsVolumeHovered(false)}
                                 style={{ width: 85 }}

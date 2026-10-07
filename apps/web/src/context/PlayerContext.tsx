@@ -427,7 +427,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
         playlistService
             .getSongLikedStatus(currentSong.id)
-            .then((liked) => {
+            .then((liked: boolean) => {
                 if (isSubscribed) {
                     setIsLiked(liked);
                 }
@@ -480,7 +480,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 );
             }
             // Notify UI so playlists refresh if a new Liked playlist was generated
-            window.dispatchEvent(new CustomEvent("playlist-mutation"));
+            window.dispatchEvent(
+                new CustomEvent("playlist-mutation", {
+                    detail: {
+                        playlistId: res.playlist_id,
+                        songId,
+                        action: res.liked ? "add" : "remove",
+                        song: currentSong,
+                        isLikedPlaylist: true,
+                    },
+                }),
+            );
         } catch (err: unknown) {
             // 2. Undo optimistic state on error
             setIsLiked(previousLiked);
@@ -1216,6 +1226,45 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             });
         };
     }, [togglePlay, handlePrev, handleNext, seek]);
+
+    // 5. Global Spacebar Keyboard Shortcut for Resume / Pause
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.code === "Space" || e.key === " " || e.key === "Spacebar") {
+                const target = e.target as HTMLElement | null;
+
+                // Do not intercept if user is typing in a text field, search box, or textarea
+                if (target) {
+                    const tag = target.tagName.toLowerCase();
+                    if (tag === "textarea" || target.isContentEditable) return;
+                    if (tag === "input") {
+                        const type = (target as HTMLInputElement).type?.toLowerCase() || "text";
+                        const nonTextTypes = [
+                            "range",
+                            "checkbox",
+                            "radio",
+                            "button",
+                            "submit",
+                            "reset",
+                            "image",
+                        ];
+                        if (!nonTextTypes.includes(type)) {
+                            return;
+                        }
+                    }
+                }
+
+                // Prevent page scrolling and focused-button click side-effects
+                e.preventDefault();
+                togglePlay();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [togglePlay]);
 
     return (
         <PlayerContext.Provider

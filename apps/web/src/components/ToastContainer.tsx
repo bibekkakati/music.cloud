@@ -27,18 +27,14 @@ export const ToastContainer: React.FC = () => {
             }}
         >
             {toasts.map((toast) => {
-                let icon = <Info size={18} color="#3d91f4" />;
-                let accentColor = "#3d91f4";
+                let icon = <Info size={18} color="#ffffff" />;
 
                 if (toast.type === "success") {
-                    icon = <CheckCircle2 size={18} color="var(--app-green)" />;
-                    accentColor = "var(--app-green)";
+                    icon = <CheckCircle2 size={18} color="#ffffff" />;
                 } else if (toast.type === "error") {
-                    icon = <AlertCircle size={18} color="#f15e6c" />;
-                    accentColor = "#f15e6c";
+                    icon = <AlertCircle size={18} color="#ffffff" />;
                 } else if (toast.type === "warning") {
-                    icon = <AlertTriangle size={18} color="#fbbf24" />;
-                    accentColor = "#fbbf24";
+                    icon = <AlertTriangle size={18} color="#ffffff" />;
                 }
 
                 return (
@@ -46,7 +42,10 @@ export const ToastContainer: React.FC = () => {
                         key={toast.id}
                         className="app-toast"
                         style={{
-                            borderLeft: `4px solid ${accentColor}`,
+                            background: "#000000",
+                            backgroundColor: "#000000",
+                            border: "1px solid rgba(255, 255, 255, 0.15)",
+                            boxShadow: "0 16px 36px rgba(0, 0, 0, 0.85)",
                         }}
                     >
                         <div
@@ -54,6 +53,7 @@ export const ToastContainer: React.FC = () => {
                                 flexShrink: 0,
                                 display: "flex",
                                 alignItems: "center",
+                                color: "#ffffff",
                             }}
                         >
                             {icon}
@@ -64,7 +64,7 @@ export const ToastContainer: React.FC = () => {
                                 style={{
                                     fontWeight: 700,
                                     fontSize: 13.5,
-                                    color: "var(--app-text)",
+                                    color: "#ffffff",
                                     lineHeight: 1.3,
                                 }}
                             >
@@ -74,7 +74,7 @@ export const ToastContainer: React.FC = () => {
                                 <div
                                     style={{
                                         fontSize: 12,
-                                        color: "var(--app-subtext)",
+                                        color: "rgba(255, 255, 255, 0.7)",
                                         marginTop: 3,
                                         lineHeight: 1.4,
                                         wordBreak: "break-word",
@@ -90,6 +90,9 @@ export const ToastContainer: React.FC = () => {
                             className="app-toast-close"
                             title="Dismiss"
                             aria-label="Dismiss notification"
+                            style={{
+                                color: "rgba(255, 255, 255, 0.6)",
+                            }}
                         >
                             <X size={15} />
                         </button>

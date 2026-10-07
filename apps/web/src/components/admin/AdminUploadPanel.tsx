@@ -168,7 +168,7 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                 await adminService.uploadFileToPresignedUrl(
                     uploadData.url,
                     item.file,
-                    (pct) => {
+                    (pct: number) => {
                         // Map progress from 20% to 90%
                         const mappedPct = Math.round(20 + pct * 0.7);
                         updateItemStatus(item.id, "uploading", mappedPct);
