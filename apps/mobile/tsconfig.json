@@ -1,0 +1,12 @@
+{
+  "extends": "../../node_modules/expo/tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@music-cloud/types": ["../../packages/types/src/index.ts"]
+    }
+  }
+}

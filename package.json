@@ -13,6 +13,7 @@
         "dev:api": "npm run dev --workspace=@music-cloud/api",
         "dev:web": "npm run dev --workspace=@music-cloud/web",
         "dev:worker": "npm run dev --workspace=@music-cloud/edge-worker",
+        "dev:mobile": "npm run start --workspace=@music-cloud/mobile",
         "build": "turbo run build",
         "lint": "turbo run lint",
         "test": "turbo run test",
