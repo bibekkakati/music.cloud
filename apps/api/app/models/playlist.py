@@ -8,7 +8,8 @@ class Playlist(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid7, primary_key=True, index=True)
     label: str = Field(nullable=False)
-    owner_id: UUID = Field(nullable=False, foreign_key="users.id")
+    count: int = Field(nullable=False, default=0)
+    owner_id: UUID = Field(nullable=False, foreign_key="users.id", index=True)
     is_deletable: bool = Field(default=True, nullable=False)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
@@ -25,7 +26,7 @@ class PlaylistSong(SQLModel, table=True):
     __tablename__ = "playlist_songs"
     id: UUID = Field(default_factory=uuid7, primary_key=True, index=True)
     playlist_id: UUID = Field(nullable=False, foreign_key="playlists.id", index=True)
-    song_id: UUID = Field(nullable=False, foreign_key="songs.id")
+    song_id: UUID = Field(nullable=False, foreign_key="songs.id", index=True)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,

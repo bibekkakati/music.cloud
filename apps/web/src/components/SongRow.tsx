@@ -7,9 +7,9 @@ import { Play, Pause, Plus, Trash2 } from "lucide-react";
 interface SongRowProps {
     song: SongMetadata | SongDetail;
     index: number;
-    playlistSongId?: string;
+    playlistId?: string;
     dateAdded?: string;
-    onRemoveFromPlaylist?: (playlistSongId: string) => void;
+    onRemoveFromPlaylist?: (playlistId: string, songId: string) => void;
     onAddToPlaylist?: (song: SongMetadata) => void;
     allSongs?: (SongMetadata | SongDetail)[];
 }
@@ -56,7 +56,7 @@ const formatDateAdded = (dateStr?: string): string => {
 export const SongRow: React.FC<SongRowProps> = ({
     song,
     index,
-    playlistSongId,
+    playlistId,
     dateAdded,
     onRemoveFromPlaylist,
     onAddToPlaylist,
@@ -230,11 +230,11 @@ export const SongRow: React.FC<SongRowProps> = ({
                     </button>
                 )}
 
-                {playlistSongId && onRemoveFromPlaylist && isHovered && (
+                {playlistId && onRemoveFromPlaylist && isHovered && (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            onRemoveFromPlaylist(playlistSongId);
+                            onRemoveFromPlaylist(playlistId, song.id);
                         }}
                         className="app-btn-ghost"
                         title="Remove from Playlist"

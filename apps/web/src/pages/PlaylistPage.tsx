@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { playlistService } from "../services/playlistService";
 import { songService } from "../services/songService";
-import type { PlaylistDetail, SongMetadata } from "../types";
+import type { PlaylistDetail, PlaylistSongItem, SongMetadata } from "../types";
 import { SongRow } from "../components/SongRow";
 import { usePlayer } from "../context/PlayerContext";
 import { useToast } from "../context/ToastContext";
@@ -32,9 +32,6 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
-    const [songMetaMap, setSongMetaMap] = useState<
-        Record<string, SongMetadata>
-    >({});
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
 
@@ -47,17 +44,6 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
             setLoading(true);
             const data = await playlistService.getPlaylistSongs(id);
             setPlaylist(data);
-
-            try {
-                const librarySongs = await songService.getAllSongs();
-                const map: Record<string, SongMetadata> = {};
-                librarySongs.forEach((s) => {
-                    map[s.id] = s;
-                });
-                setSongMetaMap(map);
-            } catch {
-                // ignore
-            }
         } catch (err: unknown) {
             const msg =
                 (err as { response?: { data?: { detail?: string } } })?.response
@@ -72,26 +58,7 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
         loadPlaylistData();
     }, [loadPlaylistData]);
 
-    const playableTracks: SongMetadata[] = (playlist?.songs || []).map(
-        (item) => {
-            const meta = songMetaMap[item.song_id];
-            return {
-                id: item.song_id,
-                title:
-                    item.title ||
-                    meta?.title ||
-                    `Track #${item.song_id.substring(0, 8)}`,
-                artist: item.artist || meta?.artist || "Cloud Track",
-                duration_sec:
-                    item.duration_sec !== undefined &&
-                    item.duration_sec !== null
-                        ? item.duration_sec
-                        : meta?.duration_sec,
-                cover_art_url: item.cover_art_url || meta?.cover_art_url,
-                stream_url: item.stream_url || meta?.stream_url,
-            };
-        },
-    );
+    const playableTracks: SongMetadata[] = playlist?.songs || [];
 
     const isPlaylistPlaying =
         playableTracks.length > 0 &&
@@ -107,9 +74,12 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
         }
     };
 
-    const handleRemoveSong = async (playlistSongId: string) => {
+    const handleRemoveSong = async (playlistId: string, songId: string) => {
         try {
-            await playlistService.removeSongFromPlaylist(playlistSongId);
+            await playlistService.removeSongFromPlaylistBySongId(
+                playlistId,
+                songId,
+            );
             showToast("Song Removed", "info", "Removed track from playlist");
             loadPlaylistData();
             window.dispatchEvent(new CustomEvent("playlist-mutation"));
@@ -335,38 +305,14 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
                     </div>
                 ) : (
                     <div style={{ display: "flex", flexDirection: "column" }}>
-                        {playlist.songs.map((item, index) => {
-                            const meta: SongMetadata = {
-                                id: item.song_id,
-                                title:
-                                    item.title ||
-                                    songMetaMap[item.song_id]?.title ||
-                                    `Song ID: ${item.song_id.substring(0, 8)}`,
-                                artist:
-                                    item.artist ||
-                                    songMetaMap[item.song_id]?.artist ||
-                                    "Music Cloud Track",
-                                duration_sec:
-                                    item.duration_sec !== undefined &&
-                                    item.duration_sec !== null
-                                        ? item.duration_sec
-                                        : songMetaMap[item.song_id]
-                                              ?.duration_sec,
-                                cover_art_url:
-                                    item.cover_art_url ||
-                                    songMetaMap[item.song_id]?.cover_art_url,
-                                stream_url:
-                                    item.stream_url ||
-                                    songMetaMap[item.song_id]?.stream_url,
-                            };
-
+                        {playlist.songs.map((song, index) => {
                             return (
                                 <SongRow
-                                    key={item.id}
-                                    song={meta}
+                                    key={song.id}
+                                    playlistId={playlist.id}
+                                    song={song}
                                     index={index}
-                                    playlistSongId={item.id}
-                                    dateAdded={item.created_at}
+                                    dateAdded={song.created_at}
                                     onRemoveFromPlaylist={handleRemoveSong}
                                     allSongs={playableTracks}
                                 />

@@ -1,6 +1,6 @@
 import uuid
 from typing import Any
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select
 
 from app.models.playlist import Playlist, PlaylistSong
 from app.models.song import Song
@@ -69,7 +69,7 @@ class PlaylistService:
     ) -> list[dict[str, Any]]:
         owner_uuid = _to_uuid(user_id)
         statement = (
-            select(Playlist, func.count(PlaylistSong.id))
+            select(Playlist)
             .outerjoin(PlaylistSong, Playlist.id == PlaylistSong.playlist_id)
             .where(Playlist.owner_id == owner_uuid)
             .group_by(Playlist.id)
@@ -77,26 +77,35 @@ class PlaylistService:
         )
         results = self.db.exec(statement).all()
 
-        song_playlist_ids: set[uuid.UUID] = set()
-        if song_id:
-            s_uuid = _to_uuid(song_id)
-            ps_statement = select(PlaylistSong.playlist_id).where(
-                PlaylistSong.song_id == s_uuid
-            )
-            song_playlist_ids = set(self.db.exec(ps_statement).all())
-
         return [
             {
                 "id": playlist.id,
                 "label": playlist.label,
                 "is_deletable": playlist.is_deletable,
-                "songs_count": count,
-                "contains_song": playlist.id in song_playlist_ids,
+                "songs_count": playlist.count,
                 "created_at": playlist.created_at,
                 "updated_at": playlist.updated_at,
             }
-            for playlist, count in results
+            for playlist in results
         ]
+
+    def get_playlists_by_song(
+        self,
+        song_id: str | uuid.UUID,
+        user_id: str | uuid.UUID,
+    ) -> list[uuid.UUID]:
+        owner_uuid = _to_uuid(user_id)
+        s_uuid = _to_uuid(song_id)
+        
+        statement = (
+            select(Playlist.id)
+            .join(PlaylistSong, PlaylistSong.song_id == s_uuid)
+            .where(Playlist.owner_id == owner_uuid)
+            .group_by(Playlist.id)
+        )
+        results = self.db.exec(statement).all()
+
+        return results
 
     def add_playlist_song(
         self,
@@ -124,25 +133,15 @@ class PlaylistService:
 
         playlist_song = PlaylistSong(playlist_id=p_uuid, song_id=s_uuid)
         self.db.add(playlist_song)
+
+        # Update the count by 1 in playlist
+        playlist.sqlmodel_update({ "count": playlist.count + 1 })
+        self.db.add(playlist)
+
         self.db.commit()
         self.db.refresh(playlist_song)
+        self.db.refresh(playlist)
         return playlist_song
-
-    def remove_playlist_song(
-        self, playlist_song_id: str | uuid.UUID, user_id: str | uuid.UUID
-    ) -> bool | None:
-        ps_uuid = _to_uuid(playlist_song_id)
-        playlist_song = self.db.get(PlaylistSong, ps_uuid)
-        if not playlist_song:
-            return None
-        playlist = self.db.get(Playlist, playlist_song.playlist_id)
-        if not playlist:
-            return None
-        if str(playlist.owner_id) != str(user_id):
-            return None
-        self.db.delete(playlist_song)
-        self.db.commit()
-        return True
 
     def remove_song_from_playlist_by_song_id(
         self,
@@ -160,19 +159,26 @@ class PlaylistService:
             PlaylistSong.playlist_id == p_uuid,
             PlaylistSong.song_id == s_uuid,
         )
-        songs = self.db.exec(statement).all()
-        if not songs:
+        playlist_songs = self.db.exec(statement).all()
+        if not playlist_songs:
             return False
 
-        for ps in songs:
+        # Decrement count
+        playlist.sqlmodel_update({ "count": playlist.count - len(playlist_songs) })
+        self.db.add(playlist)
+
+        for ps in playlist_songs:
             self.db.delete(ps)
+        
         self.db.commit()
+        self.db.refresh(playlist)
         return True
 
     def get_playlist_songs(
         self, playlist_id: str | uuid.UUID, user_id: str | uuid.UUID
     ) -> dict[str, Any] | None:
         p_uuid = _to_uuid(playlist_id)
+
         playlist = self.db.get(Playlist, p_uuid)
         if not playlist:
             return None
@@ -181,7 +187,7 @@ class PlaylistService:
 
         statement = (
             select(PlaylistSong, Song)
-            .outerjoin(Song, PlaylistSong.song_id == Song.id)
+            .join(Song, PlaylistSong.song_id == Song.id)
             .where(PlaylistSong.playlist_id == p_uuid)
             .order_by(PlaylistSong.created_at.asc())
         )
@@ -193,8 +199,8 @@ class PlaylistService:
             if not song or not getattr(song, "is_public", False):
                 continue
             songs_data.append({
-                "id": ps.id,
-                "song_id": ps.song_id,
+                "id": ps.song_id,
+                "playlist_song_id": ps.id,
                 "created_at": ps.created_at,
                 "title": song.title if song else None,
                 "artist": song.artist if song else None,
@@ -207,7 +213,7 @@ class PlaylistService:
             "id": playlist.id,
             "label": playlist.label,
             "is_deletable": playlist.is_deletable,
-            "songs_count": len(songs_data),
+            "songs_count": playlist.count,
             "created_at": playlist.created_at,
             "updated_at": playlist.updated_at,
             "songs": songs_data,

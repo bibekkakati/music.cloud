@@ -1,3 +1,4 @@
+from app.schemas.song import SongPublicResponsePayload
 from datetime import datetime
 from uuid import UUID
 
@@ -10,8 +11,8 @@ class CreatePlaylistRequestPayload(BaseModel):
 class CreatePlaylistResponsePayload(BaseModel):
     id: UUID | str
     label: str
-    is_deletable: bool = True
-    songs_count: int = 0
+    is_deletable: bool
+    songs_count: int
     created_at: datetime
     updated_at: datetime
 
@@ -23,8 +24,8 @@ class UpdatePlaylistRequestPayload(BaseModel):
 class UpdatePlaylistResponsePayload(BaseModel):
     id: UUID | str
     label: str
-    is_deletable: bool = True
-    songs_count: int = 0
+    is_deletable: bool
+    songs_count: int
     created_at: datetime
     updated_at: datetime
 
@@ -36,8 +37,8 @@ class RemovePlaylistRequestPayload(BaseModel):
 class GetPlaylistsByUserResponsePayload(BaseModel):
     id: UUID | str
     label: str
-    is_deletable: bool = True
-    songs_count: int = 0
+    is_deletable: bool
+    songs_count: int
     contains_song: bool = False
     created_at: datetime
     updated_at: datetime
@@ -55,29 +56,20 @@ class AddPlaylistSongResponsePayload(BaseModel):
     updated_at: datetime
 
 # Remove playlist song
-class RemovePlaylistSongRequestPayload(BaseModel):
-    id: UUID | str
-
 class RemovePlaylistSongBySongIdRequestPayload(BaseModel):
     playlist_id: UUID | str
     song_id: UUID | str
 
 # Get playlist songs
-class PlaylistSongResponse(BaseModel):
-    id: UUID | str
-    song_id: UUID | str
+class PlaylistSongResponse(SongPublicResponsePayload):
+    playlist_song_id: UUID | str
     created_at: datetime
-    title: str | None = None
-    artist: str | None = None
-    duration_sec: int | None = None
-    cover_art_url: str | None = None
-    stream_url: str | None = None
     
 class GetPlaylistSongsResponsePayload(BaseModel):
     id: UUID | str
     label: str
     is_deletable: bool
-    songs_count: int = 0
+    songs_count: int
     songs: list[PlaylistSongResponse]
     created_at: datetime
     updated_at: datetime

@@ -14,7 +14,6 @@ from app.schemas.playlist import (
     GetPlaylistSongsResponsePayload,
     GetPlaylistsByUserResponsePayload,
     RemovePlaylistRequestPayload,
-    RemovePlaylistSongRequestPayload,
     RemovePlaylistSongBySongIdRequestPayload,
     UpdatePlaylistRequestPayload,
     UpdatePlaylistResponsePayload,
@@ -45,8 +44,15 @@ def get_playlists(
 ) -> list[dict[str, Any]]:
     """Retrieve all playlists owned by the authenticated user."""
     playlist_service = PlaylistService(db)
-    return playlist_service.get_playlists(current_user.id, song_id=song_id)
+    playlists: list[dict] = playlist_service.get_playlists(current_user.id)
 
+    if song_id:
+        song_playlists: list[UUID] = playlist_service.get_playlists_by_song(user_id=current_user.id, song_id=song_id)
+        if song_playlists:
+            for playlist in playlists:
+                playlist['contains_song'] = playlist['id'] in song_playlists
+
+    return playlists
 
 @router.post(
     "",
@@ -152,30 +158,6 @@ def add_playlist_song(
 
 @router.post(
     "/song/remove",
-    status_code=status.HTTP_200_OK,
-    summary="Remove a song from a playlist",
-)
-def remove_playlist_song(
-    current_user: CurrentUser,
-    db: DatabaseSession,
-    payload: RemovePlaylistSongRequestPayload,
-):
-    """Remove a song from a playlist using the playlist_song entry ID."""
-    playlist_service = PlaylistService(db)
-    success = playlist_service.remove_playlist_song(
-        payload.id, current_user.id
-    )
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Playlist song not found or access denied",
-        )
-
-    return {"message": "Song removed from playlist successfully"}
-
-
-@router.post(
-    "/song/remove-by-song",
     status_code=status.HTTP_200_OK,
     summary="Remove a song from a playlist using playlist_id and song_id",
 )
