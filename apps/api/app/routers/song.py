@@ -2,9 +2,9 @@ from app.models.song import SongProcessingStatus
 from app.services.song_search import song_search
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 
-from app.dependencies.auth import CurrentUser, get_current_user
+from app.dependencies.auth import CurrentUser
 from app.infra.database import DatabaseSession
 from app.schemas.song import (
     SongPublicResponsePayload,
@@ -13,9 +13,7 @@ from app.schemas.song import (
 from app.services.song import SongService
 from app.utils.stream_token import generate_stream_token
 
-router = APIRouter(
-    prefix="/song", dependencies=[Depends(get_current_user)]
-)
+router = APIRouter(prefix="/song")
 
 @router.get(
     "/all",
@@ -88,5 +86,41 @@ async def get_stream_token(
         token_type="bearer",
         expires_at=expires_at,
     )
+
+
+@router.get(
+    "/{song_id}",
+    response_model=SongPublicResponsePayload,
+    summary="Get single public song by id",
+    status_code=status.HTTP_200_OK,
+)
+def get_song_by_id(
+    song_id: str,
+    db: DatabaseSession,
+) -> SongPublicResponsePayload:
+    song_service = SongService(db)
+    try:
+        song = song_service.get_song(song_id)
+        if not song.is_public or song.status != SongProcessingStatus.DONE:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Song not found or not public",
+            )
+        return SongPublicResponsePayload(
+            id=song.id,
+            title=song.title,
+            artist=song.artist,
+            duration_sec=song.duration_sec,
+            cover_art_url=song_service.get_cover_art_url(song.cover_art_key),
+            stream_url=song_service.get_stream_url(song.master_aac_key, song.master_mp3_key),
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Song not found",
+        )
+
 
 

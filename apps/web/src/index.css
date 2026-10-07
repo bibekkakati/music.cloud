@@ -814,7 +814,7 @@ body {
 }
 
 .app-music-card {
-    padding: 12px;
+    padding: 10px;
     border-radius: 6px;
     transition:
         background-color 0.2s ease,
@@ -1134,9 +1134,11 @@ body {
 
     /* Mobile Home, Search, Playlist & Admin Views */
     .home-page-container {
-        padding: 12px 14px calc(
-            var(--bottom-nav-height, 56px) + 64px + env(safe-area-inset-bottom, 0px) + 20px
-        );
+        padding: 12px 14px
+            calc(
+                var(--bottom-nav-height, 56px) + 64px +
+                    env(safe-area-inset-bottom, 0px) + 20px
+            );
     }
 
     .home-quick-grid {
@@ -1168,14 +1170,17 @@ body {
 
     .playlist-page-container {
         padding-bottom: calc(
-            var(--bottom-nav-height, 56px) + 64px + env(safe-area-inset-bottom, 0px) + 20px
+            var(--bottom-nav-height, 56px) + 64px +
+                env(safe-area-inset-bottom, 0px) + 20px
         ) !important;
     }
 
     .search-page-container {
-        padding: 14px 14px calc(
-            var(--bottom-nav-height, 56px) + 64px + env(safe-area-inset-bottom, 0px) + 20px
-        );
+        padding: 14px 14px
+            calc(
+                var(--bottom-nav-height, 56px) + 64px +
+                    env(safe-area-inset-bottom, 0px) + 20px
+            );
     }
 
     .search-top-results-grid {
@@ -1189,9 +1194,11 @@ body {
     }
 
     .admin-page-container {
-        padding: 14px 14px calc(
-            var(--bottom-nav-height, 56px) + 64px + env(safe-area-inset-bottom, 0px) + 20px
-        );
+        padding: 14px 14px
+            calc(
+                var(--bottom-nav-height, 56px) + 64px +
+                    env(safe-area-inset-bottom, 0px) + 20px
+            );
     }
 
     .admin-header-row {

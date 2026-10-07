@@ -31,4 +31,11 @@ export const songService = {
         );
         return response.data;
     },
+
+    getSongById: async (songId: string): Promise<SongMetadata> => {
+        const response = await apiClient.get<SongMetadata>(
+            `/api/v1/song/${encodeURIComponent(songId)}`,
+        );
+        return response.data;
+    },
 };

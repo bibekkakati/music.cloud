@@ -15,6 +15,7 @@ import { HomePage } from "./pages/HomePage";
 import { SearchPage } from "./pages/SearchPage";
 import { PlaylistPage } from "./pages/PlaylistPage";
 import { AdminPage } from "./pages/admin/AdminPage";
+import { SongRoutePage } from "./pages/SongRoutePage";
 import type { SongMetadata, PlaylistSummary } from "./types";
 
 const AppContent: React.FC = () => {
@@ -136,6 +137,17 @@ const AppContent: React.FC = () => {
                             element={
                                 <SearchPage
                                     onAddToPlaylist={handleAddToPlaylist}
+                                />
+                            }
+                        />
+                        <Route
+                            path="/song/:id"
+                            element={
+                                <SongRoutePage
+                                    onAddToPlaylist={handleAddToPlaylist}
+                                    onOpenAuthModal={() =>
+                                        setAuthModalOpen(true)
+                                    }
                                 />
                             }
                         />
