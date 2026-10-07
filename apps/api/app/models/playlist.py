@@ -13,10 +13,12 @@ class Playlist(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
+        schema_extra={"sa_type": "TIMESTAMPTZ"} 
     )
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
+        schema_extra={"sa_type": "TIMESTAMPTZ"}
     )
 
 class PlaylistSong(SQLModel, table=True):
@@ -27,9 +29,11 @@ class PlaylistSong(SQLModel, table=True):
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
+        schema_extra={"sa_type": "TIMESTAMPTZ"} 
     )
     updated_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
+        schema_extra={"sa_type": "TIMESTAMPTZ"}
     )
     

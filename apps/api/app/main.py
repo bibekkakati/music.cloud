@@ -18,6 +18,13 @@ from app.routers.admin import song as admin_song
 from app.services.session import SessionService
 from app.utils.worker import process_job
 
+import os
+import time
+
+# Force the operating system environment layer to UTC
+os.environ["TZ"] = "UTC"
+time.tzset()
+
 logger = logging.getLogger("uvicorn.error")
 
 
