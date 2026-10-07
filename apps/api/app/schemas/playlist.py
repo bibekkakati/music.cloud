@@ -12,9 +12,6 @@ class CreatePlaylistResponsePayload(BaseModel):
     id: UUID | str
     label: str
     is_deletable: bool
-    songs_count: int
-    created_at: datetime
-    updated_at: datetime
 
 # Update playlist
 class UpdatePlaylistRequestPayload(BaseModel):
@@ -25,9 +22,6 @@ class UpdatePlaylistResponsePayload(BaseModel):
     id: UUID | str
     label: str
     is_deletable: bool
-    songs_count: int
-    created_at: datetime
-    updated_at: datetime
 
 # Remove playlist
 class RemovePlaylistRequestPayload(BaseModel):

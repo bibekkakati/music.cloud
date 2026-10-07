@@ -1,41 +1,46 @@
-import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import {
+    apiClient,
+    initApiClient,
+    type AuthStorageAdapter,
+} from "@music-cloud/services";
 
-// Get base URL from environment or default to backend dev server
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+export const WEB_TOKEN_KEY = "music_cloud_token";
 
-export const TOKEN_STORAGE_KEY = 'music_cloud_token';
+export const webStorageAdapter: AuthStorageAdapter = {
+    getToken: () => {
+        try {
+            return localStorage.getItem(WEB_TOKEN_KEY);
+        } catch {
+            return null;
+        }
+    },
+    setToken: (token: string) => {
+        try {
+            localStorage.setItem(WEB_TOKEN_KEY, token);
+        } catch {
+            // Ignore quota errors in storage
+        }
+    },
+    clearToken: () => {
+        try {
+            localStorage.removeItem(WEB_TOKEN_KEY);
+            localStorage.removeItem("music_cloud_player_state");
+        } catch {
+            // Ignore storage removal errors
+        }
+    },
+};
 
-export const apiClient: AxiosInstance = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+// Platform-level initialization of shared services
+initApiClient({
+    baseURL: BASE_URL,
+    storage: webStorageAdapter,
+    onUnauthorized: () => {
+        window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+    },
 });
 
-// Request interceptor to attach Bearer token
-apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor to handle common errors
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Clear token and player state on 401 Unauthorized
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem('music_cloud_player_state');
-      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-    }
-    return Promise.reject(error);
-  }
-);
-
+export { apiClient };
 export default apiClient;

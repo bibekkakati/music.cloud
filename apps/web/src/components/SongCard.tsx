@@ -135,11 +135,44 @@ export const SongCard: React.FC<SongCardProps> = ({
                             e.stopPropagation();
                             onAddToPlaylist(song);
                         }}
-                        className="app-btn-ghost"
-                        title="Add to Playlist"
-                        style={{ padding: 2, flexShrink: 0 }}
+                        title="Add to playlist"
+                        style={{
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            cursor: "pointer",
+                            flexShrink: 0,
+                        }}
                     >
-                        <Plus size={15} />
+                        <div
+                            style={{
+                                width: 22,
+                                height: 22,
+                                borderRadius: "50%",
+                                border: "1.5px solid rgba(255, 255, 255, 0.4)",
+                                background: "transparent",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "rgba(255, 255, 255, 0.85)",
+                                transition: "all 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = "#ffffff";
+                                e.currentTarget.style.background =
+                                    "rgba(255, 255, 255, 0.1)";
+                                e.currentTarget.style.color = "#ffffff";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor =
+                                    "rgba(255, 255, 255, 0.4)";
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.color =
+                                    "rgba(255, 255, 255, 0.85)";
+                            }}
+                        >
+                            <Plus size={12} strokeWidth={2.5} />
+                        </div>
                     </button>
                 )}
             </div>

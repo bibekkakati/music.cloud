@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { playlistService } from "../services/playlistService";
-import { songService } from "../services/songService";
 import type { PlaylistDetail, PlaylistSongItem, SongMetadata } from "../types";
 import { SongRow } from "../components/SongRow";
 import { usePlayer } from "../context/PlayerContext";
@@ -14,7 +13,9 @@ import {
     Music,
     Loader2,
     Clock3,
+    Heart,
 } from "lucide-react";
+import { isLikedPlaylist } from "@music-cloud/utils";
 
 interface PlaylistPageProps {
     onEditPlaylist: (playlist: {
@@ -54,9 +55,88 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
         }
     }, [id, showToast]);
 
+    const refreshPlaylistSilent = useCallback(async () => {
+        if (!id) return;
+        try {
+            const data = await playlistService.getPlaylistSongs(id);
+            setPlaylist(data);
+        } catch {
+            // Silently ignore background refresh errors
+        }
+    }, [id]);
+
     useEffect(() => {
         loadPlaylistData();
     }, [loadPlaylistData]);
+
+    // Listen for additions/removals to dynamically update the currently opened playlist
+    useEffect(() => {
+        const handleMutation = (e: Event) => {
+            const customEvent = e as CustomEvent<{
+                playlistId?: string;
+                songId?: string;
+                action?: "add" | "remove";
+                song?: SongMetadata;
+                isLikedPlaylist?: boolean;
+            }>;
+            const detail = customEvent.detail;
+
+            const isCurrentLiked = isLikedPlaylist(
+                playlist?.label,
+                playlist?.is_deletable,
+            );
+
+            const matchesCurrent =
+                (detail?.playlistId && detail.playlistId === id) ||
+                (detail?.isLikedPlaylist && isCurrentLiked);
+
+            if (matchesCurrent && detail?.action) {
+                if (detail.action === "add" && detail.song) {
+                    setPlaylist((prev) => {
+                        if (!prev) return prev;
+                        if (prev.songs.some((s) => s.id === detail.song!.id)) {
+                            return prev;
+                        }
+                        const newSongItem: PlaylistSongItem = {
+                            ...detail.song!,
+                            playlist_song_id: detail.song!.id,
+                            created_at: new Date().toISOString(),
+                        };
+                        return {
+                            ...prev,
+                            songs: [...prev.songs, newSongItem],
+                            songs_count:
+                                (prev.songs_count ?? prev.songs.length) + 1,
+                        };
+                    });
+                } else if (detail.action === "remove" && detail.songId) {
+                    setPlaylist((prev) => {
+                        if (!prev) return prev;
+                        return {
+                            ...prev,
+                            songs: prev.songs.filter(
+                                (s) => s.id !== detail.songId,
+                            ),
+                            songs_count: Math.max(
+                                0,
+                                (prev.songs_count ?? prev.songs.length) - 1,
+                            ),
+                        };
+                    });
+                }
+            }
+
+            // Also silently fetch latest data in the background (no loading spinner)
+            if (!detail?.playlistId || matchesCurrent) {
+                refreshPlaylistSilent();
+            }
+        };
+
+        window.addEventListener("playlist-mutation", handleMutation);
+        return () => {
+            window.removeEventListener("playlist-mutation", handleMutation);
+        };
+    }, [id, playlist?.label, playlist?.is_deletable, refreshPlaylistSilent]);
 
     const playableTracks: SongMetadata[] = playlist?.songs || [];
 
@@ -75,16 +155,35 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
     };
 
     const handleRemoveSong = async (playlistId: string, songId: string) => {
+        const previousPlaylist = playlist;
+
+        // Dynamically update playlist state without component reload or refetching
+        setPlaylist((prev) => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                songs: prev.songs.filter((s) => s.id !== songId),
+            };
+        });
+
         try {
             await playlistService.removeSongFromPlaylistBySongId(
                 playlistId,
                 songId,
             );
             showToast("Song Removed", "info", "Removed track from playlist");
-            loadPlaylistData();
-            window.dispatchEvent(new CustomEvent("playlist-mutation"));
+            window.dispatchEvent(
+                new CustomEvent("playlist-mutation", {
+                    detail: {
+                        playlistId,
+                        songId,
+                        action: "remove",
+                    },
+                }),
+            );
         } catch {
-            showToast("Error", "error", "Could not remove song from playlist");
+            // Skipping revert
+            // Not a critical action
         }
     };
 
@@ -164,13 +263,41 @@ export const PlaylistPage: React.FC<PlaylistPageProps> = ({
         );
     }
 
+    const isLiked = isLikedPlaylist(playlist.label, playlist.is_deletable);
+
     return (
         <div className="playlist-page-container" style={{ paddingBottom: 120 }}>
             {/* 1. Massive Gradient Header */}
-            <div className="playlist-hero-header">
+            <div
+                className="playlist-hero-header"
+                style={
+                    isLiked
+                        ? {
+                              background:
+                                  "linear-gradient(180deg, #5038a0 0%, #121212 100%)",
+                          }
+                        : undefined
+                }
+            >
                 {/* Playlist Cover Art */}
-                <div className="playlist-cover-box">
-                    <Music size={64} color="var(--app-subtext)" />
+                <div
+                    className="playlist-cover-box"
+                    style={
+                        isLiked
+                            ? {
+                                  background:
+                                      "linear-gradient(135deg, #450af5, #8e8ee5)",
+                                  boxShadow:
+                                      "0 8px 32px rgba(80, 56, 160, 0.45)",
+                              }
+                            : undefined
+                    }
+                >
+                    {isLiked ? (
+                        <Heart size={64} fill="#ffffff" color="#ffffff" />
+                    ) : (
+                        <Music size={64} color="var(--app-subtext)" />
+                    )}
                 </div>
 
                 {/* Metadata Details */}

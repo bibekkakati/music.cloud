@@ -13,7 +13,10 @@ import {
     Search as MiniSearch,
     ListFilter,
     X,
+    Heart,
+    Pin,
 } from "lucide-react";
+import { isLikedPlaylist } from "@music-cloud/utils";
 import { Logo } from "./Logo";
 
 interface SidebarProps {
@@ -405,21 +408,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     }}
                                 >
                                     {/* Playlist Icon / Thumbnail */}
-                                    <div
-                                        style={{
-                                            width: 48,
-                                            height: 48,
-                                            borderRadius: 4,
-                                            background: "#282828",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            color: "var(--app-subtext)",
-                                            flexShrink: 0,
-                                        }}
-                                    >
-                                        <Music size={22} />
-                                    </div>
+                                    {isLikedPlaylist(pl.label, pl.is_deletable) ? (
+                                        <div
+                                            style={{
+                                                width: 48,
+                                                height: 48,
+                                                borderRadius: 4,
+                                                background:
+                                                    "linear-gradient(135deg, #450af5, #8e8ee5)",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            <Heart
+                                                size={22}
+                                                fill="#ffffff"
+                                                color="#ffffff"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div
+                                            style={{
+                                                width: 48,
+                                                height: 48,
+                                                borderRadius: 4,
+                                                background: "#282828",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                color: "var(--app-subtext)",
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            <Music size={22} />
+                                        </div>
+                                    )}
 
                                     <div style={{ minWidth: 0, flex: 1 }}>
                                         <div
@@ -430,9 +455,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                 whiteSpace: "nowrap",
                                                 overflow: "hidden",
                                                 textOverflow: "ellipsis",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 6,
                                             }}
                                         >
-                                            {pl.label}
+                                            <span>{pl.label}</span>
+                                            {isLikedPlaylist(
+                                                pl.label,
+                                                pl.is_deletable,
+                                            ) && (
+                                                <Pin
+                                                    size={13}
+                                                    fill="#1ed760"
+                                                    color="#1ed760"
+                                                    style={{
+                                                        transform:
+                                                            "rotate(45deg)",
+                                                        flexShrink: 0,
+                                                    }}
+                                                />
+                                            )}
                                         </div>
                                         <div
                                             style={{

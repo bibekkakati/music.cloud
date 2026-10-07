@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import type { SongMetadata, SongDetail } from "../types";
 import { usePlayer } from "../context/PlayerContext";
 import { SongCoverArt } from "./SongCoverArt";
-import { Play, Pause, Plus, Trash2 } from "lucide-react";
+import { Play, Pause, Plus, Check } from "lucide-react";
 
 interface SongRowProps {
     song: SongMetadata | SongDetail;
@@ -14,44 +14,7 @@ interface SongRowProps {
     allSongs?: (SongMetadata | SongDetail)[];
 }
 
-const formatDuration = (seconds?: number): string => {
-    if (!seconds || isNaN(seconds)) return "3:20";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-};
-
-const formatDateAdded = (dateStr?: string): string => {
-    if (!dateStr) return "—";
-    try {
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return "—";
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffSec = Math.floor(diffMs / 1000);
-        const diffMin = Math.floor(diffSec / 60);
-        const diffHours = Math.floor(diffMin / 60);
-        const diffDays = Math.floor(diffHours / 24);
-
-        if (diffMin < 1) return "Just now";
-        if (diffMin < 60) return `${diffMin} min ago`;
-        if (diffHours < 24)
-            return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-        if (diffDays === 1) return "Yesterday";
-        if (diffDays < 7) return `${diffDays} days ago`;
-
-        return date.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year:
-                date.getFullYear() !== now.getFullYear()
-                    ? "numeric"
-                    : undefined,
-        });
-    } catch {
-        return "—";
-    }
-};
+import { formatDuration, formatDateAdded } from "@music-cloud/utils";
 
 export const SongRow: React.FC<SongRowProps> = ({
     song,
@@ -216,31 +179,85 @@ export const SongRow: React.FC<SongRowProps> = ({
                     gap: 10,
                 }}
             >
-                {onAddToPlaylist && isHovered && (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onAddToPlaylist(song);
-                        }}
-                        className="app-btn-ghost"
-                        title="Add to Playlist"
-                        style={{ padding: 4 }}
-                    >
-                        <Plus size={16} />
-                    </button>
-                )}
-
-                {playlistId && onRemoveFromPlaylist && isHovered && (
+                {playlistId && onRemoveFromPlaylist ? (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             onRemoveFromPlaylist(playlistId, song.id);
                         }}
-                        className="app-btn-ghost"
-                        title="Remove from Playlist"
-                        style={{ padding: 4, color: "#f87171" }}
+                        title="Remove from playlist"
+                        style={{
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}
                     >
-                        <Trash2 size={16} />
+                        <div
+                            style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: "50%",
+                                background: "#1ed760",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                transition: "transform 0.15s ease, opacity 0.15s ease",
+                                opacity: isHovered ? 1 : 0.85,
+                                transform: isHovered ? "scale(1.08)" : "scale(1)",
+                            }}
+                        >
+                            <Check size={13} strokeWidth={3} color="#000000" />
+                        </div>
+                    </button>
+                ) : onAddToPlaylist && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onAddToPlaylist(song);
+                        }}
+                        title="Add to playlist"
+                        style={{
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            opacity: isHovered ? 1 : 0,
+                            transition: "opacity 0.15s ease",
+                        }}
+                    >
+                        <div
+                            style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: "50%",
+                                border: "1.5px solid rgba(255, 255, 255, 0.4)",
+                                background: "transparent",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "rgba(255, 255, 255, 0.85)",
+                                transition: "all 0.15s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = "#ffffff";
+                                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                                e.currentTarget.style.color = "#ffffff";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.4)";
+                                e.currentTarget.style.background = "transparent";
+                                e.currentTarget.style.color = "rgba(255, 255, 255, 0.85)";
+                            }}
+                        >
+                            <Plus size={12} strokeWidth={2.5} />
+                        </div>
                     </button>
                 )}
 
