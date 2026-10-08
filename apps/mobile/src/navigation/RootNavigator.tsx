@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HomeScreen } from "../screens/HomeScreen";
 import { SearchScreen } from "../screens/SearchScreen";
 import { LibraryScreen } from "../screens/LibraryScreen";
-import { PlaylistDetailScreen } from "../screens/PlaylistDetailScreen";
+import { SongCollectionView } from "../screens/SongCollectionView";
 import { appConfig } from "../config";
 
 const Tab = createBottomTabNavigator();
@@ -95,17 +95,25 @@ function MainTabNavigator() {
                         focused: boolean;
                     }) => (
                         <Ionicons
-                            name={focused ? "library" : "library-outline"}
+                            name={focused ? "list" : "list-outline"}
                             size={size - 2}
                             color={color}
                         />
                     ),
                 }}
             />
-            {/* PlaylistDetail is registered inside MainTabs so the bottom navigation bar remains visible */}
+            {/* PlaylistDetail & CategoryDetail are registered inside MainTabs so the bottom navigation bar remains visible */}
             <Tab.Screen
                 name="PlaylistDetail"
-                component={PlaylistDetailScreen}
+                component={SongCollectionView}
+                options={{
+                    tabBarItemStyle: { display: "none" },
+                    tabBarButton: () => null,
+                }}
+            />
+            <Tab.Screen
+                name="CategoryDetail"
+                component={SongCollectionView}
                 options={{
                     tabBarItemStyle: { display: "none" },
                     tabBarButton: () => null,

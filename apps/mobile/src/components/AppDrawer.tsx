@@ -8,7 +8,6 @@ import {
     ScrollView,
     TextInput,
     Dimensions,
-    Animated,
     Alert,
     Platform,
 } from "react-native";
@@ -40,7 +39,6 @@ export const AppDrawer: React.FC = () => {
 
     const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
-    const [showSearch, setShowSearch] = useState(false);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -165,7 +163,7 @@ export const AppDrawer: React.FC = () => {
                                 onPress={() => handleNav("SearchTab")}
                             >
                                 <Ionicons
-                                    name="compass-outline"
+                                    name="search-outline"
                                     size={22}
                                     color={appConfig.colors.subText}
                                 />
@@ -182,7 +180,7 @@ export const AppDrawer: React.FC = () => {
                         <View style={styles.libraryHeader}>
                             <View style={styles.libraryTitleRow}>
                                 <Ionicons
-                                    name="library"
+                                    name="list"
                                     size={20}
                                     color={appConfig.colors.subText}
                                 />
@@ -239,45 +237,15 @@ export const AppDrawer: React.FC = () => {
                         ) : (
                             /* Authenticated Playlists */
                             <View style={{ flex: 1 }}>
-                                {/* Search and Recents row */}
-                                <View style={styles.filterRow}>
-                                    <TouchableOpacity
-                                        onPress={() =>
-                                            setShowSearch(!showSearch)
-                                        }
-                                        style={styles.searchToggleBtn}
-                                    >
-                                        <Ionicons
-                                            name="search"
-                                            size={16}
-                                            color={appConfig.colors.subText}
-                                        />
-                                    </TouchableOpacity>
-
-                                    <View style={styles.recentsRow}>
-                                        <Text style={styles.recentsText}>
-                                            Recents
-                                        </Text>
-                                        <Ionicons
-                                            name="list"
-                                            size={16}
-                                            color={appConfig.colors.subText}
-                                        />
-                                    </View>
-                                </View>
-
-                                {showSearch && (
-                                    <TextInput
-                                        style={styles.searchInput}
-                                        placeholder="Search playlists..."
-                                        placeholderTextColor={
-                                            appConfig.colors.subText
-                                        }
-                                        value={searchQuery}
-                                        onChangeText={setSearchQuery}
-                                        autoFocus
-                                    />
-                                )}
+                                <TextInput
+                                    style={styles.searchInput}
+                                    placeholder="Search playlists..."
+                                    placeholderTextColor={
+                                        appConfig.colors.subText
+                                    }
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                />
 
                                 <ScrollView
                                     showsVerticalScrollIndicator={false}
@@ -522,31 +490,12 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: "700",
     },
-    filterRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginBottom: 10,
-    },
-    searchToggleBtn: {
-        padding: 4,
-    },
-    recentsRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-    },
-    recentsText: {
-        color: appConfig.colors.subText,
-        fontSize: 12,
-        fontWeight: "500",
-    },
     searchInput: {
         backgroundColor: "#242424",
         color: "#ffffff",
         borderRadius: 6,
         paddingHorizontal: 10,
-        paddingVertical: 6,
+        paddingVertical: 10,
         fontSize: 12,
         marginBottom: 10,
     },

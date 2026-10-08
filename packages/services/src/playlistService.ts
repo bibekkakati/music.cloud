@@ -52,6 +52,13 @@ export const playlistService = {
         return response.data;
     },
 
+    getCategorySongs: async (categoryLabel: string): Promise<PlaylistDetail> => {
+        const response = await apiClient.get<PlaylistDetail>(
+            `/api/v1/playlist/category?category=${encodeURIComponent(categoryLabel)}`,
+        );
+        return response.data;
+    },
+
     addSongToPlaylist: async (
         payload: AddPlaylistSongPayload,
     ): Promise<PlaylistSongItem> => {

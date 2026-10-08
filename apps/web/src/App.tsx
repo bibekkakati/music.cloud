@@ -13,7 +13,7 @@ import { PlaylistModal } from "./components/PlaylistModal";
 
 import { HomePage } from "./pages/HomePage";
 import { SearchPage } from "./pages/SearchPage";
-import { PlaylistPage } from "./pages/PlaylistPage";
+import { SongCollectionView } from "./pages/SongCollectionView";
 import { AdminPage } from "./pages/admin/AdminPage";
 import { SongRoutePage } from "./pages/SongRoutePage";
 import type { SongMetadata, PlaylistSummary } from "./types";
@@ -141,6 +141,10 @@ const AppContent: React.FC = () => {
                             }
                         />
                         <Route
+                            path="/search/:categoryId"
+                            element={<SongCollectionView mode="category" />}
+                        />
+                        <Route
                             path="/song/:id"
                             element={
                                 <SongRoutePage
@@ -154,7 +158,8 @@ const AppContent: React.FC = () => {
                         <Route
                             path="/playlist/:id"
                             element={
-                                <PlaylistPage
+                                <SongCollectionView
+                                    mode="playlist"
                                     onEditPlaylist={handleEditPlaylist}
                                     onPlaylistDeleted={
                                         handlePlaylistMutationSuccess

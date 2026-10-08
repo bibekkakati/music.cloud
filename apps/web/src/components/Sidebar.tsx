@@ -10,8 +10,6 @@ import {
     Library,
     LogOut,
     Music,
-    Search as MiniSearch,
-    ListFilter,
     X,
     Heart,
     Pin,
@@ -231,80 +229,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 justifyContent: "space-between",
                             }}
                         >
-                            {showSearchInput ? (
-                                <div
+                            <div
+                                style={{
+                                    position: "relative",
+                                    width: "100%",
+                                }}
+                            >
+                                <input
+                                    type="text"
+                                    placeholder="Search playlists..."
+                                    value={librarySearch}
+                                    onChange={(e) =>
+                                        setLibrarySearch(e.target.value)
+                                    }
+                                    onBlur={() =>
+                                        !librarySearch &&
+                                        setShowSearchInput(false)
+                                    }
                                     style={{
-                                        position: "relative",
                                         width: "100%",
+                                        background: "#242424",
+                                        border: "none",
+                                        borderRadius: 4,
+                                        padding: "10px 28px 10px 10px",
+                                        color: "#fff",
+                                        fontSize: 12,
+                                        outline: "none",
                                     }}
-                                >
-                                    <input
-                                        type="text"
-                                        placeholder="Search in Your Library"
-                                        value={librarySearch}
-                                        onChange={(e) =>
-                                            setLibrarySearch(e.target.value)
-                                        }
-                                        autoFocus
-                                        onBlur={() =>
-                                            !librarySearch &&
-                                            setShowSearchInput(false)
-                                        }
-                                        style={{
-                                            width: "100%",
-                                            background: "#242424",
-                                            border: "none",
-                                            borderRadius: 4,
-                                            padding: "6px 28px 6px 10px",
-                                            color: "#fff",
-                                            fontSize: 12,
-                                            outline: "none",
-                                        }}
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            setLibrarySearch("");
-                                            setShowSearchInput(false);
-                                        }}
-                                        style={{
-                                            position: "absolute",
-                                            right: 6,
-                                            top: "50%",
-                                            transform: "translateY(-50%)",
-                                            background: "none",
-                                            border: "none",
-                                            color: "var(--app-subtext)",
-                                            cursor: "pointer",
-                                            fontSize: 12,
-                                        }}
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                            ) : (
-                                <>
-                                    <button
-                                        onClick={() => setShowSearchInput(true)}
-                                        className="app-btn-ghost"
-                                        style={{ padding: 4 }}
-                                        title="Search in Your Library"
-                                    >
-                                        <MiniSearch size={16} />
-                                    </button>
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 4,
-                                            fontSize: 12,
-                                            color: "var(--app-subtext)",
-                                        }}
-                                    >
-                                        <span>Recents</span>
-                                        <ListFilter size={14} />
-                                    </div>
-                                </>
-                            )}
+                                />
+                            </div>
                         </div>
                     )}
 

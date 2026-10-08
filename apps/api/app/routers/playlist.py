@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from sqlalchemy.dialects.postgresql import Any
 from uuid import UUID
 
@@ -226,6 +227,30 @@ def get_song_liked_status(
 # ============================================================================
 # Playlist Details and Songs Retrieval Endpoints
 # ============================================================================
+
+
+@router.get(
+    "/category",
+    response_model=GetPlaylistSongsResponsePayload,
+    summary="Get songs for a category",
+    status_code=status.HTTP_200_OK,
+)
+def get_category_songs(
+    category: str,
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> dict[str, Any]:
+    """Retrieve songs for a category (skeleton / placeholder)."""
+    now = datetime.now(timezone.utc)
+    return {
+        "id": f"category-{category.lower().replace(' ', '-')}",
+        "label": category,
+        "is_deletable": False,
+        "songs_count": 0,
+        "songs": [],
+        "created_at": now,
+        "updated_at": now,
+    }
 
 
 @router.get(

@@ -418,23 +418,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 }
             });
 
-            // Non-blocking lockscreen registration so playback starts immediately
-            try {
-                player.setActiveForLockScreen(
-                    true,
-                    {
-                        title: song.title,
-                        artist: song.artist,
-                        albumTitle: "Music Cloud",
-                        artworkUrl: song.cover_art_url || undefined,
-                    },
-                    {
-                        showSeekForward: false,
-                        showSeekBackward: false,
-                    },
-                );
-            } catch {}
-
             if (initialSeekTime > 0) {
                 await player.seekTo(initialSeekTime);
             }
@@ -459,6 +442,35 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
             player.play();
             playerRef.current = player;
+
+            // Register with system media notification and lockscreen controls
+            // Called after play() so the underlying ExoPlayer/MediaSession is active
+            try {
+                const artwork =
+                    song.cover_art_url &&
+                    song.cover_art_url.startsWith("http")
+                        ? song.cover_art_url
+                        : undefined;
+
+                player.setActiveForLockScreen(
+                    true,
+                    {
+                        title: song.title || "Unknown Title",
+                        artist: song.artist || "Unknown Artist",
+                        albumTitle: "Music Cloud",
+                        artworkUrl: artwork,
+                    },
+                    {
+                        showSeekForward: false,
+                        showSeekBackward: false,
+                    },
+                );
+            } catch (lockScreenErr) {
+                console.warn(
+                    "Failed to set active lockscreen/notification controls:",
+                    lockScreenErr,
+                );
+            }
 
             saveState({
                 currentSong: song,
