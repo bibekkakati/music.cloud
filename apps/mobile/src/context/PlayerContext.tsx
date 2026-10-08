@@ -6,12 +6,14 @@ import React, {
     useEffect,
     useCallback,
 } from "react";
-import {
-    createAudioPlayer,
-    setAudioModeAsync,
-    type AudioPlayer,
-    type AudioStatus,
-} from "expo-audio";
+import TrackPlayer, {
+    Capability,
+    State,
+    Event,
+    usePlaybackState,
+    useProgress,
+    type Track,
+} from "react-native-track-player";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SongMetadata, SongDetail } from "@music-cloud/types";
 import { streamService } from "../services/streamService";
@@ -81,6 +83,50 @@ interface PlayerContextValue {
 
 const PlayerContext = createContext<PlayerContextValue | undefined>(undefined);
 
+let isTrackPlayerInitialized = false;
+
+async function setupTrackPlayerIfNeeded() {
+    if (isTrackPlayerInitialized) return;
+    try {
+        await TrackPlayer.setupPlayer({
+            autoHandleInterruptions: true,
+        });
+    } catch (e: any) {
+        // Might already be initialized in dev/hot reload
+        if (!e?.message?.includes("already")) {
+            console.warn("TrackPlayer setup error:", e);
+        }
+    }
+
+    try {
+        await TrackPlayer.updateOptions({
+            capabilities: [
+                Capability.Play,
+                Capability.Pause,
+                Capability.SkipToNext,
+                Capability.SkipToPrevious,
+                Capability.SeekTo,
+                Capability.Stop,
+            ],
+            compactCapabilities: [
+                Capability.Play,
+                Capability.Pause,
+                Capability.SkipToNext,
+            ],
+            notificationCapabilities: [
+                Capability.Play,
+                Capability.Pause,
+                Capability.SkipToNext,
+                Capability.SkipToPrevious,
+                Capability.SeekTo,
+            ],
+        });
+    } catch (e) {
+        console.warn("Failed to update TrackPlayer options:", e);
+    }
+    isTrackPlayerInitialized = true;
+}
+
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
@@ -88,9 +134,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const [currentSong, setCurrentSong] = useState<PlayableSong | null>(null);
     const [queue, setQueue] = useState<PlayableSong[]>([]);
-    const [isPlaying, setIsPlaying] = useState<boolean>(false);
-    const [currentTime, setCurrentTime] = useState<number>(0);
-    const [duration, setDuration] = useState<number>(0);
     const [volume, setVolumeState] = useState<number>(
         appConfig.player.default_volume,
     );
@@ -105,7 +148,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const [playlistModalSong, setPlaylistModalSong] =
         useState<SongMetadata | null>(null);
 
-    const playerRef = useRef<AudioPlayer | null>(null);
+    // Track Player hooks for real-time state and progress
+    const playbackState = usePlaybackState();
+    const progress = useProgress(400);
+
+    const isPlaying =
+        playbackState.state === State.Playing ||
+        playbackState.state === State.Buffering;
+
     const currentSongRef = useRef<PlayableSong | null>(null);
     const queueRef = useRef<PlayableSong[]>(queue);
     const isLoopRef = useRef<boolean>(isLoop);
@@ -115,6 +165,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const playRequestIdRef = useRef<number>(0);
     const playSongRef = useRef<((song: PlayableSong, queueList?: PlayableSong[], initialSeekTime?: number) => Promise<void>) | null>(null);
     const handleNextTrackRef = useRef<(() => Promise<void>) | null>(null);
+    const handlePrevTrackRef = useRef<(() => Promise<void>) | null>(null);
     const authRef = useRef({ isAuthenticated, openAuthModal });
 
     // Sync refs
@@ -140,52 +191,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         isMutedRef.current = isMuted;
     }, [isMuted]);
 
-    // Configure Audio session mode for background playback
+    // Initialize Track Player on mount
     useEffect(() => {
-        setAudioModeAsync({
-            playsInSilentMode: true,
-            shouldPlayInBackground: true,
-            interruptionMode: "doNotMix",
-        }).catch((err) => {
-            console.warn("Failed to set audio mode:", err);
-        });
-
-        return () => {
-            if (playerRef.current) {
-                playerRef.current.remove();
-                playerRef.current = null;
-            }
-        };
+        setupTrackPlayerIfNeeded();
     }, []);
 
-    // Restore saved player state
-    useEffect(() => {
-        (async () => {
-            try {
-                const raw = await AsyncStorage.getItem(
-                    appConfig.storageKeys.playerState,
-                );
-                if (raw) {
-                    const parsed: SavedPlayerState = JSON.parse(raw);
-                    if (parsed?.currentSong) {
-                        setCurrentSong(parsed.currentSong);
-                        setQueue(parsed.queue || [parsed.currentSong]);
-                        setCurrentTime(parsed.currentTime || 0);
-                        setDuration(parsed.duration || 0);
-                        setVolumeState(
-                            parsed.volume ?? appConfig.player.default_volume,
-                        );
-                        setIsLoop(Boolean(parsed.isLoop));
-                        setIsShuffle(Boolean(parsed.isShuffle));
-                    }
-                }
-            } catch (e) {
-                console.warn("Failed to load player state from storage:", e);
-            }
-        })();
-    }, []);
-
-    // Save player state changes
+    // Save state persistence helper
     const saveState = useCallback(
         async (overrides?: Partial<SavedPlayerState>) => {
             if (!currentSongRef.current) return;
@@ -194,8 +205,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     currentSong:
                         overrides?.currentSong || currentSongRef.current,
                     queue: overrides?.queue || queueRef.current,
-                    currentTime: overrides?.currentTime ?? 0,
-                    duration: overrides?.duration ?? 0,
+                    currentTime: overrides?.currentTime ?? progress.position,
+                    duration: overrides?.duration ?? progress.duration,
                     volume: overrides?.volume ?? volumeRef.current,
                     isShuffle: overrides?.isShuffle ?? isShuffleRef.current,
                     isLoop: overrides?.isLoop ?? isLoopRef.current,
@@ -208,8 +219,33 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 // Ignore write errors
             }
         },
-        [],
+        [progress.position, progress.duration],
     );
+
+    // Restore saved player state on mount
+    useEffect(() => {
+        (async () => {
+            try {
+                const raw = await AsyncStorage.getItem(
+                    appConfig.storageKeys.playerState,
+                );
+                if (raw) {
+                    const parsed: SavedPlayerState = JSON.parse(raw);
+                    if (parsed?.currentSong) {
+                        setCurrentSong(parsed.currentSong);
+                        setQueue(parsed.queue || [parsed.currentSong]);
+                        setVolumeState(
+                            parsed.volume ?? appConfig.player.default_volume,
+                        );
+                        setIsLoop(Boolean(parsed.isLoop));
+                        setIsShuffle(Boolean(parsed.isShuffle));
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to restore player state:", err);
+            }
+        })();
+    }, []);
 
     // Fetch liked status when current song changes
     useEffect(() => {
@@ -221,7 +257,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         let active = true;
         setIsLikeLoading(true);
 
-        // Preload stream token into memory cache as soon as authenticated
         streamService.preloadToken();
 
         playlistService
@@ -240,6 +275,40 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             active = false;
         };
     }, [currentSong, isAuthenticated]);
+
+    // Handle track ended & track change events from OS remote controls
+    useEffect(() => {
+        const subQueueEnded = TrackPlayer.addEventListener(
+            Event.PlaybackQueueEnded,
+            async () => {
+                if (isLoopRef.current) {
+                    await TrackPlayer.seekTo(0);
+                    await TrackPlayer.play();
+                } else {
+                    handleNextTrackRef.current?.();
+                }
+            },
+        );
+
+        const subActiveTrack = TrackPlayer.addEventListener(
+            Event.PlaybackActiveTrackChanged,
+            async (event) => {
+                if (event.track) {
+                    const songInQueue = queueRef.current.find(
+                        (s) => s.id === event.track?.id,
+                    );
+                    if (songInQueue) {
+                        setCurrentSong(songInQueue);
+                    }
+                }
+            },
+        );
+
+        return () => {
+            subQueueEnded.remove();
+            subActiveTrack.remove();
+        };
+    }, []);
 
     const handleNextTrack = useCallback(async () => {
         let q = queueRef.current;
@@ -278,251 +347,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         }
     }, []);
 
-    const isSeekingRef = useRef<boolean>(false);
-    const seekTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    const handlePlaybackStatusUpdate = useCallback(
-        (status: AudioStatus) => {
-            // Avoid play button flicker: only set isPlaying to false when explicitly paused or stopped
-            if (status.timeControlStatus === "paused") {
-                setIsPlaying(false);
-            } else if (
-                status.timeControlStatus === "playing" ||
-                status.playing
-            ) {
-                setIsPlaying(true);
-            }
-
-            // Only update currentTime if user is not actively seeking to prevent jumping/flickering
-            if (!isSeekingRef.current) {
-                setCurrentTime(status.currentTime);
-            }
-            if (status.duration > 0) {
-                setDuration(status.duration);
-            }
-
-            if (status.didJustFinish) {
-                if (isLoopRef.current) {
-                    playerRef.current?.seekTo(0);
-                    playerRef.current?.play();
-                } else {
-                    handleNextTrackRef.current?.();
-                }
-            }
-        },
-        [],
-    );
-
-    const playSong = async (
-        song: PlayableSong,
-        queueList?: PlayableSong[],
-        initialSeekTime = 0,
-    ) => {
-        if (!authRef.current.isAuthenticated) {
-            authRef.current.openAuthModal();
-            return;
-        }
-
-        const currentRequestId = ++playRequestIdRef.current;
-
-        try {
-            const isSameSong = currentSongRef.current?.id === song.id;
-
-            // Update queue
-            let updatedQueue = queueRef.current;
-            if (queueList && queueList.length > 0) {
-                updatedQueue = queueList;
-                setQueue(queueList);
-            } else if (!queueRef.current.some((s) => s.id === song.id)) {
-                updatedQueue = [song, ...queueRef.current];
-                setQueue(updatedQueue);
-            }
-
-            setCurrentSong(song);
-            currentSongRef.current = song;
-
-            const songDetail = song as SongDetail;
-            const targetDuration = songDetail.duration_sec || 0;
-            setDuration(targetDuration);
-            setCurrentTime(initialSeekTime);
-            // Instant UI response for playback state
-            setIsPlaying(true);
-
-            if (isSameSong && playerRef.current) {
-                if (initialSeekTime > 0) {
-                    await playerRef.current.seekTo(initialSeekTime);
-                } else {
-                    await playerRef.current.seekTo(0);
-                }
-                playerRef.current.play();
-                return;
-            }
-
-            // Stop & remove previous player immediately
-            if (playerRef.current) {
-                try {
-                    playerRef.current.pause();
-                    playerRef.current.remove();
-                } catch {}
-                playerRef.current = null;
-            }
-
-            // Get valid streaming token
-            const token = await streamService.getValidStreamToken();
-
-            // Check if a newer play request was issued while waiting for the token
-            if (currentRequestId !== playRequestIdRef.current) {
-                return;
-            }
-
-            const rawStreamUrl =
-                song.stream_url ||
-                (song as SongDetail).master_aac_key ||
-                (song as SongDetail).master_mp3_key;
-
-            if (!rawStreamUrl) {
-                console.error("No stream URL available for song:", song.id);
-                setIsPlaying(false);
-                return;
-            }
-
-            const streamUrl = attachTokenToStreamUrl(rawStreamUrl, token);
-
-            const player = createAudioPlayer(
-                {
-                    uri: streamUrl,
-                    headers: token
-                        ? { Authorization: `Bearer ${token}` }
-                        : undefined,
-                },
-                {
-                    updateInterval: 400,
-                },
-            );
-
-            // Check if cancelled before configuring
-            if (currentRequestId !== playRequestIdRef.current) {
-                try {
-                    player.pause();
-                    player.remove();
-                } catch {}
-                return;
-            }
-
-            player.volume = isMutedRef.current ? 0 : volumeRef.current;
-            player.loop = isLoopRef.current;
-
-            player.addListener("playbackStatusUpdate", (status) => {
-                if (currentRequestId === playRequestIdRef.current) {
-                    handlePlaybackStatusUpdate(status);
-                }
-            });
-
-            if (initialSeekTime > 0) {
-                await player.seekTo(initialSeekTime);
-            }
-
-            // Check if cancelled before playing
-            if (currentRequestId !== playRequestIdRef.current) {
-                try {
-                    player.pause();
-                    player.remove();
-                } catch {}
-                return;
-            }
-
-            // Ensure old player is removed
-            const existingPlayer = playerRef.current as AudioPlayer | null;
-            if (existingPlayer) {
-                try {
-                    existingPlayer.pause();
-                    existingPlayer.remove();
-                } catch {}
-            }
-
-            player.play();
-            playerRef.current = player;
-
-            // Register with system media notification and lockscreen controls
-            // Called after play() so the underlying ExoPlayer/MediaSession is active
-            try {
-                const artwork =
-                    song.cover_art_url &&
-                    song.cover_art_url.startsWith("http")
-                        ? song.cover_art_url
-                        : undefined;
-
-                player.setActiveForLockScreen(
-                    true,
-                    {
-                        title: song.title || "Unknown Title",
-                        artist: song.artist || "Unknown Artist",
-                        albumTitle: "Music Cloud",
-                        artworkUrl: artwork,
-                    },
-                    {
-                        showSeekForward: false,
-                        showSeekBackward: false,
-                    },
-                );
-            } catch (lockScreenErr) {
-                console.warn(
-                    "Failed to set active lockscreen/notification controls:",
-                    lockScreenErr,
-                );
-            }
-
-            saveState({
-                currentSong: song,
-                queue: updatedQueue,
-                currentTime: initialSeekTime,
-                duration: targetDuration,
-            });
-        } catch (err) {
-            if (currentRequestId === playRequestIdRef.current) {
-                console.error("Failed to play song:", err);
-                setIsPlaying(false);
-            }
-        }
-    };
-
-    useEffect(() => {
-        playSongRef.current = playSong;
-        handleNextTrackRef.current = handleNextTrack;
-    });
-
-    const togglePlay = async () => {
-        if (!authRef.current.isAuthenticated) {
-            authRef.current.openAuthModal();
-            return;
-        }
-        if (!playerRef.current) {
-            if (currentSongRef.current) {
-                await playSong(
-                    currentSongRef.current,
-                    queueRef.current,
-                    currentTime,
-                );
-            }
-            return;
-        }
-
-        const willPlay = !isPlaying;
-        setIsPlaying(willPlay);
-
-        try {
-            if (willPlay) {
-                playerRef.current.play();
-            } else {
-                playerRef.current.pause();
-            }
-        } catch (e) {
-            console.warn("Toggle play error:", e);
-            setIsPlaying(!willPlay);
-        }
-    };
-
-    const handlePrevTrack = async () => {
+    const handlePrevTrack = useCallback(async () => {
         let q = queueRef.current;
         if (q.length <= 1) {
             try {
@@ -536,8 +361,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         if (q.length === 0) return;
 
-        if (currentTime > 3 && playerRef.current) {
-            await playerRef.current.seekTo(0);
+        const currentPos = await TrackPlayer.getProgress().then((p) => p.position).catch(() => 0);
+        if (currentPos > 3) {
+            await TrackPlayer.seekTo(0);
             return;
         }
 
@@ -556,27 +382,137 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         const prevSong = q[prevIdx];
         if (prevSong) {
-            await playSong(prevSong, q, 0);
+            if (playSongRef.current) {
+                await playSongRef.current(prevSong, q, 0);
+            }
+        }
+    }, []);
+
+    const playSong = async (
+        song: PlayableSong,
+        queueList?: PlayableSong[],
+        initialSeekTime = 0,
+    ) => {
+        if (!authRef.current.isAuthenticated) {
+            authRef.current.openAuthModal();
+            return;
+        }
+
+        await setupTrackPlayerIfNeeded();
+
+        const currentRequestId = ++playRequestIdRef.current;
+
+        try {
+            // Update queue
+            let updatedQueue = queueRef.current;
+            if (queueList && queueList.length > 0) {
+                updatedQueue = queueList;
+                setQueue(queueList);
+            } else if (!queueRef.current.some((s) => s.id === song.id)) {
+                updatedQueue = [song, ...queueRef.current];
+                setQueue(updatedQueue);
+            }
+
+            setCurrentSong(song);
+            currentSongRef.current = song;
+
+            // Get valid streaming token
+            const token = await streamService.getValidStreamToken();
+
+            if (currentRequestId !== playRequestIdRef.current) {
+                return;
+            }
+
+            const rawStreamUrl =
+                song.stream_url ||
+                (song as SongDetail).master_aac_key ||
+                (song as SongDetail).master_mp3_key;
+
+            if (!rawStreamUrl) {
+                console.error("No stream URL available for song:", song.id);
+                return;
+            }
+
+            const streamUrl = attachTokenToStreamUrl(rawStreamUrl, token);
+
+            const track: Track = {
+                id: song.id,
+                url: streamUrl,
+                title: song.title || "Unknown Title",
+                artist: song.artist || "Unknown Artist",
+                album: "Music Cloud",
+                artwork:
+                    song.cover_art_url && song.cover_art_url.startsWith("http")
+                        ? song.cover_art_url
+                        : undefined,
+                duration: (song as SongDetail).duration_sec || 0,
+                headers: token
+                    ? { Authorization: `Bearer ${token}` }
+                    : undefined,
+            };
+
+            await TrackPlayer.reset();
+            await TrackPlayer.add(track);
+
+            if (initialSeekTime > 0) {
+                await TrackPlayer.seekTo(initialSeekTime);
+            }
+
+            await TrackPlayer.setVolume(
+                isMutedRef.current ? 0 : volumeRef.current,
+            );
+            await TrackPlayer.play();
+
+            saveState({
+                currentSong: song,
+                queue: updatedQueue,
+                currentTime: initialSeekTime,
+                duration: track.duration || 0,
+            });
+        } catch (err) {
+            if (currentRequestId === playRequestIdRef.current) {
+                console.error("Failed to play song:", err);
+            }
+        }
+    };
+
+    useEffect(() => {
+        playSongRef.current = playSong;
+        handleNextTrackRef.current = handleNextTrack;
+        handlePrevTrackRef.current = handlePrevTrack;
+    });
+
+    const togglePlay = async () => {
+        if (!authRef.current.isAuthenticated) {
+            authRef.current.openAuthModal();
+            return;
+        }
+
+        const state = await TrackPlayer.getPlaybackState().catch(() => null);
+        if (!state || state.state === State.None || state.state === State.Stopped) {
+            if (currentSongRef.current) {
+                await playSong(
+                    currentSongRef.current,
+                    queueRef.current,
+                    progress.position,
+                );
+            }
+            return;
+        }
+
+        if (state.state === State.Playing) {
+            await TrackPlayer.pause();
+        } else {
+            await TrackPlayer.play();
         }
     };
 
     const seek = async (seconds: number) => {
-        if (!playerRef.current) return;
         try {
-            const targetSec = Math.max(0, Math.min(seconds, duration));
-            // Lock status updates from rolling back the slider
-            isSeekingRef.current = true;
-            if (seekTimeoutRef.current) clearTimeout(seekTimeoutRef.current);
-            // Immediately and optimistically set currentTime
-            setCurrentTime(targetSec);
-            await playerRef.current.seekTo(targetSec);
+            const targetSec = Math.max(0, Math.min(seconds, progress.duration || 0));
+            await TrackPlayer.seekTo(targetSec);
         } catch (err) {
             console.warn("Seek error:", err);
-        } finally {
-            // Hold lock briefly (250ms) so stale status frames don't rewind time
-            seekTimeoutRef.current = setTimeout(() => {
-                isSeekingRef.current = false;
-            }, 250);
         }
     };
 
@@ -584,8 +520,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const clamped = Math.max(0, Math.min(1, vol));
         setVolumeState(clamped);
         volumeRef.current = clamped;
-        if (playerRef.current && !isMutedRef.current) {
-            playerRef.current.volume = clamped;
+        if (!isMutedRef.current) {
+            await TrackPlayer.setVolume(clamped).catch(() => {});
         }
     };
 
@@ -593,18 +529,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const nextMuted = !isMuted;
         setIsMuted(nextMuted);
         isMutedRef.current = nextMuted;
-        if (playerRef.current) {
-            playerRef.current.muted = nextMuted;
-        }
+        await TrackPlayer.setVolume(nextMuted ? 0 : volumeRef.current).catch(() => {});
     };
 
     const toggleLoop = () => {
         const nextLoop = !isLoop;
         setIsLoop(nextLoop);
         isLoopRef.current = nextLoop;
-        if (playerRef.current) {
-            playerRef.current.loop = nextLoop;
-        }
         saveState({ isLoop: nextLoop });
     };
 
@@ -624,7 +555,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const previousState = isLiked;
         const targetLiked = !previousState;
-        // OPTIMISTIC UPDATE: Immediate instant feedback without waiting for API
         setIsLiked(targetLiked);
 
         try {
@@ -650,8 +580,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 currentSong,
                 queue,
                 isPlaying,
-                currentTime,
-                duration,
+                currentTime: progress.position,
+                duration: progress.duration,
                 volume,
                 isMuted,
                 isLoop,

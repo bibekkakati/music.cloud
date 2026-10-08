@@ -8,7 +8,7 @@
         "packages/*"
     ],
     "scripts": {
-        "dev": "concurrently -n \"api,web,mobile\" -c \"blue,green,magenta\" \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:mobile\"",
+        "dev": "concurrently -n \"api,web\" -c \"blue,green\" \"npm run dev:api\" \"npm run dev:web\"",
         "dev:turbo": "turbo run dev --parallel",
         "dev:api": "npm run dev --workspace=@music-cloud/api",
         "dev:web": "npm run dev --workspace=@music-cloud/web",
@@ -20,7 +20,8 @@
         "typecheck": "turbo run typecheck",
         "clean": "turbo run clean && rm -rf node_modules",
         "docker:build:api": "npm run docker:build --workspace=@music-cloud/api",
-        "docker:run:api": "npm run docker:run --workspace=@music-cloud/api"
+        "docker:run:api": "npm run docker:run --workspace=@music-cloud/api",
+        "postinstall": "patch-package"
     },
     "devDependencies": {
         "concurrently": "^9.1.2",

@@ -28,20 +28,13 @@ Music Cloud is a private audio streaming service engineered as a polyglot monore
 ## User Interface & Experience
 
 <p align="center">
-  <img src="assets/homeview.png" alt="Music Cloud Web Player View" width="100%" />
+  <img src="assets/web-app-view.png" alt="Music Cloud Web Player View" width="100%" />
 </p>
 <p align="center">
-  <em><strong>Web Player</strong> — High-fidelity audio playback, queue management, and library browsing</em>
+  <em><strong>Web & Mobile App View</strong>
 </p>
 
 <br />
-
-<p align="center">
-  <img src="assets/adminview.png" alt="Music Cloud Admin Studio View" width="100%" />
-</p>
-<p align="center">
-  <em><strong>Admin Studio</strong> — Audio ingestion, automated transcoding pipeline triggers, and catalog curation</em>
-</p>
 
 ---
 
@@ -55,10 +48,13 @@ music-cloud/
 │   ├── api/             # FastAPI backend, SQLModel ORM, BullMQ queue, and FFmpeg transcode pipeline
 │   ├── web/             # React 19 single-page web client with hls.js audio player
 │   └── edge-worker/     # Cloudflare Worker for edge HLS delivery, token validation, and static CDN
+│   └── mobile/          # React Native Expo client for andoird and iOS application
 │
 ├── packages/
 │   ├── types/           # Shared TypeScript models, API contracts, and JWT claims (@music-cloud/types)
 │   └── tsconfig/        # Shared TypeScript compiler configuration presets (@music-cloud/tsconfig)
+|   └── services/        # Shared API service calls for web and mobile client
+│   └── utils/           # Shared utils for API, Edge Worker, and Mobile
 │
 ├── assets/              # Branding assets, UI screenshots, and logos
 ├── package.json         # Workspace manifests, task definitions, and devDependencies
@@ -72,11 +68,9 @@ music-cloud/
 
 - **Adaptive Bitrate HLS Streaming**: Packages multi-bitrate AAC streams (256 kbps, 320 kbps) with segment preloading and sub-millisecond in-memory playlist caching.
 - **Automated FFmpeg Transcode Pipeline**: Input tracks are inspected with `ffprobe`, embedded artwork is extracted to standardized JPEG files, and audio is segmented into 10-second chunks before concurrent upload to Cloudflare R2.
-- **Edge CDN for Static Assets**: Cover art and images are served directly through the edge worker with immutable browser caching (`max-age=31536000`), avoiding slow presigned S3 URLs.
-- **Secure Playback Token Authority**: Ephemeral 4-hour HMAC-SHA256 JWT tokens authorize audio playback at the edge without exposing raw storage keys.
+- **Edge CDN for Streaming**: HLS segments and cover art are served directly through the edge worker with immutable browser caching (`max-age`), avoiding slow presigned S3 URLs.
+- **Secure Playback Token Authority**: Ephemeral x-hour HMAC-SHA256 JWT tokens authorize audio playback at the edge without exposing raw storage keys.
 - **Typo-Tolerant Search**: In-memory catalog indexing powered by RapidFuzz provides fast search results resilient to typos and partial keywords.
-- **Session Cache with Grace Period**: A 5-minute in-memory session cache minimizes database load and automatically renews active user sessions.
-- **Persistent Player State**: The web client preserves track selection, playback position, and volume across page reloads.
 
 ---
 
@@ -84,11 +78,12 @@ music-cloud/
 
 Detailed technical documentation for each application is available in its respective directory:
 
-| Component       | Description                                                                         | Reference                                                                                          |
-| :-------------- | :---------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------- |
-| **API Server**  | FastAPI service, SQLModel database, BullMQ queue, and FFmpeg pipeline               | [apps/api/README.md](file:///Users/bibek/Documents/music-cloud/apps/api/README.md)                 |
-| **Edge Worker** | Cloudflare Worker for token validation, HLS streaming, and static CDN caching       | [apps/edge-worker/README.md](file:///Users/bibek/Documents/music-cloud/apps/edge-worker/README.md) |
-| **Web Client**  | React web application, `hls.js` integration, stream token manager, and admin studio | [apps/web/README.md](file:///Users/bibek/Documents/music-cloud/apps/web/README.md)                 |
+| Component       | Description                                                                         | Reference                                                |
+| :-------------- | :---------------------------------------------------------------------------------- | :------------------------------------------------------- |
+| **API Server**  | FastAPI service, SQLModel database, BullMQ queue, and FFmpeg pipeline               | [apps/api/README.md](apps/api/README.md)                 |
+| **Edge Worker** | Cloudflare Worker for token validation, HLS streaming, and static CDN caching       | [apps/edge-worker/README.md](apps/edge-worker/README.md) |
+| **Mobile**      | React Native Expo client for andoird and iOS application                            | [apps/mobile/README.md](apps/mobile/README.md)           |
+| **Web Client**  | React web application, `hls.js` integration, stream token manager, and admin studio | [apps/web/README.md](apps/web/README.md)                 |
 
 ---
 
@@ -118,37 +113,15 @@ npm install
 
 ### 2. Environment Configuration
 
-Copy the sample environment file to each target application:
-
-```bash
-cp .env.example apps/api/.env
-```
-
-Configure all required variables:
-
-- `AUTH_SECRET`: Secret key for HMAC-SHA256 streaming tokens.
-- `PASSCODE`: Non-empty authentication secret.
-- `DATABASE_URL`: PostgreSQL connection URL.
-- `CORS_ORIGINS`: Comma-separated list of allowed frontend domains (e.g. `http://localhost:5173,http://localhost:3000`).
-- `S3_*`: Cloudflare R2 bucket credentials and endpoint.
-- `EDGE_WORKER_URL`: Cloudflare Worker base streaming URL.
-
-The API server validates required variables at startup and halts with a clear error list if any required key is omitted.
+Configure all environment variables as mentioned in the `.env.example` file of each application (`/apps/*`).
 
 ### 3. Running Development Services
-
-Start the API server, web client, and edge worker simulator concurrently:
-
-```bash
-npm run dev
-```
-
-Target individual services during isolated development:
 
 ```bash
 npm run dev:api      # Starts FastAPI on http://localhost:8000
 npm run dev:web      # Starts Vite React client on http://localhost:5173
 npm run dev:worker   # Starts Cloudflare Wrangler simulator on http://localhost:8787
+npm run dev:mobile   # Starts React Native Expo client on http://localhost:8081
 ```
 
 ### 4. Running the API Server with Docker
@@ -162,22 +135,3 @@ npm run docker:build:api
 # Run the container with apps/api/.env mounted
 npm run docker:run:api
 ```
-
----
-
-## Workspace Scripts
-
-| Command                    | Description                                                                       |
-| :------------------------- | :-------------------------------------------------------------------------------- |
-| `npm run dev`              | Runs all applications concurrently (`api`, `web`, `edge-worker`) with prefix logs |
-| `npm run dev:turbo`        | Starts development tasks across packages using Turborepo's terminal interface     |
-| `npm run dev:api`          | Starts only the FastAPI backend development server                                |
-| `npm run dev:web`          | Starts only the Vite React frontend client                                        |
-| `npm run dev:worker`       | Starts only the Cloudflare Wrangler edge worker simulator                         |
-| `npm run build`            | Builds all packages and web assets with Turborepo dependency caching              |
-| `npm run lint`             | Runs linters across all workspace packages                                        |
-| `npm run test`             | Executes test suites across all packages                                          |
-| `npm run typecheck`        | Validates TypeScript types across workspaces                                      |
-| `npm run clean`            | Purges `.turbo` caches and build artifacts                                        |
-| `npm run docker:build:api` | Builds the production Docker image for the API server (`apps/api/Dockerfile`)     |
-| `npm run docker:run:api`   | Runs the API container with `apps/api/.env` on port 8000                          |

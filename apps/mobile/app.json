@@ -19,9 +19,8 @@
       }
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.musiccloud.app",
-      "userInterfaceStyle": "dark",
       "backgroundColor": "#121212",
       "splash": {
         "image": "./assets/icon.png",
@@ -64,31 +63,20 @@
         "WAKE_LOCK",
         "POST_NOTIFICATIONS"
       ],
+      "usesCleartextTraffic": true,
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
-      [
-        "expo-audio",
-        {
-          "enableBackgroundPlayback": true
-        }
-      ],
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#121212",
-          "image": "./assets/icon.png",
-          "dark": {
-            "image": "./assets/icon.png",
-            "backgroundColor": "#121212"
-          },
-          "imageWidth": 200
-        }
-      ]
+      "./plugins/withIosSceneLifecycle"
     ],
     "platforms": [
       "ios",
       "android"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d23f071d-8837-41ac-ad4f-9a8feddd58f4"
+      }
+    }
   }
 }

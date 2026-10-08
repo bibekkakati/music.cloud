@@ -77,7 +77,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 </button>
 
                 <div style={{ textAlign: "center", marginBottom: 28 }}>
-                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            marginBottom: 16,
+                        }}
+                    >
                         <Logo size={56} />
                     </div>
                     <h2
@@ -90,16 +96,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                     >
                         Log in to Music Cloud
                     </h2>
-                    <p
-                        style={{
-                            color: "var(--app-subtext)",
-                            fontSize: 13,
-                            marginTop: 8,
-                        }}
-                    >
-                        Enter your email and passcode. New accounts are
-                        registered automatically.
-                    </p>
                 </div>
 
                 {error && (

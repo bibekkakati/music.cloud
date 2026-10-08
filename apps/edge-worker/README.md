@@ -64,13 +64,6 @@ The Edge Worker serves as the edge proxy for media content delivery in the Music
 
 ## Development and Deployment
 
-### Configuration (`wrangler.jsonc`)
-
-- **Name**: `music-cloud-edge`
-- **R2 Bucket Binding**: `R2_BUCKET` pointing to the `music-cloud` storage bucket
-
-### Running Locally
-
 Run from the monorepo root:
 
 ```bash
