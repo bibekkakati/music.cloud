@@ -21,23 +21,24 @@ export const SongCard: React.FC<SongCardProps> = ({
   return (
     <TouchableOpacity
       activeOpacity={0.75}
-      style={[styles.card, isCurrent && styles.cardActive]}
+      style={styles.card}
       onPress={onPress}
     >
       <View style={styles.coverWrapper}>
         <SongCoverArt
           src={song.cover_art_url}
-          size={140}
+          size={100}
           borderRadius={6}
-          iconSize={42}
+          iconSize={32}
           style={styles.coverArt}
         />
         {isCurrent && (
           <View style={styles.playingBadge}>
             <Ionicons
-              name={isPlaying ? 'volume-high' : 'pause'}
-              size={16}
+              name={isPlaying ? 'volume-high' : 'play'}
+              size={12}
               color={appConfig.colors.accentGreen}
+              style={{ marginLeft: isPlaying ? 0 : 1 }}
             />
           </View>
         )}
@@ -59,21 +60,15 @@ export const SongCard: React.FC<SongCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: appConfig.colors.card,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    width: '48%',
-  },
-  cardActive: {
-    backgroundColor: appConfig.colors.cardElevated,
-    borderWidth: 1,
-    borderColor: 'rgba(29, 185, 84, 0.3)',
+    flex: 1,
+    marginHorizontal: 4,
+    marginBottom: 16,
+    maxWidth: '33.33%',
   },
   coverWrapper: {
     width: '100%',
     aspectRatio: 1,
-    marginBottom: 10,
+    marginBottom: 6,
     borderRadius: 6,
     overflow: 'hidden',
     position: 'relative',
@@ -84,24 +79,26 @@ const styles = StyleSheet.create({
   },
   playingBadge: {
     position: 'absolute',
-    bottom: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    borderRadius: 12,
-    padding: 4,
+    bottom: 4,
+    right: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    borderRadius: 10,
+    padding: 3,
   },
   title: {
-    color: appConfig.colors.primaryText,
-    fontSize: 14,
+    color: '#ffffff',
+    fontSize: 12,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 2,
+    lineHeight: 16,
   },
   titleActive: {
     color: appConfig.colors.accentGreen,
   },
   artist: {
     color: appConfig.colors.subText,
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '400',
+    lineHeight: 14,
   },
 });

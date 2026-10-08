@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { formatDuration } from '@music-cloud/utils';
 import { SongCoverArt } from './SongCoverArt';
 import { appConfig } from '../config';
 import type { SongMetadata } from '@music-cloud/types';
@@ -12,13 +13,6 @@ interface SongRowProps {
   onPress: () => void;
   onMorePress?: () => void;
 }
-
-const formatDuration = (sec?: number | null): string => {
-  if (!sec || isNaN(sec) || sec <= 0) return '';
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${s < 10 ? '0' : ''}${s}`;
-};
 
 export const SongRow: React.FC<SongRowProps> = ({
   song,
@@ -62,7 +56,7 @@ export const SongRow: React.FC<SongRowProps> = ({
 
         {isCurrent && (
           <Ionicons
-            name={isPlaying ? 'volume-high' : 'pause'}
+            name={isPlaying ? 'volume-high' : 'play'}
             size={18}
             color={appConfig.colors.accentGreen}
             style={styles.indicator}

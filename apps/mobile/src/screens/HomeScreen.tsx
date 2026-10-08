@@ -1,239 +1,409 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-  ActivityIndicator,
-  SafeAreaView,
-  Platform,
-  Alert,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { songService } from '../services/songService';
-import { usePlayer } from '../context/PlayerContext';
-import { useAuth } from '../context/AuthContext';
-import { SongCard } from '../components/SongCard';
-import { appConfig } from '../config';
-import type { SongMetadata } from '@music-cloud/types';
-
-const getGreeting = (): string => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-};
+    View,
+    Text,
+    StyleSheet,
+    FlatList,
+    TouchableOpacity,
+    RefreshControl,
+    ActivityIndicator,
+    ScrollView,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { songService } from "@music-cloud/services";
+import { getGreeting } from "@music-cloud/utils";
+import { usePlayer } from "../context/PlayerContext";
+import { useAuth } from "../context/AuthContext";
+import { AppHeader } from "../components/AppHeader";
+import { SongCard } from "../components/SongCard";
+import { appConfig } from "../config";
+import type { SongMetadata } from "@music-cloud/types";
 
 export const HomeScreen: React.FC = () => {
-  const { currentSong, isPlaying, playSong } = usePlayer();
-  const { user, isAuthenticated, openAuthModal, logout } = useAuth();
+    const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+    const {
+        isAuthenticated,
+        isLoading: isAuthLoading,
+        openAuthModal,
+    } = useAuth();
 
-  const [songs, setSongs] = useState<SongMetadata[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+    const [songs, setSongs] = useState<SongMetadata[]>([]);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
-  const fetchSongs = useCallback(async () => {
-    try {
-      const data = await songService.getAllSongs();
-      setSongs(data);
-    } catch (err) {
-      console.warn('Failed to load songs:', err);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+    const fetchSongs = useCallback(async () => {
+        if (!isAuthenticated) {
+            setSongs([]);
+            setIsLoading(false);
+            setIsRefreshing(false);
+            return;
+        }
 
-  useEffect(() => {
-    fetchSongs();
-  }, [fetchSongs]);
+        try {
+            setIsLoading(true);
+            const data = await songService.getAllSongs();
+            setSongs(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.warn("Failed to load songs:", err);
+        } finally {
+            setIsLoading(false);
+            setIsRefreshing(false);
+        }
+    }, [isAuthenticated]);
 
-  const onRefresh = () => {
-    setIsRefreshing(true);
-    fetchSongs();
-  };
+    useEffect(() => {
+        fetchSongs();
+    }, [fetchSongs]);
 
-  const handleProfilePress = () => {
-    if (!isAuthenticated) {
-      openAuthModal();
-    } else {
-      Alert.alert(
-        'Account',
-        `Logged in as ${user?.email || 'User'}`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Sign Out',
-            style: 'destructive',
-            onPress: () => logout(),
-          },
-        ]
-      );
-    }
-  };
+    const onRefresh = () => {
+        setIsRefreshing(true);
+        fetchSongs();
+    };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* Top Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.subGreeting}>Welcome to Music Cloud</Text>
-          </View>
+    return (
+        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+            <View style={styles.container}>
+                {/* Top Navbar Header */}
+                <AppHeader />
 
-          <TouchableOpacity
-            style={styles.avatarBtn}
-            onPress={handleProfilePress}
-            activeOpacity={0.8}
-          >
-            {isAuthenticated ? (
-              <View style={styles.avatarLogged}>
-                <Text style={styles.avatarInitial}>
-                  {(user?.email?.[0] || 'U').toUpperCase()}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.avatarGuest}>
-                <Ionicons name="person-circle-outline" size={32} color="#ffffff" />
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+                {!isAuthenticated && !isAuthLoading ? (
+                    /* Unauthenticated Landing Experience */
+                    <ScrollView
+                        style={styles.landingScroll}
+                        contentContainerStyle={styles.landingContent}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        {/* Hero Welcome Card */}
+                        <LinearGradient
+                            colors={["#1e3a8a", "#172554", "#121212"]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.heroCard}
+                        >
+                            {/* Pill Badge */}
+                            <View style={styles.heroBadge}>
+                                <Ionicons
+                                    name="radio"
+                                    size={13}
+                                    color={appConfig.colors.accentGreen}
+                                />
+                                <Text style={styles.heroBadgeText}>
+                                    PRIVATE AUDIO CLOUD
+                                </Text>
+                            </View>
 
-        {/* Song Grid */}
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={appConfig.colors.accentGreen} />
-          </View>
-        ) : (
-          <FlatList
-            data={songs}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            columnWrapperStyle={styles.columnWrapper}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={onRefresh}
-                tintColor={appConfig.colors.accentGreen}
-              />
-            }
-            ListHeaderComponent={
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Featured Tracks</Text>
-              </View>
-            }
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Ionicons name="musical-notes-outline" size={48} color={appConfig.colors.subText} />
-                <Text style={styles.emptyText}>No tracks found</Text>
-                <Text style={styles.emptySubtext}>Pull down to refresh or check backend connection</Text>
-              </View>
-            }
-            renderItem={({ item }) => (
-              <SongCard
-                song={item}
-                isCurrent={currentSong?.id === item.id}
-                isPlaying={isPlaying && currentSong?.id === item.id}
-                onPress={() => playSong(item, songs)}
-              />
-            )}
-          />
-        )}
-      </View>
-    </SafeAreaView>
-  );
+                            {/* Big Headline */}
+                            <Text style={styles.heroHeadline}>
+                                Listen to your private library without limits.
+                            </Text>
+
+                            {/* Subtitle */}
+                            <Text style={styles.heroDesc}>
+                                Stream pristine HLS audio segments straight from
+                                edge workers. Sign in to browse all songs, build
+                                custom playlists, and manage your library.
+                            </Text>
+
+                            {/* CTA Button */}
+                            <TouchableOpacity
+                                style={styles.heroCtaBtn}
+                                onPress={openAuthModal}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons
+                                    name="log-in-outline"
+                                    size={18}
+                                    color="#000000"
+                                />
+                                <Text style={styles.heroCtaText}>
+                                    Log in to Start Listening
+                                </Text>
+                            </TouchableOpacity>
+                        </LinearGradient>
+
+                        {/* Features Shelf */}
+                        <View style={styles.featuresSection}>
+                            <Text style={styles.featuresHeading}>Features</Text>
+
+                            {/* Feature 1 */}
+                            <View style={styles.featureCard}>
+                                <Ionicons
+                                    name="sparkles"
+                                    size={26}
+                                    color={appConfig.colors.accentGreen}
+                                    style={styles.featureIcon}
+                                />
+                                <Text style={styles.featureTitle}>
+                                    High-Fidelity HLS
+                                </Text>
+                                <Text style={styles.featureDesc}>
+                                    Multi-bitrate AAC and MP3 audio stream
+                                    segments cached at edge workers.
+                                </Text>
+                            </View>
+
+                            {/* Feature 2 */}
+                            <View style={styles.featureCard}>
+                                <Ionicons
+                                    name="musical-notes"
+                                    size={26}
+                                    color={appConfig.colors.accentGreen}
+                                    style={styles.featureIcon}
+                                />
+                                <Text style={styles.featureTitle}>
+                                    Custom Playlists
+                                </Text>
+                                <Text style={styles.featureDesc}>
+                                    Create, organize, and manage custom
+                                    playlists synced across all your devices.
+                                </Text>
+                            </View>
+
+                            {/* Feature 3: Private & Secure */}
+                            <View style={styles.featureCard}>
+                                <Ionicons
+                                    name="shield-checkmark"
+                                    size={26}
+                                    color={appConfig.colors.accentGreen}
+                                    style={styles.featureIcon}
+                                />
+                                <Text style={styles.featureTitle}>
+                                    Private & Secure
+                                </Text>
+                                <Text style={styles.featureDesc}>
+                                    Edge-validated short-lived stream JWT tokens
+                                    preventing unauthorized hotlinking.
+                                </Text>
+                            </View>
+                        </View>
+                    </ScrollView>
+                ) : isLoading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator
+                            size="large"
+                            color={appConfig.colors.accentGreen}
+                        />
+                    </View>
+                ) : (
+                    /* Authenticated Song Catalog */
+                    <FlatList
+                        data={songs}
+                        keyExtractor={(item) => item.id}
+                        numColumns={3}
+                        contentContainerStyle={styles.listContent}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={onRefresh}
+                                tintColor={appConfig.colors.accentGreen}
+                            />
+                        }
+                        ListHeaderComponent={
+                            <View style={styles.shelfHeader}>
+                                <Text style={styles.greetingText}>
+                                    {getGreeting()}
+                                </Text>
+
+                                <View style={styles.shelfTitleRow}>
+                                    <Text style={styles.shelfTitle}>
+                                        Made For You
+                                    </Text>
+                                    <Text style={styles.shelfSubtitle}>
+                                        Stream your private high-fidelity cloud
+                                        audio catalog
+                                    </Text>
+                                </View>
+                            </View>
+                        }
+                        ListEmptyComponent={
+                            <View style={styles.emptyContainer}>
+                                <Ionicons
+                                    name="musical-notes-outline"
+                                    size={48}
+                                    color={appConfig.colors.subText}
+                                />
+                                <Text style={styles.emptyText}>
+                                    No tracks found
+                                </Text>
+                                <Text style={styles.emptySubtext}>
+                                    Upload audio or pull down to refresh
+                                </Text>
+                            </View>
+                        }
+                        renderItem={({ item }) => (
+                            <SongCard
+                                song={item}
+                                isCurrent={currentSong?.id === item.id}
+                                isPlaying={
+                                    isPlaying && currentSong?.id === item.id
+                                }
+                                onPress={() => {
+                                    if (currentSong?.id === item.id) {
+                                        togglePlay();
+                                    } else {
+                                        playSong(item, songs);
+                                    }
+                                }}
+                            />
+                        )}
+                    />
+                )}
+            </View>
+        </SafeAreaView>
+    );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: appConfig.colors.background,
-  },
-  container: {
-    flex: 1,
-    paddingTop: Platform.OS === 'android' ? 16 : 8,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  greeting: {
-    color: appConfig.colors.primaryText,
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  subGreeting: {
-    color: appConfig.colors.subText,
-    fontSize: 13,
-    marginTop: 2,
-  },
-  avatarBtn: {
-    padding: 4,
-  },
-  avatarLogged: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: appConfig.colors.accentGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    color: '#000000',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  avatarGuest: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionHeader: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    color: appConfig.colors.primaryText,
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 120, // space for mini player + bottom nav
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyContainer: {
-    paddingTop: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    color: appConfig.colors.primaryText,
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 12,
-  },
-  emptySubtext: {
-    color: appConfig.colors.subText,
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 6,
-    maxWidth: 240,
-  },
+    safeArea: {
+        flex: 1,
+        backgroundColor: appConfig.colors.background,
+    },
+    container: {
+        flex: 1,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    landingScroll: {
+        flex: 1,
+    },
+    landingContent: {
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 90,
+    },
+    heroCard: {
+        borderRadius: 12,
+        padding: 24,
+        marginBottom: 28,
+        borderWidth: 1,
+        borderColor: "rgba(255, 255, 255, 0.08)",
+    },
+    heroBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "rgba(255, 255, 255, 0.12)",
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        alignSelf: "flex-start",
+        gap: 6,
+        marginBottom: 16,
+    },
+    heroBadgeText: {
+        color: "#ffffff",
+        fontSize: 10,
+        fontWeight: "700",
+        letterSpacing: 0.8,
+    },
+    heroHeadline: {
+        color: "#ffffff",
+        fontSize: 26,
+        fontWeight: "900",
+        lineHeight: 32,
+        letterSpacing: -0.5,
+        marginBottom: 14,
+    },
+    heroDesc: {
+        color: "#cbd5e1",
+        fontSize: 13,
+        lineHeight: 19,
+        marginBottom: 22,
+    },
+    heroCtaBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        backgroundColor: appConfig.colors.accentGreen,
+        borderRadius: 24,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        alignSelf: "flex-start",
+    },
+    heroCtaText: {
+        color: "#000000",
+        fontSize: 14,
+        fontWeight: "800",
+    },
+    featuresSection: {
+        gap: 12,
+    },
+    featuresHeading: {
+        color: "#ffffff",
+        fontSize: 20,
+        fontWeight: "800",
+        marginBottom: 6,
+    },
+    featureCard: {
+        backgroundColor: "#181818",
+        borderRadius: 8,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: "rgba(255, 255, 255, 0.06)",
+    },
+    featureIcon: {
+        marginBottom: 10,
+    },
+    featureTitle: {
+        color: "#ffffff",
+        fontSize: 15,
+        fontWeight: "700",
+        marginBottom: 4,
+    },
+    featureDesc: {
+        color: appConfig.colors.subText,
+        fontSize: 12,
+        lineHeight: 17,
+    },
+    listContent: {
+        paddingHorizontal: 12,
+        paddingTop: 8,
+        paddingBottom: 140,
+    },
+    shelfHeader: {
+        marginBottom: 18,
+        marginTop: 6,
+    },
+    greetingText: {
+        color: "#ffffff",
+        fontSize: 26,
+        fontWeight: "800",
+        letterSpacing: -0.4,
+        marginBottom: 20,
+    },
+    shelfTitleRow: {
+        marginBottom: 4,
+    },
+    shelfTitle: {
+        color: "#ffffff",
+        fontSize: 18,
+        fontWeight: "800",
+        marginBottom: 2,
+    },
+    shelfSubtitle: {
+        color: appConfig.colors.subText,
+        fontSize: 12,
+    },
+    emptyContainer: {
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 60,
+    },
+    emptyText: {
+        color: "#ffffff",
+        fontSize: 16,
+        fontWeight: "700",
+        marginTop: 12,
+    },
+    emptySubtext: {
+        color: appConfig.colors.subText,
+        fontSize: 12,
+        marginTop: 4,
+    },
 });

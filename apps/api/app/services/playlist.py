@@ -99,8 +99,11 @@ class PlaylistService:
         
         statement = (
             select(Playlist.id)
-            .join(PlaylistSong, PlaylistSong.song_id == s_uuid)
-            .where(Playlist.owner_id == owner_uuid)
+            .join(PlaylistSong, PlaylistSong.playlist_id == Playlist.id)
+            .where(
+                Playlist.owner_id == owner_uuid,
+                PlaylistSong.song_id == s_uuid,
+            )
             .group_by(Playlist.id)
         )
         results = self.db.exec(statement).all()

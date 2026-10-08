@@ -7,29 +7,32 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  SafeAreaView,
   Alert,
-  TextInput,
-  Modal,
-  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { playlistService } from '../services/playlistService';
+import { playlistService } from '@music-cloud/services';
+import { isLikedPlaylist } from '@music-cloud/utils';
 import { useAuth } from '../context/AuthContext';
+import { useUI } from '../context/UIContext';
+import { AppHeader } from '../components/AppHeader';
 import { appConfig } from '../config';
+import { PlaylistActionSheet } from '../components/PlaylistActionSheet';
+import { EditPlaylistModal } from '../components/EditPlaylistModal';
 import type { PlaylistSummary } from '@music-cloud/types';
 
 export const LibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { isAuthenticated, openAuthModal } = useAuth();
+  const { openCreatePlaylist, playlistRefreshTrigger, triggerPlaylistRefresh } = useUI();
 
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-  const [newTitle, setNewTitle] = useState<string>('');
+  const [actionPlaylist, setActionPlaylist] = useState<PlaylistSummary | null>(null);
+  const [editPlaylist, setEditPlaylist] = useState<PlaylistSummary | null>(null);
 
   const fetchPlaylists = useCallback(async () => {
     if (!isAuthenticated) {
@@ -41,7 +44,7 @@ export const LibraryScreen: React.FC = () => {
 
     try {
       const data = await playlistService.getAllPlaylists();
-      setPlaylists(data);
+      setPlaylists(Array.isArray(data) ? data : []);
     } catch (err) {
       console.warn('Failed to load library:', err);
     } finally {
@@ -52,39 +55,52 @@ export const LibraryScreen: React.FC = () => {
 
   useEffect(() => {
     fetchPlaylists();
-  }, [fetchPlaylists]);
+  }, [fetchPlaylists, playlistRefreshTrigger]);
 
   const onRefresh = () => {
     setIsRefreshing(true);
     fetchPlaylists();
   };
 
-  const handleCreatePlaylist = async () => {
-    if (!newTitle.trim()) return;
+  const handleDeletePlaylist = async (pl: { id: string; label: string }) => {
+    // OPTIMISTIC UPDATE: remove immediately from list
+    const prevList = playlists;
+    setPlaylists((prev) => prev.filter((p) => p.id !== pl.id));
+    triggerPlaylistRefresh();
+
     try {
-      const created = await playlistService.createPlaylist({ label: newTitle.trim() });
-      setPlaylists((prev) => [created, ...prev]);
-      setNewTitle('');
-      setIsCreateModalOpen(false);
+      await playlistService.removePlaylist(pl.id);
     } catch (err: any) {
-      Alert.alert('Error', err?.response?.data?.detail || 'Failed to create playlist');
+      console.warn("Failed to delete playlist on server, reverting:", err);
+      setPlaylists(prevList);
+      triggerPlaylistRefresh();
+      Alert.alert('Error', err?.response?.data?.detail || 'Failed to delete playlist');
     }
   };
 
-  const likedSongsPlaylist = playlists.find(
-    (p) => p.label.toLowerCase() === 'liked songs' || !p.is_deletable
+  const handleEditSuccess = (updated: { id: string; label: string }) => {
+    setPlaylists((prev) =>
+      prev.map((p) => (p.id === updated.id ? { ...p, label: updated.label } : p))
+    );
+  };
+
+  const likedSongsPlaylist = playlists.find((p) =>
+    isLikedPlaylist(p.label, p.is_deletable)
   );
   const customPlaylists = playlists.filter((p) => p.id !== likedSongsPlaylist?.id);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
-        {/* Header */}
+        {/* Top Navbar Header */}
+        <AppHeader />
+
+        {/* Library Subheader */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Your Library</Text>
           {isAuthenticated && (
             <TouchableOpacity
-              onPress={() => setIsCreateModalOpen(true)}
+              onPress={openCreatePlaylist}
               style={styles.addBtn}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             >
@@ -138,17 +154,25 @@ export const LibraryScreen: React.FC = () => {
                 >
                   <LinearGradient
                     colors={['#450af5', '#8e8ee5']}
-                    style={styles.likedCover}
+                    style={styles.likedArtwork}
                   >
                     <Ionicons name="heart" size={24} color="#ffffff" />
                   </LinearGradient>
-                  <View style={styles.playlistMeta}>
-                    <Text style={styles.playlistTitle}>Liked Songs</Text>
-                    <Text style={styles.playlistSub}>
-                      {likedSongsPlaylist?.songs_count ?? 0} tracks • Playlist
+                  <View style={styles.playlistDetails}>
+                    <View style={styles.labelRow}>
+                      <Text style={styles.playlistTitle}>Liked Songs</Text>
+                    </View>
+                    <Text style={styles.playlistSubtitle}>
+                      Playlist • {likedSongsPlaylist?.songs_count || 0} songs
                     </Text>
                   </View>
                 </TouchableOpacity>
+
+                {customPlaylists.length > 0 && (
+                  <View style={styles.shelfHeader}>
+                    <Text style={styles.shelfTitle}>Playlists</Text>
+                  </View>
+                )}
               </View>
             }
             renderItem={({ item }) => (
@@ -162,57 +186,63 @@ export const LibraryScreen: React.FC = () => {
                   })
                 }
               >
-                <View style={styles.customCover}>
+                <View style={styles.defaultArtwork}>
                   <Ionicons name="musical-notes" size={24} color={appConfig.colors.subText} />
                 </View>
-                <View style={styles.playlistMeta}>
+                <View style={styles.playlistDetails}>
                   <Text style={styles.playlistTitle} numberOfLines={1}>
                     {item.label}
                   </Text>
-                  <Text style={styles.playlistSub}>
-                    {item.songs_count ?? 0} tracks • Playlist
+                  <Text style={styles.playlistSubtitle}>
+                    Playlist • {item.songs_count || 0} songs
                   </Text>
                 </View>
+                {item.is_deletable && (
+                  <TouchableOpacity
+                    style={styles.moreBtn}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    onPress={() => setActionPlaylist(item)}
+                  >
+                    <Ionicons
+                      name="ellipsis-horizontal"
+                      size={20}
+                      color={appConfig.colors.subText}
+                    />
+                  </TouchableOpacity>
+                )}
               </TouchableOpacity>
             )}
+            ListEmptyComponent={
+              likedSongsPlaylist ? null : (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No playlists yet</Text>
+                  <Text style={styles.emptySubtext}>Tap + above to create one</Text>
+                </View>
+              )
+            }
           />
         )}
 
-        {/* Create Playlist Modal */}
-        <Modal
-          visible={isCreateModalOpen}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setIsCreateModalOpen(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalCard}>
-              <Text style={styles.modalHeading}>Give your playlist a name</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="My Playlist #1"
-                placeholderTextColor={appConfig.colors.subText}
-                value={newTitle}
-                onChangeText={setNewTitle}
-                autoFocus
-              />
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  onPress={() => setIsCreateModalOpen(false)}
-                  style={styles.modalCancel}
-                >
-                  <Text style={styles.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleCreatePlaylist}
-                  style={styles.modalConfirm}
-                >
-                  <Text style={styles.modalConfirmText}>Create</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
+        {/* Playlist Context Menu (Rename / Delete) */}
+        <PlaylistActionSheet
+          visible={Boolean(actionPlaylist)}
+          playlist={actionPlaylist}
+          onClose={() => setActionPlaylist(null)}
+          onEdit={(pl) => {
+            const match = playlists.find((p) => p.id === pl.id);
+            setActionPlaylist(null);
+            setEditPlaylist(match || (pl as PlaylistSummary));
+          }}
+          onDelete={(pl) => handleDeletePlaylist(pl)}
+        />
+
+        {/* Edit Playlist Modal */}
+        <EditPlaylistModal
+          visible={Boolean(editPlaylist)}
+          playlist={editPlaylist}
+          onClose={() => setEditPlaylist(null)}
+          onSuccess={handleEditSuccess}
+        />
       </View>
     </SafeAreaView>
   );
@@ -225,76 +255,37 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? 16 : 8,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   headerTitle: {
-    color: appConfig.colors.primaryText,
-    fontSize: 26,
+    color: '#ffffff',
+    fontSize: 24,
     fontWeight: '800',
+    letterSpacing: -0.3,
   },
   addBtn: {
     padding: 4,
   },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 120,
-  },
-  playlistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  likedCover: {
-    width: 56,
-    height: 56,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  customCover: {
-    width: 56,
-    height: 56,
-    borderRadius: 6,
-    backgroundColor: '#282828',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  playlistMeta: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  playlistTitle: {
-    color: appConfig.colors.primaryText,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  playlistSub: {
-    color: appConfig.colors.subText,
-    fontSize: 13,
-  },
   centerContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   guestContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 32,
   },
   guestTitle: {
-    color: appConfig.colors.primaryText,
+    color: '#ffffff',
     fontSize: 20,
     fontWeight: '700',
     marginTop: 16,
@@ -309,67 +300,85 @@ const styles = StyleSheet.create({
   },
   loginBtn: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 28,
-    paddingVertical: 12,
     borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
   },
   loginBtnText: {
     color: '#000000',
     fontSize: 14,
     fontWeight: '700',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalCard: {
-    width: '100%',
-    backgroundColor: '#1f1f1f',
-    borderRadius: 12,
-    padding: 20,
-  },
-  modalHeading: {
-    color: appConfig.colors.primaryText,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  modalInput: {
-    backgroundColor: '#2b2b2b',
-    color: '#ffffff',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 15,
-    marginBottom: 20,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  modalCancel: {
+  listContent: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingBottom: 140,
   },
-  modalCancelText: {
-    color: appConfig.colors.subText,
-    fontSize: 14,
+  playlistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 14,
+  },
+  likedArtwork: {
+    width: 52,
+    height: 52,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  defaultArtwork: {
+    width: 52,
+    height: 52,
+    borderRadius: 4,
+    backgroundColor: '#242424',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playlistDetails: {
+    flex: 1,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  playlistTitle: {
+    color: '#ffffff',
+    fontSize: 15,
     fontWeight: '600',
+    marginBottom: 2,
   },
-  modalConfirm: {
-    backgroundColor: appConfig.colors.accentGreen,
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
+  pinBadge: {
+    fontSize: 12,
   },
-  modalConfirmText: {
-    color: '#000000',
-    fontSize: 14,
+  playlistSubtitle: {
+    color: appConfig.colors.subText,
+    fontSize: 13,
+  },
+  shelfHeader: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  shelfTitle: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '700',
+  },
+  emptyContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    color: appConfig.colors.subText,
+    fontSize: 13,
+  },
+  moreBtn: {
+    padding: 8,
   },
 });

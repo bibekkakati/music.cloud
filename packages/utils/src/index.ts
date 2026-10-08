@@ -70,3 +70,46 @@ export const getGreeting = (): string => {
     if (hour < 18) return "Good afternoon";
     return "Good evening";
 };
+
+/**
+ * Browse / Search categories shared across web and mobile
+ */
+export interface BrowseCategory {
+    id: string;
+    title: string;
+    name: string;
+    color: string;
+}
+
+export const BROWSE_CATEGORIES: BrowseCategory[] = [
+    {
+        id: "personalised",
+        title: "Made For You",
+        name: "Made For You",
+        color: "#006450",
+    },
+    {
+        id: "new-releases",
+        title: "New Releases",
+        name: "New Releases",
+        color: "#e8115b",
+    },
+    { id: "hindi", title: "Hindi", name: "Hindi", color: "#8c1932" },
+    { id: "english", title: "English", name: "English", color: "#7358ff" },
+    { id: "assamese", title: "Assamese", name: "Assamese", color: "#af2896" },
+    { id: "bengali", title: "Bengali", name: "Bengali", color: "#c9d56dff" },
+    { id: "pop", title: "Pop", name: "Pop", color: "#8d67ab" },
+    { id: "hip-hop", title: "Hip-Hop", name: "Hip-Hop", color: "#ba5d07" },
+    { id: "rock", title: "Rock", name: "Rock", color: "#e91429" },
+    {
+        id: "electronic",
+        title: "Electronic",
+        name: "Electronic",
+        color: "#0d73ec",
+    },
+    { id: "chill", title: "Chill", name: "Chill", color: "#27856a" },
+    { id: "focus", title: "Focus", name: "Focus", color: "#477d95" },
+    { id: "workout", title: "Workout", name: "Workout", color: "#503750" },
+];
+
+export const CATEGORIES = BROWSE_CATEGORIES;

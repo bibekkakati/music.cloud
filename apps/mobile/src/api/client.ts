@@ -1,58 +1,66 @@
-import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { appConfig } from '../config';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+    apiClient,
+    initApiClient,
+    type AuthStorageAdapter,
+} from "@music-cloud/services";
+import { appConfig } from "../config";
 
 let onUnauthorizedCallback: (() => void) | null = null;
 
 export const setUnauthorizedHandler = (callback: () => void) => {
-  onUnauthorizedCallback = callback;
+    onUnauthorizedCallback = callback;
 };
 
-export const apiClient: AxiosInstance = axios.create({
-  baseURL: appConfig.api.baseUrl,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 15000,
-});
+export const mobileStorageAdapter: AuthStorageAdapter = {
+    getToken: async () => {
+        try {
+            return await AsyncStorage.getItem(appConfig.storageKeys.authToken);
+        } catch {
+            return null;
+        }
+    },
+    setToken: async (token: string) => {
+        try {
+            await AsyncStorage.setItem(appConfig.storageKeys.authToken, token);
+        } catch {
+            // Ignore storage write error
+        }
+    },
+    clearToken: async () => {
+        try {
+            await AsyncStorage.multiRemove([
+                appConfig.storageKeys.authToken,
+                appConfig.storageKeys.streamToken,
+                appConfig.storageKeys.playerState,
+            ]);
+        } catch {
+            // Ignore storage removal errors
+        }
+    },
+};
 
-// Update baseURL dynamically (e.g. if user changes backend IP in dev settings)
+// Platform-level initialization of shared services with mobile storage adapter
+export const initMobileApi = (baseUrl: string = appConfig.api.baseUrl) => {
+    initApiClient({
+        baseURL: baseUrl,
+        storage: mobileStorageAdapter,
+        onUnauthorized: () => {
+            if (onUnauthorizedCallback) {
+                onUnauthorizedCallback();
+            }
+        },
+    });
+    apiClient.defaults.timeout = 15000;
+};
+
+// Dynamic update of API baseURL (e.g., from dev settings in AuthModal)
 export const updateApiBaseUrl = (newUrl: string) => {
-  apiClient.defaults.baseURL = newUrl;
+    apiClient.defaults.baseURL = newUrl;
 };
 
-// Request interceptor to attach Bearer token from AsyncStorage
-apiClient.interceptors.request.use(
-  async (config: InternalAxiosRequestConfig) => {
-    try {
-      const token = await AsyncStorage.getItem(appConfig.storageKeys.authToken);
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch {
-      // Storage read failure, continue without token
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// Initialize mobile API on startup
+initMobileApi();
 
-// Response interceptor to handle 401 Unauthorized
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      await AsyncStorage.multiRemove([
-        appConfig.storageKeys.authToken,
-        appConfig.storageKeys.streamToken,
-        appConfig.storageKeys.playerState,
-      ]);
-      if (onUnauthorizedCallback) {
-        onUnauthorizedCallback();
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
+export { apiClient };
 export default apiClient;

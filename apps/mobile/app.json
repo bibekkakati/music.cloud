@@ -7,22 +7,87 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#121212",
+    "primaryColor": "#121212",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#121212",
+      "dark": {
+        "image": "./assets/icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#121212"
+      }
+    },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.musiccloud.app"
+      "bundleIdentifier": "com.musiccloud.app",
+      "userInterfaceStyle": "dark",
+      "backgroundColor": "#121212",
+      "splash": {
+        "image": "./assets/icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#121212",
+        "dark": {
+          "image": "./assets/icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#121212"
+        }
+      },
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
     },
     "android": {
       "package": "com.musiccloud.app",
+      "userInterfaceStyle": "dark",
+      "backgroundColor": "#121212",
+      "splash": {
+        "image": "./assets/icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#121212",
+        "dark": {
+          "image": "./assets/icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#121212"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#121212",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "permissions": [
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "WAKE_LOCK"
+      ],
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#121212",
+          "image": "./assets/icon.png",
+          "dark": {
+            "image": "./assets/icon.png",
+            "backgroundColor": "#121212"
+          },
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "platforms": [
+      "ios",
+      "android"
+    ]
   }
 }

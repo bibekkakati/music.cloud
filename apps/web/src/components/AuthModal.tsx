@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { X, Lock, Mail, Loader2, Disc3 } from "lucide-react";
+import { X, Lock, Mail, Loader2 } from "lucide-react";
+import { Logo } from "./Logo";
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -76,20 +77,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 </button>
 
                 <div style={{ textAlign: "center", marginBottom: 28 }}>
-                    <div
-                        style={{
-                            width: 52,
-                            height: 52,
-                            borderRadius: "50%",
-                            background: "var(--app-green)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            margin: "0 auto 16px",
-                            color: "#000",
-                        }}
-                    >
-                        <Disc3 size={32} strokeWidth={2.5} />
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+                        <Logo size={56} />
                     </div>
                     <h2
                         style={{

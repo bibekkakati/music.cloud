@@ -47,10 +47,9 @@ def get_playlists(
     playlists: list[dict] = playlist_service.get_playlists(current_user.id)
 
     if song_id:
-        song_playlists: list[UUID] = playlist_service.get_playlists_by_song(user_id=current_user.id, song_id=song_id)
-        if song_playlists:
-            for playlist in playlists:
-                playlist['contains_song'] = playlist['id'] in song_playlists
+        song_playlists_set = set(playlist_service.get_playlists_by_song(user_id=current_user.id, song_id=song_id))
+        for playlist in playlists:
+            playlist['contains_song'] = playlist['id'] in song_playlists_set
 
     return playlists
 

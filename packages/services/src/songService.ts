@@ -1,5 +1,5 @@
 import apiClient from "./api";
-import type { SongMetadata } from "@music-cloud/types";
+import type { SongMetadata, StreamTokenResponse } from "@music-cloud/types";
 
 export const songService = {
     getAllSongs: async (cursor?: string): Promise<SongMetadata[]> => {
@@ -35,6 +35,13 @@ export const songService = {
     getSongById: async (songId: string): Promise<SongMetadata> => {
         const response = await apiClient.get<SongMetadata>(
             `/api/v1/song/${encodeURIComponent(songId)}`,
+        );
+        return response.data;
+    },
+
+    getStreamToken: async (): Promise<StreamTokenResponse> => {
+        const response = await apiClient.get<StreamTokenResponse>(
+            "/api/v1/song/stream/token",
         );
         return response.data;
     },

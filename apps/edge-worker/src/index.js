@@ -44,10 +44,23 @@ export default {
 
 		const url = new URL(request.url);
 		let key;
-		try {
-			key = decodeURIComponent(url.pathname.slice(1));
-		} catch {
-			return plain("Bad Request", 400);
+		let pathToken = null;
+
+		// Support path-based stream token: /stream/<token>/<key...>
+		const streamMatch = url.pathname.match(/^\/stream\/([^/]+)\/(.+)$/);
+		if (streamMatch) {
+			try {
+				pathToken = decodeURIComponent(streamMatch[1]);
+				key = decodeURIComponent(streamMatch[2]);
+			} catch {
+				return plain("Bad Request", 400);
+			}
+		} else {
+			try {
+				key = decodeURIComponent(url.pathname.slice(1));
+			} catch {
+				return plain("Bad Request", 400);
+			}
 		}
 		if (!key) return plain("OK", 200);
 
@@ -56,11 +69,16 @@ export default {
 		if (!info) return plain("Forbidden", 403);
 
 		// Auth: everything except cover art / images
+		let authToken = null;
 		if (info.kind !== "static") {
-			const token = getAuthToken(request, url);
-			if (!token) return plain("Unauthorized: Missing Token", 401);
+			authToken = pathToken || getAuthToken(request, url);
+			if (!authToken) return plain("Unauthorized: Missing Token", 401);
 			try {
-				await jwtVerify(token, new TextEncoder().encode(env.AUTH_SECRET), { algorithms: ["HS256"] });
+				const clockTolerance = info.kind === "segment" ? 3600 : 0;
+				await jwtVerify(authToken, new TextEncoder().encode(env.AUTH_SECRET), {
+					algorithms: ["HS256"],
+					clockTolerance,
+				});
 			} catch {
 				return plain("Unauthorized: Invalid or Expired Token", 401);
 			}
@@ -258,13 +276,9 @@ function getAuthToken(request, url) {
 	const q = url.searchParams.get("token");
 	if (q) return q;
 
-	return (
-		request.headers.get("Cookie")
-			?.split(";")
-			.map((p) => p.trim().split("="))
-			.find(([k]) => k === "Stream-Auth-Token")?.[1] ?? null
-	);
+	return null;
 }
+
 
 // env.ALLOWED_ORIGINS = "https://app.example.com,https://www.example.com"
 function corsHeaders(request, env) {
@@ -277,7 +291,13 @@ function corsHeaders(request, env) {
 		"Access-Control-Max-Age": "86400",
 		"Vary": "Origin",
 	});
-	if (origin && allowed.includes(origin)) {
+	const isAllowed = origin && (
+		allowed.includes(origin) ||
+		allowed.includes("*") ||
+		/^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+		/^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)
+	);
+	if (isAllowed) {
 		h.set("Access-Control-Allow-Origin", origin);
 		h.set("Access-Control-Allow-Credentials", "true");
 	} else {

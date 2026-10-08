@@ -26,13 +26,14 @@ export const SongCoverArt: React.FC<SongCoverArtProps> = ({
 }) => {
   const [hasError, setHasError] = useState(false);
 
-  const hasAspectRatio = Boolean(style?.aspectRatio);
+  const customAspectRatio = (style as Record<string, unknown> | undefined)?.aspectRatio;
+  const hasAspectRatio = Boolean(customAspectRatio);
   const isPercentSize = typeof size === 'string' && size.includes('%');
 
   const containerStyle: React.CSSProperties = {
     width: size,
     height: hasAspectRatio || isPercentSize ? 'auto' : size,
-    aspectRatio: style?.aspectRatio || (isPercentSize ? '1 / 1' : undefined),
+    aspectRatio: (customAspectRatio as any) || (isPercentSize ? '1 / 1' : undefined),
     borderRadius,
     backgroundColor: DEFAULT_COVER_BG,
     display: 'flex',

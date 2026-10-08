@@ -8,7 +8,7 @@
         "packages/*"
     ],
     "scripts": {
-        "dev": "concurrently -n \"api,web,worker\" -c \"blue,green,magenta\" \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:worker\"",
+        "dev": "concurrently -n \"api,web,mobile\" -c \"blue,green,magenta\" \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:mobile\"",
         "dev:turbo": "turbo run dev --parallel",
         "dev:api": "npm run dev --workspace=@music-cloud/api",
         "dev:web": "npm run dev --workspace=@music-cloud/web",

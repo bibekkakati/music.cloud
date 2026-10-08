@@ -6,32 +6,12 @@ import { SongCard } from "../components/SongCard";
 import { SongCoverArt } from "../components/SongCoverArt";
 import { SongRow } from "../components/SongRow";
 import { usePlayer } from "../context/PlayerContext";
-import {
-    Search as SearchIcon,
-    Loader2,
-    Play,
-    Pause,
-    Music,
-} from "lucide-react";
+import { Play, Pause, Music } from "lucide-react";
+import { BROWSE_CATEGORIES } from "@music-cloud/utils";
 
 interface SearchPageProps {
     onAddToPlaylist: (song: SongMetadata) => void;
 }
-
-const BROWSE_CATEGORIES = [
-    { name: "Podcasts", color: "#006450" },
-    { name: "Made For You", color: "#1e3264" },
-    { name: "Charts", color: "#8d67ab" },
-    { name: "New Releases", color: "#e8115b" },
-    { name: "Discover", color: "#8c1932" },
-    { name: "Concerts", color: "#7358ff" },
-    { name: "Chill", color: "#d84000" },
-    { name: "Focus", color: "#503750" },
-    { name: "Mood", color: "#e1118c" },
-    { name: "Workout", color: "#777777" },
-    { name: "Rock", color: "#e91429" },
-    { name: "Electronic", color: "#0d73ec" },
-];
 
 export const SearchPage: React.FC<SearchPageProps> = ({ onAddToPlaylist }) => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -90,73 +70,80 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onAddToPlaylist }) => {
 
     return (
         <div className="search-page-container">
-            {/* Mobile / Inline search input if topbar input isn't active */}
-            <div style={{ maxWidth: 420, marginBottom: 28 }}>
-                <div style={{ position: "relative" }}>
-                    <SearchIcon
-                        size={18}
+            {/* Category Filter Active Header */}
+            {query.trim().length > 2 && (
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 24,
+                        padding: "10px 16px",
+                        background: "#1e1e1e",
+                        borderRadius: 8,
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        maxWidth: 600,
+                    }}
+                >
+                    <div
                         style={{
-                            position: "absolute",
-                            left: 14,
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                            color: "var(--app-subtext)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
                         }}
-                    />
-                    <input
-                        type="text"
-                        placeholder="What do you want to listen to?"
-                        value={query}
-                        onChange={handleInputChange}
-                        style={{
-                            width: "100%",
-                            height: 48,
-                            padding: "0 40px 0 44px",
-                            borderRadius: "var(--radius-pill)",
-                            background: "#242424",
-                            border: "1px solid transparent",
-                            color: "#ffffff",
-                            fontSize: 14,
-                            fontWeight: 500,
-                            outline: "none",
-                            transition: "border-color 0.2s",
-                        }}
-                        onFocus={(e) =>
-                            (e.currentTarget.style.borderColor = "#ffffff")
-                        }
-                        onBlur={(e) =>
-                            (e.currentTarget.style.borderColor = "transparent")
-                        }
-                    />
-                    {loading && (
-                        <Loader2
-                            size={18}
-                            className="animate-spin"
+                    >
+                        <span
                             style={{
-                                position: "absolute",
-                                right: 14,
-                                top: "50%",
-                                transform: "translateY(-50%)",
                                 color: "var(--app-subtext)",
+                                fontSize: 14,
+                                fontWeight: 500,
                             }}
-                        />
-                    )}
+                        >
+                            Browsing:
+                        </span>
+                        <span
+                            style={{
+                                color: "var(--app-accent-green)",
+                                fontSize: 16,
+                                fontWeight: 700,
+                            }}
+                        >
+                            {query}
+                        </span>
+                    </div>
+                    <button
+                        onClick={() => {
+                            setQuery("");
+                            setSearchParams({});
+                        }}
+                        style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "var(--app-subtext)",
+                            cursor: "pointer",
+                            fontSize: 13,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            padding: "4px 8px",
+                            borderRadius: 4,
+                            transition: "color 0.2s",
+                        }}
+                        onMouseEnter={(e) =>
+                            (e.currentTarget.style.color = "#ffffff")
+                        }
+                        onMouseLeave={(e) =>
+                            (e.currentTarget.style.color = "var(--app-subtext)")
+                        }
+                    >
+                        Clear filter ✕
+                    </button>
                 </div>
-            </div>
+            )}
 
             {/* When no search query or <= 2 characters: Browse All Categories */}
             {query.trim().length <= 2 ? (
                 <div>
-                    <h2
-                        style={{
-                            fontSize: 24,
-                            fontWeight: 800,
-                            marginBottom: 16,
-                            color: "#ffffff",
-                        }}
-                    >
-                        Browse all
-                    </h2>
                     <div className="search-categories-grid">
                         {BROWSE_CATEGORIES.map((cat) => (
                             <div

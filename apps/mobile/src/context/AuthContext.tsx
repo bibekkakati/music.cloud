@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { LoginPayload, User } from '@music-cloud/types';
-import { authService } from '../services/authService';
+import { authService, userService } from '@music-cloud/services';
 import { setUnauthorizedHandler } from '../api/client';
 import { streamService } from '../services/streamService';
 
@@ -30,10 +30,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadInitialAuth = useCallback(async () => {
     setIsLoading(true);
     try {
-      const storedToken = await authService.getToken();
+      const storedToken = await authService.getTokenAsync();
       if (storedToken) {
         setToken(storedToken);
-        const currentUser = await authService.getCurrentUser();
+        const currentUser = await userService.getCurrentProfile();
         setUser(currentUser);
       } else {
         setToken(null);
@@ -61,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (payload: LoginPayload) => {
     const session = await authService.login(payload);
     setToken(session.access_token);
-    const currentUser = await authService.getCurrentUser();
+    const currentUser = await userService.getCurrentProfile();
     setUser(currentUser);
     closeAuthModal();
   };

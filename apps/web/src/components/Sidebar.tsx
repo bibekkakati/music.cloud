@@ -409,7 +409,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     }}
                                 >
                                     {/* Playlist Icon / Thumbnail */}
-                                    {isLikedPlaylist(pl.label, pl.is_deletable) ? (
+                                    {isLikedPlaylist(
+                                        pl.label,
+                                        pl.is_deletable,
+                                    ) ? (
                                         <div
                                             style={{
                                                 width: 48,

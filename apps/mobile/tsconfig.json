@@ -6,7 +6,9 @@
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "paths": {
-      "@music-cloud/types": ["../../packages/types/src/index.ts"]
+      "@music-cloud/types": ["../../packages/types/src/index.ts"],
+      "@music-cloud/services": ["../../packages/services/src/index.ts"],
+      "@music-cloud/utils": ["../../packages/utils/src/index.ts"]
     }
   }
 }

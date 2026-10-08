@@ -6,6 +6,7 @@ import {
   Modal,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -16,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { appConfig } from '../config';
 import { updateApiBaseUrl } from '../api/client';
+import { AppLogo } from './AppLogo';
 
 export const AuthModal: React.FC = () => {
   const { isAuthModalVisible, closeAuthModal, login } = useAuth();
@@ -23,6 +25,7 @@ export const AuthModal: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showServerConfig, setShowServerConfig] = useState(false);
   const [serverUrl, setServerUrl] = useState(appConfig.api.baseUrl);
 
@@ -30,17 +33,18 @@ export const AuthModal: React.FC = () => {
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      Alert.alert('Required', 'Please enter email and password');
+      setErrorMessage('Please enter email and passcode');
       return;
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
     try {
       await login({ email: email.trim(), password });
+      closeAuthModal();
     } catch (err: any) {
-      Alert.alert(
-        'Sign In Failed',
-        err?.response?.data?.detail || err.message || 'Invalid credentials'
+      setErrorMessage(
+        err?.response?.data?.detail || err.message || 'Authentication failed'
       );
     } finally {
       setIsLoading(false);
@@ -61,56 +65,93 @@ export const AuthModal: React.FC = () => {
       animationType="fade"
       onRequestClose={closeAuthModal}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
-      >
-        <View style={styles.card}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.brand}>
-              <View style={styles.logoBadge}>
-                <Ionicons name="cloud" size={20} color={appConfig.colors.accentGreen} />
-              </View>
-              <Text style={styles.brandTitle}>Music Cloud</Text>
-            </View>
-            <TouchableOpacity onPress={closeAuthModal} style={styles.closeBtn}>
-              <Ionicons name="close" size={24} color={appConfig.colors.subText} />
-            </TouchableOpacity>
-          </View>
+      <TouchableWithoutFeedback onPress={closeAuthModal}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.overlay}
+        >
+          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+            <View style={styles.card}>
+          {/* Close button top right */}
+          <TouchableOpacity
+            onPress={closeAuthModal}
+            style={styles.closeBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="close" size={20} color={appConfig.colors.subText} />
+          </TouchableOpacity>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.welcomeText}>Sign in to start listening</Text>
-            <Text style={styles.descText}>
-              Access your library, high-bitrate audio, and customized playlists.
+            {/* Centered App Logo */}
+            <View style={styles.iconBadgeWrapper}>
+              <AppLogo size={56} />
+            </View>
+
+            {/* Title & Subtitle */}
+            <Text style={styles.title}>Log in to Music Cloud</Text>
+            <Text style={styles.subtitle}>
+              Enter your email and passcode. New accounts are registered automatically.
             </Text>
 
+            {/* Error Message if any */}
+            {errorMessage && (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            )}
+
             {/* Email Field */}
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="name@domain.com"
-              placeholderTextColor={appConfig.colors.subText}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email address</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="mail-outline"
+                  size={18}
+                  color={appConfig.colors.subText}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="name@domain.com"
+                  placeholderTextColor={appConfig.colors.subText}
+                  value={email}
+                  onChangeText={(val) => {
+                    setEmail(val);
+                    setErrorMessage(null);
+                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
 
-            {/* Password Field */}
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••"
-              placeholderTextColor={appConfig.colors.subText}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            {/* Passcode Field */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Passcode</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={18}
+                  color={appConfig.colors.subText}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor={appConfig.colors.subText}
+                  value={password}
+                  onChangeText={(val) => {
+                    setPassword(val);
+                    setErrorMessage(null);
+                  }}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+              </View>
+            </View>
 
-            {/* Sign In Button */}
+            {/* Big Green Log In Button */}
             <TouchableOpacity
               style={styles.submitBtn}
               onPress={handleLogin}
@@ -120,16 +161,16 @@ export const AuthModal: React.FC = () => {
               {isLoading ? (
                 <ActivityIndicator color="#000000" />
               ) : (
-                <Text style={styles.submitBtnText}>Sign In</Text>
+                <Text style={styles.submitBtnText}>Log In</Text>
               )}
             </TouchableOpacity>
 
-            {/* Server Settings Toggle (Helpful for local network dev / testing on phone) */}
+            {/* Collapsed Server Settings Toggle for Dev */}
             <TouchableOpacity
               style={styles.configToggle}
               onPress={() => setShowServerConfig(!showServerConfig)}
             >
-              <Ionicons name="settings-outline" size={14} color={appConfig.colors.subText} />
+              <Ionicons name="settings-outline" size={13} color={appConfig.colors.subText} />
               <Text style={styles.configToggleText}>
                 {showServerConfig ? 'Hide Server Settings' : 'Configure Backend URL'}
               </Text>
@@ -153,8 +194,10 @@ export const AuthModal: React.FC = () => {
               </View>
             )}
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
@@ -162,75 +205,102 @@ export const AuthModal: React.FC = () => {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   card: {
     width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#181818',
-    borderRadius: 16,
-    padding: 24,
+    maxWidth: 380,
+    backgroundColor: '#282828',
+    borderRadius: 8,
+    paddingHorizontal: 28,
+    paddingTop: 36,
+    paddingBottom: 28,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.7,
+    shadowRadius: 32,
+    elevation: 20,
   },
-  header: {
-    flexDirection: 'row',
+  closeBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
+    padding: 4,
+  },
+  iconBadgeWrapper: {
     alignItems: 'center',
-    justifyContent: 'space-between',
     marginBottom: 16,
   },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  logoBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(29, 185, 84, 0.15)',
+  iconBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: appConfig.colors.accentGreen,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brandTitle: {
+  title: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 8,
+    letterSpacing: -0.3,
   },
-  closeBtn: {
-    padding: 4,
-  },
-  welcomeText: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  descText: {
+  subtitle: {
     color: appConfig.colors.subText,
     fontSize: 13,
-    marginBottom: 20,
+    textAlign: 'center',
     lineHeight: 18,
+    marginBottom: 20,
+  },
+  errorBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#fca5a5',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  inputGroup: {
+    marginBottom: 16,
   },
   label: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 6,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#121212',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 4,
+    paddingHorizontal: 12,
+  },
+  inputIcon: {
+    marginRight: 8,
   },
   input: {
-    backgroundColor: '#242424',
+    flex: 1,
     color: '#ffffff',
-    borderRadius: 8,
-    paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    fontSize: 14,
   },
   submitBtn: {
     backgroundColor: appConfig.colors.accentGreen,
@@ -238,12 +308,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   submitBtnText: {
     color: '#000000',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   configToggle: {
     flexDirection: 'row',
@@ -257,10 +327,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   serverBox: {
-    marginTop: 12,
+    marginTop: 10,
     padding: 12,
-    backgroundColor: '#202020',
-    borderRadius: 8,
+    backgroundColor: '#1c1c1c',
+    borderRadius: 6,
   },
   serverLabel: {
     color: appConfig.colors.subText,
@@ -270,10 +340,10 @@ const styles = StyleSheet.create({
   serverInput: {
     backgroundColor: '#121212',
     color: '#ffffff',
-    borderRadius: 6,
+    borderRadius: 4,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    fontSize: 13,
+    fontSize: 12,
     marginBottom: 8,
   },
   serverSaveBtn: {

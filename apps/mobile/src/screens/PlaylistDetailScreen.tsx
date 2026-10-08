@@ -6,15 +6,20 @@ import {
     FlatList,
     TouchableOpacity,
     ActivityIndicator,
-    SafeAreaView,
     Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRoute, useNavigation } from "@react-navigation/native";
-import { playlistService } from "../services/playlistService";
+import { playlistService } from '@music-cloud/services';
+import { isLikedPlaylist } from '@music-cloud/utils';
 import { usePlayer } from "../context/PlayerContext";
+import { useUI } from "../context/UIContext";
 import { SongRow } from "../components/SongRow";
+import { SongActionSheet } from "../components/SongActionSheet";
+import { PlaylistActionSheet } from "../components/PlaylistActionSheet";
+import { EditPlaylistModal } from "../components/EditPlaylistModal";
 import { appConfig } from "../config";
 import type {
     PlaylistDetail,
@@ -27,10 +32,15 @@ export const PlaylistDetailScreen: React.FC = () => {
     const navigation = useNavigation();
     const { playlistId, title: initialTitle } = route.params || {};
 
-    const { currentSong, isPlaying, playSong, openPlaylistModal } = usePlayer();
+    const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+    const { triggerPlaylistRefresh } = useUI();
 
     const [playlist, setPlaylist] = useState<PlaylistDetail | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [actionSheetSong, setActionSheetSong] = useState<SongMetadata | null>(null);
+    const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
+    const [isPlaylistMenuOpen, setIsPlaylistMenuOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     const fetchPlaylistDetail = useCallback(async () => {
         if (!playlistId) return;
@@ -75,24 +85,30 @@ export const PlaylistDetailScreen: React.FC = () => {
                     text: "Remove",
                     style: "destructive",
                     onPress: async () => {
+                        // OPTIMISTIC: remove song from list immediately
+                        const previousPlaylist = playlist;
+                        setPlaylist((prev: PlaylistDetail | null) =>
+                            prev
+                                ? {
+                                      ...prev,
+                                      songs: prev.songs.filter(
+                                          (s: PlaylistSongItem) =>
+                                              s.id !== song.id,
+                                      ),
+                                  }
+                                : null,
+                        );
+
                         try {
                             await playlistService.removeSongFromPlaylistBySongId(
                                 playlistId,
                                 song.id,
                             );
-                            setPlaylist((prev: PlaylistDetail | null) =>
-                                prev
-                                    ? {
-                                          ...prev,
-                                          songs: prev.songs.filter(
-                                              (s: PlaylistSongItem) =>
-                                                  s.id !== song.id,
-                                          ),
-                                      }
-                                    : null,
-                            );
+                            triggerPlaylistRefresh();
                         } catch (err) {
-                            console.warn("Failed to remove song:", err);
+                            console.warn("Failed to remove song, reverting:", err);
+                            setPlaylist(previousPlaylist);
+                            Alert.alert("Error", "Failed to remove song from playlist");
                         }
                     },
                 },
@@ -100,9 +116,30 @@ export const PlaylistDetailScreen: React.FC = () => {
         );
     };
 
-    const isLikedSongs =
-        playlist?.label?.toLowerCase() === "liked songs" ||
-        initialTitle?.toLowerCase() === "liked songs";
+    const handleDeletePlaylist = async () => {
+        if (!playlistId) return;
+        // OPTIMISTIC: Navigate back and trigger library refresh immediately
+        triggerPlaylistRefresh();
+        navigation.goBack();
+
+        try {
+            await playlistService.removePlaylist(playlistId);
+        } catch (err: any) {
+            console.warn("Failed to delete playlist on server:", err);
+            triggerPlaylistRefresh();
+        }
+    };
+
+    const handleEditSuccess = (updated: { id: string; label: string }) => {
+        setPlaylist((prev: PlaylistDetail | null) =>
+            prev ? { ...prev, label: updated.label } : null,
+        );
+    };
+
+    const isLikedSongs = isLikedPlaylist(
+        playlist?.label || initialTitle,
+        playlist?.is_deletable,
+    );
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -115,6 +152,20 @@ export const PlaylistDetailScreen: React.FC = () => {
                     >
                         <Ionicons name="arrow-back" size={24} color="#ffffff" />
                     </TouchableOpacity>
+
+                    {playlist?.is_deletable && (
+                        <TouchableOpacity
+                            onPress={() => setIsPlaylistMenuOpen(true)}
+                            style={styles.menuBtn}
+                            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        >
+                            <Ionicons
+                                name="ellipsis-horizontal"
+                                size={24}
+                                color="#ffffff"
+                            />
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {isLoading ? (
@@ -154,7 +205,9 @@ export const PlaylistDetailScreen: React.FC = () => {
 
                                 {/* Playlist Info */}
                                 <Text style={styles.heroTitle}>
-                                    {playlist?.label || initialTitle}
+                                    {isLikedSongs
+                                        ? "Liked Songs"
+                                        : (playlist?.label || initialTitle)}
                                 </Text>
                                 <Text style={styles.heroSubtitle}>
                                     {playlistSongs.length}{" "}
@@ -195,17 +248,55 @@ export const PlaylistDetailScreen: React.FC = () => {
                                 isPlaying={
                                     isPlaying && currentSong?.id === item.id
                                 }
-                                onPress={() => playSong(item, playlistSongs)}
-                                onMorePress={() =>
-                                    isLikedSongs
-                                        ? openPlaylistModal(item)
-                                        : handleRemoveSong(item)
-                                }
+                                onPress={() => {
+                                    if (currentSong?.id === item.id) {
+                                        togglePlay();
+                                    } else {
+                                        playSong(item, playlistSongs);
+                                    }
+                                }}
+                                onMorePress={() => {
+                                    setActionSheetSong(item);
+                                    setIsActionSheetOpen(true);
+                                }}
                             />
                         )}
                     />
                 )}
             </View>
+
+            {/* Context Menu Action Sheet (matching web SongContextMenu) */}
+            <SongActionSheet
+                visible={isActionSheetOpen}
+                song={actionSheetSong}
+                playlistId={playlistId}
+                isPlaylistContext={true}
+                canRemoveFromPlaylist={!isLikedSongs && Boolean(playlistId)}
+                onClose={() => {
+                    setIsActionSheetOpen(false);
+                    setActionSheetSong(null);
+                }}
+                onRemoveFromPlaylist={(song) => {
+                    handleRemoveSong(song);
+                }}
+            />
+
+            {/* Playlist Context Menu (Rename / Delete) */}
+            <PlaylistActionSheet
+                visible={isPlaylistMenuOpen}
+                playlist={playlist}
+                onClose={() => setIsPlaylistMenuOpen(false)}
+                onEdit={() => setIsEditModalOpen(true)}
+                onDelete={() => handleDeletePlaylist()}
+            />
+
+            {/* Edit Playlist Modal */}
+            <EditPlaylistModal
+                visible={isEditModalOpen}
+                playlist={playlist}
+                onClose={() => setIsEditModalOpen(false)}
+                onSuccess={handleEditSuccess}
+            />
         </SafeAreaView>
     );
 };
@@ -219,12 +310,17 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     topNav: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
         paddingHorizontal: 16,
         paddingVertical: 8,
     },
     backBtn: {
         padding: 6,
-        alignSelf: "flex-start",
+    },
+    menuBtn: {
+        padding: 6,
     },
     heroContainer: {
         alignItems: "center",
@@ -276,7 +372,7 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     listContent: {
-        paddingBottom: 120,
+        paddingBottom: 140,
     },
     centerContainer: {
         flex: 1,

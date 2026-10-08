@@ -4,6 +4,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import Any
+from app.core.config import settings
 
 from bullmq import Worker
 from fastapi import FastAPI, status
@@ -23,7 +24,8 @@ import time
 
 # Force the operating system environment layer to UTC
 os.environ["TZ"] = "UTC"
-time.tzset()
+if hasattr(time, "tzset"):
+    time.tzset()
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -70,8 +72,6 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
-
-from app.core.config import settings
 
 origins = settings.cors_origins_list
 
