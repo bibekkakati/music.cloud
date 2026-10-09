@@ -12,6 +12,7 @@ import TrackPlayer, {
     Event,
     usePlaybackState,
     useProgress,
+    TrackType,
     type Track,
 } from "react-native-track-player";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -39,10 +40,13 @@ function attachTokenToStreamUrl(rawUrl: string, token: string | null): string {
         const url = new URL(rawUrl);
         const cleanPath = url.pathname.replace(/^\/stream\/[^/]+/, "");
         url.pathname = `/stream/${encodeURIComponent(token)}${cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`}`;
+        url.searchParams.set("token", token);
         return url.toString();
     } catch {
         const clean = rawUrl.replace(/^\/stream\/[^/]+/, "");
-        return `/stream/${encodeURIComponent(token)}${clean.startsWith("/") ? clean : `/${clean}`}`;
+        const path = `/stream/${encodeURIComponent(token)}${clean.startsWith("/") ? clean : `/${clean}`}`;
+        const separator = path.includes("?") ? "&" : "?";
+        return `${path}${separator}token=${encodeURIComponent(token)}`;
     }
 }
 
@@ -434,10 +438,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             const streamUrl = attachTokenToStreamUrl(rawStreamUrl, token);
+            const isHls = streamUrl.includes(".m3u8");
 
             const track: Track = {
                 id: song.id,
                 url: streamUrl,
+                type: isHls ? TrackType.HLS : TrackType.Default,
                 title: song.title || "Unknown Title",
                 artist: song.artist || "Unknown Artist",
                 album: "Music Cloud",
@@ -489,7 +495,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         const state = await TrackPlayer.getPlaybackState().catch(() => null);
-        if (!state || state.state === State.None || state.state === State.Stopped) {
+        const activeTrack = await TrackPlayer.getActiveTrack().catch(() => null);
+
+        if (
+            !state ||
+            !activeTrack ||
+            state.state === State.None ||
+            state.state === State.Stopped ||
+            state.state === State.Error
+        ) {
             if (currentSongRef.current) {
                 await playSong(
                     currentSongRef.current,
