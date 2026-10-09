@@ -13,52 +13,45 @@ The Edge Worker serves as the edge proxy for media content delivery in the Music
 
 ---
 
-## Operations and Request Flow
+## Request Flow
 
 ```text
-[Incoming Request]
-       |
-       +--> Public Asset (cover_art/*, .jpg, .png, .webp)?
-       |        |
-       |        +--> Skip Auth Token Check
-       |        +--> Check Edge Cache (caches.default)
-       |        +--> Cache Hit: Return 200 with immutable headers
-       |        +--> Cache Miss: Pull from R2 (env.R2_BUCKET.get) -> Cache at Edge -> Return 200
-       |
-       +--> Audio Stream (.m3u8, .ts, .aac, .mp3)?
-                |
-                +--> Verify Stream JWT Token
-                +--> Playlist (.m3u8)?
-                |        +--> Check In-Memory RAM Cache (< 1ms)
-                |        +--> Cache Hit: Return 200
-                |        +--> Cache Miss: Pull from R2 -> Store in RAM & Edge -> Preload Next Segment
-                |
-                +--> Audio Segment (.ts, .aac, .m4s)?
-                         +--> Check Edge Cache -> Serve Cached or Fetch from R2
+[Request]
+   |
+   +--> Validate method, path, key (403 if invalid)
+   |
+   +--> Image (cover_art/*, .jpg/.png/.webp/...)
+   |       +--> No auth
+   |       +--> Edge cache -> HIT: return | MISS: R2 -> cache -> return
+   |
+   +--> Playlist / Segment (.m3u8, .ts, .m4s, .aac, .mp3)
+           +--> Verify JWT (path, Bearer header, or ?token=) -> 401 if invalid
+           +--> Edge cache -> HIT: return (304 if ETag matches)
+           +--> MISS: R2 -> stream to client + cache in background
+           +--> Not found: 404, negative-cached for 60s
 ```
 
 ---
 
 ## Key Capabilities
 
-### 1. Multi-Tiered Audio Caching
+### 1. Edge Caching
 
-- **RAM Playlist Cache**: Caches hot `.m3u8` playlists in the worker isolate memory for fast sub-millisecond retrieval.
-- **Edge Cache Integration**: Uses `caches.default` to cache variant playlists, segments, and cover art across Cloudflare data centers.
-- **Predictive Segment Preloading**: When a master playlist is requested, the worker automatically warms the first variant playlist and the initial segment (`seg_000.ts`) in the background via `ctx.waitUntil`.
+- **Edge cache:** `caches.default` caches playlists, segments, and cover art per Cloudflare data center.
+- **Negative caching:** 404s are cached for 60s so repeat misses don't hit R2.
 
-### 2. Static Asset Delivery (Cover Art)
+### 2. Cover Art
 
-- **Tokenless Access**: Public cover art requests bypass JWT verification, allowing direct loading in browser elements without custom headers.
-- **Immutable Browser Caching**: Assets are returned with `Cache-Control: public, max-age=31536000, s-maxage=31536000, immutable`.
-- **Conditional Requests**: Supports `If-None-Match` vs `ETag` to return `304 Not Modified` on unchanged assets.
+- **Tokenless:** image requests skip JWT checks, so they load directly in `<img>` tags.
+- **Caching:** served with `Cache-Control: public, max-age=3600, s-maxage=86400`.
+- **Conditional requests:** `If-None-Match` vs `ETag` returns `304 Not Modified`.
 
-### 3. Stream Security and Bucket Protection
+### 3. Security
 
-- **Token Verification**: Validates the HMAC-SHA256 streaming JWT against `AUTH_SECRET` (passed via `Authorization: Bearer <token>`) before granting access to media.
-- **Master Audio Protection**: Strictly denies direct client requests to `originals/` or `originals` to protect uncompressed source audio masters from unauthorized downloads.
-- **Path Traversal Prevention**: Rejects malformed object paths containing `..`, `//`, or leading dots with `403 Forbidden`.
-- **Resource Whitelisting**: Only serves verified media types (static assets like `cover_art/*`, HLS playlists `.m3u8`, or audio segments `.ts`, `.aac`, `.m4s`, `.mp3`), rejecting any unknown or internal storage keys.
+- **JWT auth:** HS256 token verified against `AUTH_SECRET`, accepted via path (`/stream/<token>/...`), `Authorization: Bearer`, or `?token=`.
+- **Source protection:** `originals/` is always denied.
+- **Path traversal:** keys containing `..`, `//`, `\`, or a leading `.` or `/` return `403`.
+- **Whitelist:** only `.m3u8`, `.ts`, `.m4s`, `.aac`, `.mp3`, and image types are served. Everything else returns `403`.
 
 ---
 

@@ -7,6 +7,7 @@ React Native mobile client for **Music Cloud**, built with **Expo SDK 57**, **Re
 ## Overview
 
 This package delivers the native mobile experience for Music Cloud:
+
 - **Audio Streaming & Background Playback**: Native media playback controls, lock screen metadata, notification controls, and audio session management via `react-native-track-player`.
 - **Navigation & Library Browsing**: Bottom-tab navigation for Home, Search, and Library catalog views.
 - **Universal Tablet Support**: Native iPadOS multi-orientation tablet support and responsive layout.
@@ -23,6 +24,7 @@ cp .env.example .env
 ```
 
 Configure `EXPO_PUBLIC_API_BASE_URL` based on your target runtime environment:
+
 - **iOS Simulator**: `http://localhost:8000`
 - **Android Emulator**: `http://10.0.2.2:8000`
 - **Physical Device**: `http://<YOUR_LAN_IP>:8000` (e.g. `http://192.168.1.5:8000`)
@@ -36,6 +38,7 @@ Configure `EXPO_PUBLIC_API_BASE_URL` based on your target runtime environment:
 ### From Monorepo Root
 
 Start the Expo bundler:
+
 ```bash
 npm run dev:mobile
 ```
@@ -43,21 +46,25 @@ npm run dev:mobile
 ### From `apps/mobile` Directory
 
 Install dependencies (from workspace root if not already done):
+
 ```bash
 npm install
 ```
 
 #### Run on iOS Simulator
+
 ```bash
 npm run ios
 ```
 
 #### Run on Android Emulator / Connected Device
+
 ```bash
 npm run android
 ```
 
 #### Start Metro Bundler
+
 ```bash
 npm start
 ```

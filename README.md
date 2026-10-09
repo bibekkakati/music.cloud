@@ -66,7 +66,7 @@ music-cloud/
 
 ## Core Features
 
-- **Adaptive Bitrate HLS Streaming**: Packages multi-bitrate AAC streams (256 kbps, 320 kbps) with segment preloading and sub-millisecond in-memory playlist caching.
+- **Adaptive Bitrate HLS Streaming**: Packages multi-bitrate AAC streams (256 kbps, 320 kbps) with segment preloading and edge playlist caching.
 - **Automated FFmpeg Transcode Pipeline**: Input tracks are inspected with `ffprobe`, embedded artwork is extracted to standardized JPEG files, and audio is segmented into 10-second chunks before concurrent upload to Cloudflare R2.
 - **Edge CDN for Streaming**: HLS segments and cover art are served directly through the edge worker with immutable browser caching (`max-age`), avoiding slow presigned S3 URLs.
 - **Secure Playback Token Authority**: Ephemeral x-hour HMAC-SHA256 JWT tokens authorize audio playback at the edge without exposing raw storage keys.
