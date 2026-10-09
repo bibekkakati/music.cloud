@@ -19,6 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SongMetadata, SongDetail } from "@music-cloud/types";
 import { streamService } from "../services/streamService";
 import { playlistService, songService } from "@music-cloud/services";
+import { registerRemoteHandlers } from "../services/playbackService";
 import { useAuth } from "./AuthContext";
 import { appConfig } from "../config";
 
@@ -113,6 +114,7 @@ async function setupTrackPlayerIfNeeded() {
                 Capability.Stop,
             ],
             compactCapabilities: [
+                Capability.SkipToPrevious,
                 Capability.Play,
                 Capability.Pause,
                 Capability.SkipToNext,
@@ -282,6 +284,39 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Handle track ended & track change events from OS remote controls
     useEffect(() => {
+        registerRemoteHandlers({
+            onNext: async () => {
+                await handleNextTrackRef.current?.();
+            },
+            onPrev: async () => {
+                await handlePrevTrackRef.current?.();
+            },
+            onPlay: async () => {
+                const state = await TrackPlayer.getPlaybackState().catch(() => null);
+                const activeTrack = await TrackPlayer.getActiveTrack().catch(() => null);
+                if (
+                    !state ||
+                    !activeTrack ||
+                    state.state === State.None ||
+                    state.state === State.Stopped ||
+                    state.state === State.Error
+                ) {
+                    if (currentSongRef.current && playSongRef.current) {
+                        await playSongRef.current(
+                            currentSongRef.current,
+                            queueRef.current,
+                            progress.position,
+                        );
+                        return;
+                    }
+                }
+                await TrackPlayer.play().catch(() => {});
+            },
+            onPause: async () => {
+                await TrackPlayer.pause().catch(() => {});
+            },
+        });
+
         const subQueueEnded = TrackPlayer.addEventListener(
             Event.PlaybackQueueEnded,
             async () => {
@@ -309,6 +344,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         );
 
         return () => {
+            registerRemoteHandlers({
+                onNext: null,
+                onPrev: null,
+                onPlay: null,
+                onPause: null,
+            });
             subQueueEnded.remove();
             subActiveTrack.remove();
         };
