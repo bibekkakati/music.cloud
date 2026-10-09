@@ -35,7 +35,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const { user, isAuthenticated, logout } = useAuth();
     const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
     const [librarySearch, setLibrarySearch] = useState("");
-    const [showSearchInput, setShowSearchInput] = useState(false);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -241,10 +240,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     value={librarySearch}
                                     onChange={(e) =>
                                         setLibrarySearch(e.target.value)
-                                    }
-                                    onBlur={() =>
-                                        !librarySearch &&
-                                        setShowSearchInput(false)
                                     }
                                     style={{
                                         width: "100%",
