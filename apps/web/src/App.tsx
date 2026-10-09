@@ -132,14 +132,7 @@ const AppContent: React.FC = () => {
                                 />
                             }
                         />
-                        <Route
-                            path="/search"
-                            element={
-                                <SearchPage
-                                    onAddToPlaylist={handleAddToPlaylist}
-                                />
-                            }
-                        />
+                        <Route path="/search" element={<SearchPage />} />
                         <Route
                             path="/search/:categoryId"
                             element={<SongCollectionView mode="category" />}
