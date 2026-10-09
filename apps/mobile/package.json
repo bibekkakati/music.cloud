@@ -24,7 +24,6 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
-    "patch-package": "^8.0.1",
     "typescript": "~6.0.2"
   },
   "scripts": {

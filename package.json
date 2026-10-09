@@ -20,8 +20,7 @@
         "typecheck": "turbo run typecheck",
         "clean": "turbo run clean && rm -rf node_modules",
         "docker:build:api": "npm run docker:build --workspace=@music-cloud/api",
-        "docker:run:api": "npm run docker:run --workspace=@music-cloud/api",
-        "postinstall": "patch-package"
+        "docker:run:api": "npm run docker:run --workspace=@music-cloud/api"
     },
     "devDependencies": {
         "concurrently": "^9.1.2",
