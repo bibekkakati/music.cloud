@@ -6,8 +6,14 @@ import type {
 } from "@music-cloud/types";
 
 export const songService = {
-    getAllSongs: async (cursor?: string): Promise<SongListResponse> => {
-        const params: Record<string, string> = {};
+    getAllSongs: async (
+        limit: number,
+        cursor?: string,
+    ): Promise<SongListResponse> => {
+        const params: Record<string, string> = {
+            limit: limit.toString(),
+        };
+
         if (cursor && cursor !== "0") {
             params.cursor = cursor;
         }

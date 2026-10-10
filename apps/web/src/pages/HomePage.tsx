@@ -6,13 +6,13 @@ import { SongCard } from "../components/SongCard";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { Music, Loader2, Sparkles, LogIn, Radio } from "lucide-react";
+import { getGreeting } from "@music-cloud/utils";
+import { appConfig } from "../config";
 
 interface HomePageProps {
     onAddToPlaylist: (song: SongMetadata) => void;
     onOpenAuthModal?: () => void;
 }
-
-import { getGreeting } from "@music-cloud/utils";
 
 export const HomePage: React.FC<HomePageProps> = ({
     onAddToPlaylist,
@@ -35,12 +35,17 @@ export const HomePage: React.FC<HomePageProps> = ({
 
         try {
             setLoading(true);
-            const data = await songService.getAllSongs(cursorVal);
+            const data = await songService.getAllSongs(
+                appConfig.songs_limit,
+                cursorVal,
+            );
             const songList = data?.songs || [];
             if (append) {
                 setSongs((prev) => {
                     const existingIds = new Set(prev.map((s) => s.id));
-                    const uniqueNew = songList.filter((s) => !existingIds.has(s.id));
+                    const uniqueNew = songList.filter(
+                        (s) => !existingIds.has(s.id),
+                    );
                     return [...prev, ...uniqueNew];
                 });
             } else {

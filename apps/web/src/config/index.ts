@@ -23,6 +23,7 @@ export interface AppConfig {
             stream_token: string;
         };
     };
+    songs_limit: number;
 }
 
 export const appConfig: AppConfig = rawConfig;

@@ -55,7 +55,10 @@ export const HomeScreen: React.FC = () => {
                     setIsLoading(true);
                 }
 
-                const data = await songService.getAllSongs(cursorVal);
+                const data = await songService.getAllSongs(
+                    appConfig.songs_limit,
+                    cursorVal,
+                );
                 const songList = data?.songs || [];
 
                 if (append) {
@@ -295,7 +298,9 @@ export const HomeScreen: React.FC = () => {
                                                     size={18}
                                                     color="#000000"
                                                 />
-                                                <Text style={styles.loadMoreText}>
+                                                <Text
+                                                    style={styles.loadMoreText}
+                                                >
                                                     Load More
                                                 </Text>
                                             </>

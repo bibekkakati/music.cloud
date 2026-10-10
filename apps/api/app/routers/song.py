@@ -26,14 +26,20 @@ def get_all_songs(
     user: CurrentUser,
     db: DatabaseSession,
     cursor: Annotated[str | None, Query(title="Page cursor")] = None,
+    limit: Annotated[int | None, Query(title="Result limit")] = None,
 ) -> SongListResponsePayload:
     song_service = SongService(db)
-    # Query 21 songs to determine if a next page exists
+    
+    # Determine the actual limit: use user-provided limit if available, otherwise default to 21
+    # We still fetch limit + 1 songs to determine if a next page exists
+    actual_limit = limit if limit is not None else 21
+    query_limit = actual_limit + 1
+    
     songs = song_service.get_all_songs(
-        cursor, SongProcessingStatus.DONE, is_public=True, limit=21
+        cursor, SongProcessingStatus.DONE, is_public=True, limit=query_limit
     )
-    has_next = len(songs) > 20
-    page_songs = songs[:20] if has_next else songs
+    has_next = len(songs) > actual_limit
+    page_songs = songs[:actual_limit] if has_next else songs
     next_cursor = str(page_songs[-1].id) if has_next and page_songs else None
 
     return SongListResponsePayload(

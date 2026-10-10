@@ -30,4 +30,5 @@ export const appConfig = {
         playerState: "music_cloud_player_state",
         apiBaseUrl: "music_cloud_api_base_url",
     },
+    songs_limit: 12,
 };

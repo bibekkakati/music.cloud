@@ -169,7 +169,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const volumeRef = useRef<number>(volume);
     const isMutedRef = useRef<boolean>(isMuted);
     const playRequestIdRef = useRef<number>(0);
-    const playSongRef = useRef<((song: PlayableSong, queueList?: PlayableSong[], initialSeekTime?: number) => Promise<void>) | null>(null);
+    const playSongRef = useRef<
+        | ((
+              song: PlayableSong,
+              queueList?: PlayableSong[],
+              initialSeekTime?: number,
+          ) => Promise<void>)
+        | null
+    >(null);
     const handleNextTrackRef = useRef<(() => Promise<void>) | null>(null);
     const handlePrevTrackRef = useRef<(() => Promise<void>) | null>(null);
     const authRef = useRef({ isAuthenticated, openAuthModal });
@@ -292,8 +299,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 await handlePrevTrackRef.current?.();
             },
             onPlay: async () => {
-                const state = await TrackPlayer.getPlaybackState().catch(() => null);
-                const activeTrack = await TrackPlayer.getActiveTrack().catch(() => null);
+                const state = await TrackPlayer.getPlaybackState().catch(
+                    () => null,
+                );
+                const activeTrack = await TrackPlayer.getActiveTrack().catch(
+                    () => null,
+                );
                 if (
                     !state ||
                     !activeTrack ||
@@ -359,7 +370,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         let q = queueRef.current;
         if (q.length <= 1) {
             try {
-                const res = await songService.getAllSongs();
+                const res = await songService.getAllSongs(
+                    appConfig.songs_limit,
+                );
                 const all = res?.songs;
                 if (Array.isArray(all) && all.length > 0) {
                     q = all;
@@ -397,7 +410,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         let q = queueRef.current;
         if (q.length <= 1) {
             try {
-                const res = await songService.getAllSongs();
+                const res = await songService.getAllSongs(
+                    appConfig.songs_limit,
+                );
                 const all = res?.songs;
                 if (Array.isArray(all) && all.length > 0) {
                     q = all;
@@ -408,7 +423,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         if (q.length === 0) return;
 
-        const currentPos = await TrackPlayer.getProgress().then((p) => p.position).catch(() => 0);
+        const currentPos = await TrackPlayer.getProgress()
+            .then((p) => p.position)
+            .catch(() => 0);
         if (currentPos > 3) {
             await TrackPlayer.seekTo(0);
             return;
@@ -538,7 +555,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         const state = await TrackPlayer.getPlaybackState().catch(() => null);
-        const activeTrack = await TrackPlayer.getActiveTrack().catch(() => null);
+        const activeTrack = await TrackPlayer.getActiveTrack().catch(
+            () => null,
+        );
 
         if (
             !state ||
@@ -566,7 +585,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const seek = async (seconds: number) => {
         try {
-            const targetSec = Math.max(0, Math.min(seconds, progress.duration || 0));
+            const targetSec = Math.max(
+                0,
+                Math.min(seconds, progress.duration || 0),
+            );
             await TrackPlayer.seekTo(targetSec);
         } catch (err) {
             console.warn("Seek error:", err);
@@ -586,7 +608,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const nextMuted = !isMuted;
         setIsMuted(nextMuted);
         isMutedRef.current = nextMuted;
-        await TrackPlayer.setVolume(nextMuted ? 0 : volumeRef.current).catch(() => {});
+        await TrackPlayer.setVolume(nextMuted ? 0 : volumeRef.current).catch(
+            () => {},
+        );
     };
 
     const toggleLoop = () => {

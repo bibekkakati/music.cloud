@@ -76,8 +76,14 @@ export const adminService = {
         return response.data;
     },
 
-    getAllSongs: async (cursor?: string): Promise<AdminSongListResponse> => {
-        const params: Record<string, string> = {};
+    getAllSongs: async (
+        limit: number,
+        cursor?: string,
+    ): Promise<AdminSongListResponse> => {
+        const params: Record<string, string> = {
+            limit: limit.toString(),
+        };
+
         if (cursor && cursor !== "0") {
             params.cursor = cursor;
         }

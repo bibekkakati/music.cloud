@@ -56,7 +56,7 @@ export const NowPlayingModal: React.FC = () => {
     useEffect(() => {
         if (queue.length <= 1) {
             songService
-                .getAllSongs()
+                .getAllSongs(appConfig.songs_limit)
                 .then((res) => {
                     const all = res?.songs;
                     if (Array.isArray(all) && all.length > 1) {
@@ -70,7 +70,9 @@ export const NowPlayingModal: React.FC = () => {
     const effectiveQueue = queue.length > 1 ? queue : fallbackQueue;
 
     // Displayed song for seamless transition without flickering
-    const [displaySong, setDisplaySong] = useState<PlayableSong | null>(currentSong);
+    const [displaySong, setDisplaySong] = useState<PlayableSong | null>(
+        currentSong,
+    );
     const [pageIndex, setPageIndex] = useState(0);
     const pageIndexRef = useRef(0);
     const isSwipeTransitionRef = useRef(false);
@@ -100,7 +102,9 @@ export const NowPlayingModal: React.FC = () => {
     if (displaySong || currentSong) {
         lastSongRef.current = (displaySong || currentSong) as SongMetadata;
     }
-    const song = (displaySong || currentSong || lastSongRef.current) as SongMetadata | null;
+    const song = (displaySong ||
+        currentSong ||
+        lastSongRef.current) as SongMetadata | null;
 
     // Up Next & Previous song computation
     const currentIdx = effectiveQueue.findIndex((s) => s.id === song?.id);
@@ -109,7 +113,9 @@ export const NowPlayingModal: React.FC = () => {
     const nextSong = useMemo(() => {
         if (!hasMultipleSongs) return null;
         if (isShuffle && effectiveQueue.length > 2) {
-            const candidates = effectiveQueue.filter((_, idx) => idx !== currentIdx);
+            const candidates = effectiveQueue.filter(
+                (_, idx) => idx !== currentIdx,
+            );
             return (
                 candidates[Math.floor(Math.random() * candidates.length)] ||
                 effectiveQueue[(currentIdx + 1) % effectiveQueue.length]
@@ -178,7 +184,9 @@ export const NowPlayingModal: React.FC = () => {
     const slideX = useRef(new Animated.Value(0)).current;
 
     const isTransitioningRef = useRef(false);
-    const activeArtworkGestureRef = useRef<"none" | "horizontal" | "vertical">("none");
+    const activeArtworkGestureRef = useRef<"none" | "horizontal" | "vertical">(
+        "none",
+    );
 
     // Mutable refs to prevent stale closures in PanResponder
     const nextSongRef = useRef(nextSong);
@@ -288,7 +296,8 @@ export const NowPlayingModal: React.FC = () => {
             onMoveShouldSetPanResponder: (_, gestureState) => {
                 if (isTransitioningRef.current) return false;
                 const { dx, dy } = gestureState;
-                const isHorizontal = Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy);
+                const isHorizontal =
+                    Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy);
                 const isVerticalDown = dy > 8 && dy > Math.abs(dx);
                 return isHorizontal || isVerticalDown;
             },
@@ -321,11 +330,18 @@ export const NowPlayingModal: React.FC = () => {
 
                     // Clamped resistance if no adjacent song
                     if (dx < 0 && !targetNext) {
-                        slideX.setValue(baseTranslate + Math.max(-width * 0.25, dx * 0.25));
+                        slideX.setValue(
+                            baseTranslate + Math.max(-width * 0.25, dx * 0.25),
+                        );
                     } else if (dx > 0 && !targetPrev) {
-                        slideX.setValue(baseTranslate + Math.min(width * 0.25, dx * 0.25));
+                        slideX.setValue(
+                            baseTranslate + Math.min(width * 0.25, dx * 0.25),
+                        );
                     } else {
-                        slideX.setValue(baseTranslate + Math.max(-width, Math.min(width, dx)));
+                        slideX.setValue(
+                            baseTranslate +
+                                Math.max(-width, Math.min(width, dx)),
+                        );
                     }
                 } else if (activeArtworkGestureRef.current === "vertical") {
                     if (dy > 0) {
@@ -350,7 +366,8 @@ export const NowPlayingModal: React.FC = () => {
                     // padding between slot edge and cover art = (width - currentCover) / 2
                     // threshold = padding + 40% of coverSize
                     const slotCoverPadding = (width - currentCover) / 2;
-                    const threshold40Percent = slotCoverPadding + currentCover * 0.4;
+                    const threshold40Percent =
+                        slotCoverPadding + currentCover * 0.4;
 
                     const shouldGoNext =
                         !!targetNext &&
@@ -373,7 +390,11 @@ export const NowPlayingModal: React.FC = () => {
                             setPageIndex(newPage);
                             setDisplaySong(targetNext);
                             isTransitioningRef.current = false;
-                            await playSongRef.current(targetNext, currentQueue, 0);
+                            await playSongRef.current(
+                                targetNext,
+                                currentQueue,
+                                0,
+                            );
                         });
                     } else if (shouldGoPrev && targetPrev) {
                         isTransitioningRef.current = true;
@@ -389,7 +410,11 @@ export const NowPlayingModal: React.FC = () => {
                             setPageIndex(newPage);
                             setDisplaySong(targetPrev);
                             isTransitioningRef.current = false;
-                            await playSongRef.current(targetPrev, currentQueue, 0);
+                            await playSongRef.current(
+                                targetPrev,
+                                currentQueue,
+                                0,
+                            );
                         });
                     } else {
                         Animated.spring(slideX, {

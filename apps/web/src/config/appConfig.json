@@ -20,5 +20,6 @@
             "session_token": "mc_session_token",
             "stream_token": "mc_stream_token"
         }
-    }
+    },
+    "songs_limit": 21
 }

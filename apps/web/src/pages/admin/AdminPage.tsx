@@ -11,6 +11,7 @@ import { AdminUploadPanel } from "../../components/admin/AdminUploadPanel";
 import { AdminCatalogTable } from "../../components/admin/AdminCatalogTable";
 import { AdminSongInspectorModal } from "../../components/admin/AdminSongInspectorModal";
 import { AdminSongEditModal } from "../../components/admin/AdminSongEditModal";
+import { appConfig } from "../../config";
 
 export const AdminPage: React.FC = () => {
     const { user, isAuthenticated, isAdmin, isLoading } = useAuth();
@@ -24,19 +25,29 @@ export const AdminPage: React.FC = () => {
     const [songs, setSongs] = useState<SongDetail[]>([]);
     const [loadingSongs, setLoadingSongs] = useState(false);
     const [currentPage, setCurrentPage] = useState<number>(1);
-    const [pageCursors, setPageCursors] = useState<{ [page: number]: string | undefined }>({
+    const [pageCursors, setPageCursors] = useState<{
+        [page: number]: string | undefined;
+    }>({
         1: undefined,
     });
     const [hasNextPage, setHasNextPage] = useState<boolean>(false);
     const [isRefreshingCatalog, setIsRefreshingCatalog] = useState(false);
 
     // Track in-flight row operations
-    const [refreshingSongIds, setRefreshingSongIds] = useState<Set<string>>(new Set());
-    const [reprocessingSongIds, setReprocessingSongIds] = useState<Set<string>>(new Set());
-    const [togglingVisibilityIds, setTogglingVisibilityIds] = useState<Set<string>>(new Set());
+    const [refreshingSongIds, setRefreshingSongIds] = useState<Set<string>>(
+        new Set(),
+    );
+    const [reprocessingSongIds, setReprocessingSongIds] = useState<Set<string>>(
+        new Set(),
+    );
+    const [togglingVisibilityIds, setTogglingVisibilityIds] = useState<
+        Set<string>
+    >(new Set());
 
     // --- Modals State ---
-    const [inspectingSong, setInspectingSong] = useState<SongDetail | null>(null);
+    const [inspectingSong, setInspectingSong] = useState<SongDetail | null>(
+        null,
+    );
     const [editingSong, setEditingSong] = useState<SongDetail | null>(null);
 
     // Load Catalog Page
@@ -44,7 +55,10 @@ export const AdminPage: React.FC = () => {
         async (page: number, cursor?: string) => {
             try {
                 setLoadingSongs(true);
-                const data = await adminService.getAllSongs(cursor);
+                const data = await adminService.getAllSongs(
+                    appConfig.songs_limit,
+                    cursor,
+                );
                 const songList = data?.songs || [];
                 setSongs(songList);
                 const nextCursor = data?.cursor;
@@ -55,12 +69,16 @@ export const AdminPage: React.FC = () => {
 
                 // If backend returned a valid cursor, cache it for page + 1
                 if (hasNext && nextCursor) {
-                    setPageCursors((prev) => ({ ...prev, [page + 1]: nextCursor.trim() }));
+                    setPageCursors((prev) => ({
+                        ...prev,
+                        [page + 1]: nextCursor.trim(),
+                    }));
                 }
             } catch (err: unknown) {
                 const msg =
-                    (err as { response?: { data?: { detail?: string } } })?.response
-                        ?.data?.detail || "Failed to load catalog page";
+                    (err as { response?: { data?: { detail?: string } } })
+                        ?.response?.data?.detail ||
+                    "Failed to load catalog page";
                 showToast("Catalog Error", "error", msg);
             } finally {
                 setLoadingSongs(false);
@@ -93,7 +111,9 @@ export const AdminPage: React.FC = () => {
         } finally {
             const elapsed = Date.now() - startTime;
             if (elapsed < 500) {
-                await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
+                await new Promise((resolve) =>
+                    setTimeout(resolve, 500 - elapsed),
+                );
             }
             setIsRefreshingCatalog(false);
         }
@@ -120,7 +140,9 @@ export const AdminPage: React.FC = () => {
             const updatedStatus = res.status;
 
             setSongs((prev) =>
-                prev.map((s) => (s.id === songId ? { ...s, status: updatedStatus } : s)),
+                prev.map((s) =>
+                    s.id === songId ? { ...s, status: updatedStatus } : s,
+                ),
             );
 
             if (updatedStatus?.toUpperCase() === "DONE") {
@@ -138,7 +160,9 @@ export const AdminPage: React.FC = () => {
         } finally {
             const elapsed = Date.now() - startTime;
             if (elapsed < 500) {
-                await new Promise((resolve) => setTimeout(resolve, 500 - elapsed));
+                await new Promise((resolve) =>
+                    setTimeout(resolve, 500 - elapsed),
+                );
             }
             setRefreshingSongIds((prev) => {
                 const next = new Set(prev);
@@ -175,7 +199,9 @@ export const AdminPage: React.FC = () => {
 
             // Optimistically update song status in the list
             setSongs((prev) =>
-                prev.map((s) => (s.id === song.id ? { ...s, status: "UPLOADED" } : s)),
+                prev.map((s) =>
+                    s.id === song.id ? { ...s, status: "UPLOADED" } : s,
+                ),
             );
 
             showToast(
@@ -214,14 +240,22 @@ export const AdminPage: React.FC = () => {
                 cover_art_key: coverArtKey,
             });
 
-            showToast("Metadata Updated", "success", `Updated "${updated.title}"`);
+            showToast(
+                "Metadata Updated",
+                "success",
+                `Updated "${updated.title}"`,
+            );
             setEditingSong(null);
 
             setSongs((prev) =>
-                prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)),
+                prev.map((s) =>
+                    s.id === updated.id ? { ...s, ...updated } : s,
+                ),
             );
             if (inspectingSong?.id === updated.id) {
-                setInspectingSong((prev) => (prev ? { ...prev, ...updated } : null));
+                setInspectingSong((prev) =>
+                    prev ? { ...prev, ...updated } : null,
+                );
             }
         } catch (err: unknown) {
             const msg =
@@ -237,22 +271,31 @@ export const AdminPage: React.FC = () => {
         const nextIsPublic = song.is_public === false ? true : false;
         setTogglingVisibilityIds((prev) => new Set(prev).add(song.id));
         try {
-            const updated = await adminService.updateSongVisibility(song.id, nextIsPublic);
+            const updated = await adminService.updateSongVisibility(
+                song.id,
+                nextIsPublic,
+            );
             setSongs((prev) =>
                 prev.map((s) =>
-                    s.id === song.id ? { ...s, ...updated, is_public: updated.is_public } : s,
+                    s.id === song.id
+                        ? { ...s, ...updated, is_public: updated.is_public }
+                        : s,
                 ),
             );
             if (inspectingSong?.id === song.id) {
                 setInspectingSong((prev) =>
-                    prev ? { ...prev, ...updated, is_public: updated.is_public } : null,
+                    prev
+                        ? { ...prev, ...updated, is_public: updated.is_public }
+                        : null,
                 );
             }
             showToast(
                 nextIsPublic ? "Song is now Public" : "Song is now Private",
                 "success",
                 `"${song.title}" is ${
-                    nextIsPublic ? "visible to normal users" : "hidden from normal users"
+                    nextIsPublic
+                        ? "visible to normal users"
+                        : "hidden from normal users"
                 }`,
             );
         } catch (err: unknown) {
@@ -279,7 +322,11 @@ export const AdminPage: React.FC = () => {
                     minHeight: "65vh",
                 }}
             >
-                <Loader2 size={36} className="animate-spin" color="var(--app-green)" />
+                <Loader2
+                    size={36}
+                    className="animate-spin"
+                    color="var(--app-green)"
+                />
             </div>
         );
     }
@@ -390,7 +437,10 @@ export const AdminPage: React.FC = () => {
                             }}
                         >
                             <Layers size={15} />
-                            <span>Catalog {currentPage > 1 ? `(p.${currentPage})` : ""}</span>
+                            <span>
+                                Catalog{" "}
+                                {currentPage > 1 ? `(p.${currentPage})` : ""}
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -402,7 +452,9 @@ export const AdminPage: React.FC = () => {
             </div>
 
             {/* --- TAB 2: CATALOG MANAGEMENT --- */}
-            <div style={{ display: activeTab === "catalog" ? "block" : "none" }}>
+            <div
+                style={{ display: activeTab === "catalog" ? "block" : "none" }}
+            >
                 <AdminCatalogTable
                     songs={songs}
                     loadingSongs={loadingSongs}
