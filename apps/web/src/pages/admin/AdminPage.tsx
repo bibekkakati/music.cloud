@@ -21,7 +21,6 @@ export const AdminPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<"upload" | "catalog">("upload");
 
     // --- Catalog State & Bounded Pagination ---
-    const PAGE_SIZE = 20;
     const [songs, setSongs] = useState<SongDetail[]>([]);
     const [loadingSongs, setLoadingSongs] = useState(false);
     const [currentPage, setCurrentPage] = useState<number>(1);
@@ -46,15 +45,17 @@ export const AdminPage: React.FC = () => {
             try {
                 setLoadingSongs(true);
                 const data = await adminService.getAllSongs(cursor);
-                setSongs(data);
-                const hasNext = data.length >= PAGE_SIZE;
+                const songList = data?.songs || [];
+                setSongs(songList);
+                const nextCursor = data?.cursor;
+                const hasNext =
+                    typeof nextCursor === "string" && nextCursor.trim() !== "";
                 setHasNextPage(hasNext);
                 setCurrentPage(page);
 
-                // If this page returned a full batch, cache the cursor for page + 1
-                if (hasNext && data.length > 0) {
-                    const nextCursor = data[data.length - 1].id;
-                    setPageCursors((prev) => ({ ...prev, [page + 1]: nextCursor }));
+                // If backend returned a valid cursor, cache it for page + 1
+                if (hasNext && nextCursor) {
+                    setPageCursors((prev) => ({ ...prev, [page + 1]: nextCursor.trim() }));
                 }
             } catch (err: unknown) {
                 const msg =

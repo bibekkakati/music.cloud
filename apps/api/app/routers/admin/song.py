@@ -7,6 +7,7 @@ from app.dependencies.auth import AdminUser, require_admin
 from app.infra.database import DatabaseSession
 from app.models.song import Song
 from app.schemas.song import (
+    AdminSongListResponsePayload,
     AdminSongResponsePayload,
     CoverArtUpdateRequestPayload,
     CoverArtUploadResponsePayload,
@@ -118,7 +119,7 @@ def get_song_process_status(
 
 @router.get(
     "/all",
-    response_model=list[AdminSongResponsePayload],
+    response_model=AdminSongListResponsePayload,
     summary="Get all songs details",
     status_code=status.HTTP_200_OK,
 )
@@ -126,16 +127,23 @@ def get_all_songs(
     user: AdminUser,
     db: DatabaseSession,
     cursor: Annotated[str | None, Query(title="Page cursor")] = None,
-) -> list[AdminSongResponsePayload]:
+) -> AdminSongListResponsePayload:
     song_service = SongService(db)
-    songs = song_service.get_all_songs(cursor)
-    return [
-        AdminSongResponsePayload(
-            **song.model_dump(),
-            cover_art_url=song_service.get_cover_art_url(song.cover_art_key),
-        )
-        for song in songs
-    ]
+    songs = song_service.get_all_songs(cursor, limit=21)
+    has_next = len(songs) > 20
+    page_songs = songs[:20] if has_next else songs
+    next_cursor = str(page_songs[-1].id) if has_next and page_songs else None
+
+    return AdminSongListResponsePayload(
+        songs=[
+            AdminSongResponsePayload(
+                **song.model_dump(),
+                cover_art_url=song_service.get_cover_art_url(song.cover_art_key),
+            )
+            for song in page_songs
+        ],
+        cursor=next_cursor,
+    )
 
 
 @router.get(

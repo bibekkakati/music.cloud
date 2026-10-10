@@ -2,6 +2,7 @@ import axios from "axios";
 import apiClient from "./api";
 import type {
     SongDetail,
+    AdminSongListResponse,
     SongUploadResponse,
     SongProcessPayload,
     SongMetadataUpdatePayload,
@@ -75,18 +76,25 @@ export const adminService = {
         return response.data;
     },
 
-    getAllSongs: async (cursor?: string): Promise<SongDetail[]> => {
+    getAllSongs: async (cursor?: string): Promise<AdminSongListResponse> => {
         const params: Record<string, string> = {};
         if (cursor && cursor !== "0") {
             params.cursor = cursor;
         }
-        const response = await apiClient.get<SongDetail[]>(
+        const response = await apiClient.get<AdminSongListResponse>(
             "/api/v1/admin/song/all",
             {
                 params,
             },
         );
-        return response.data;
+        const data = response.data;
+        if (Array.isArray(data)) {
+            return { songs: data, cursor: null };
+        }
+        return {
+            songs: data?.songs || [],
+            cursor: data?.cursor ?? null,
+        };
     },
 
     getSongById: async (songId: string): Promise<SongDetail> => {

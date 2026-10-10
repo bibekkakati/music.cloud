@@ -359,7 +359,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         let q = queueRef.current;
         if (q.length <= 1) {
             try {
-                const all = await songService.getAllSongs();
+                const res = await songService.getAllSongs();
+                const all = res?.songs;
                 if (Array.isArray(all) && all.length > 0) {
                     q = all;
                     queueRef.current = all;
@@ -396,7 +397,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         let q = queueRef.current;
         if (q.length <= 1) {
             try {
-                const all = await songService.getAllSongs();
+                const res = await songService.getAllSongs();
+                const all = res?.songs;
                 if (Array.isArray(all) && all.length > 0) {
                     q = all;
                     queueRef.current = all;

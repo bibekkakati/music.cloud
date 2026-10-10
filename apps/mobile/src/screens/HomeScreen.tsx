@@ -32,26 +32,60 @@ export const HomeScreen: React.FC = () => {
     const [songs, setSongs] = useState<SongMetadata[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+    const [cursor, setCursor] = useState<string | undefined>(undefined);
+    const [hasMore, setHasMore] = useState<boolean>(false);
 
-    const fetchSongs = useCallback(async () => {
-        if (!isAuthenticated) {
-            setSongs([]);
-            setIsLoading(false);
-            setIsRefreshing(false);
-            return;
-        }
+    const fetchSongs = useCallback(
+        async (cursorVal?: string, append = false) => {
+            if (!isAuthenticated) {
+                setSongs([]);
+                setCursor(undefined);
+                setHasMore(false);
+                setIsLoading(false);
+                setIsRefreshing(false);
+                setIsLoadingMore(false);
+                return;
+            }
 
-        try {
-            setIsLoading(true);
-            const data = await songService.getAllSongs();
-            setSongs(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.warn("Failed to load songs:", err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [isAuthenticated]);
+            try {
+                if (append) {
+                    setIsLoadingMore(true);
+                } else {
+                    setIsLoading(true);
+                }
+
+                const data = await songService.getAllSongs(cursorVal);
+                const songList = data?.songs || [];
+
+                if (append) {
+                    setSongs((prev) => {
+                        const existingIds = new Set(prev.map((s) => s.id));
+                        const uniqueNew = songList.filter(
+                            (s) => !existingIds.has(s.id),
+                        );
+                        return [...prev, ...uniqueNew];
+                    });
+                } else {
+                    setSongs(songList);
+                }
+
+                const nextCursor = data?.cursor;
+                const hasValidCursor =
+                    typeof nextCursor === "string" && nextCursor.trim() !== "";
+
+                setHasMore(hasValidCursor);
+                setCursor(hasValidCursor ? nextCursor.trim() : undefined);
+            } catch (err) {
+                console.warn("Failed to load songs:", err);
+            } finally {
+                setIsLoading(false);
+                setIsRefreshing(false);
+                setIsLoadingMore(false);
+            }
+        },
+        [isAuthenticated],
+    );
 
     useEffect(() => {
         fetchSongs();
@@ -59,7 +93,14 @@ export const HomeScreen: React.FC = () => {
 
     const onRefresh = () => {
         setIsRefreshing(true);
-        fetchSongs();
+        setCursor(undefined);
+        fetchSongs(undefined, false);
+    };
+
+    const handleLoadMore = () => {
+        if (!isLoadingMore && hasMore && cursor) {
+            fetchSongs(cursor, true);
+        }
     };
 
     return (
@@ -233,6 +274,36 @@ export const HomeScreen: React.FC = () => {
                                 </Text>
                             </View>
                         }
+                        ListFooterComponent={
+                            hasMore ? (
+                                <View style={styles.footerContainer}>
+                                    <TouchableOpacity
+                                        style={styles.loadMoreBtn}
+                                        activeOpacity={0.8}
+                                        disabled={isLoadingMore}
+                                        onPress={handleLoadMore}
+                                    >
+                                        {isLoadingMore ? (
+                                            <ActivityIndicator
+                                                size="small"
+                                                color="#000000"
+                                            />
+                                        ) : (
+                                            <>
+                                                <Ionicons
+                                                    name="arrow-down-circle-outline"
+                                                    size={18}
+                                                    color="#000000"
+                                                />
+                                                <Text style={styles.loadMoreText}>
+                                                    Load More
+                                                </Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            ) : null
+                        }
                         renderItem={({ item }) => (
                             <SongCard
                                 song={item}
@@ -405,5 +476,32 @@ const styles = StyleSheet.create({
         color: appConfig.colors.subText,
         fontSize: 12,
         marginTop: 4,
+    },
+    footerContainer: {
+        alignItems: "center",
+        justifyContent: "center",
+        paddingTop: 24,
+        paddingBottom: 20,
+    },
+    loadMoreBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: appConfig.colors.accentGreen,
+        paddingVertical: 12,
+        paddingHorizontal: 28,
+        borderRadius: 24,
+        gap: 8,
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    loadMoreText: {
+        color: "#000000",
+        fontSize: 14,
+        fontWeight: "700",
+        letterSpacing: 0.2,
     },
 });

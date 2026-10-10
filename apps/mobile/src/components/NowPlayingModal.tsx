@@ -57,7 +57,8 @@ export const NowPlayingModal: React.FC = () => {
         if (queue.length <= 1) {
             songService
                 .getAllSongs()
-                .then((all) => {
+                .then((res) => {
+                    const all = res?.songs;
                     if (Array.isArray(all) && all.length > 1) {
                         setFallbackQueue(all);
                     }

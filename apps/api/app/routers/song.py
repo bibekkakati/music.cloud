@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.dependencies.auth import CurrentUser
 from app.infra.database import DatabaseSession
 from app.schemas.song import (
+    SongListResponsePayload,
     SongPublicResponsePayload,
     StreamTokenResponsePayload,
 )
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/song")
 
 @router.get(
     "/all",
-    response_model=list[SongPublicResponsePayload],
+    response_model=SongListResponsePayload,
     summary="Get all songs details",
     status_code=status.HTTP_200_OK,
 )  
@@ -25,22 +26,30 @@ def get_all_songs(
     user: CurrentUser,
     db: DatabaseSession,
     cursor: Annotated[str | None, Query(title="Page cursor")] = None,
-) -> list[SongPublicResponsePayload]:
+) -> SongListResponsePayload:
     song_service = SongService(db)
+    # Query 21 songs to determine if a next page exists
     songs = song_service.get_all_songs(
-        cursor, SongProcessingStatus.DONE, is_public=True
+        cursor, SongProcessingStatus.DONE, is_public=True, limit=21
     )
-    return [
-        SongPublicResponsePayload(
-            id=song.id,
-            title=song.title,
-            artist=song.artist,
-            duration_sec=song.duration_sec,
-            cover_art_url=song_service.get_cover_art_url(song.cover_art_key),
-            stream_url=song_service.get_stream_url(song.master_aac_key, song.master_mp3_key),
-        )
-        for song in songs
-    ]
+    has_next = len(songs) > 20
+    page_songs = songs[:20] if has_next else songs
+    next_cursor = str(page_songs[-1].id) if has_next and page_songs else None
+
+    return SongListResponsePayload(
+        songs=[
+            SongPublicResponsePayload(
+                id=song.id,
+                title=song.title,
+                artist=song.artist,
+                duration_sec=song.duration_sec,
+                cover_art_url=song_service.get_cover_art_url(song.cover_art_key),
+                stream_url=song_service.get_stream_url(song.master_aac_key, song.master_mp3_key),
+            )
+            for song in page_songs
+        ],
+        cursor=next_cursor,
+    )
 
 @router.get(
     "/search/suggestions",

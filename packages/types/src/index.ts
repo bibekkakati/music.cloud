@@ -45,6 +45,11 @@ export interface SongPublic {
 
 export type SongMetadata = SongPublic;
 
+export interface SongListResponse {
+    songs: SongMetadata[];
+    cursor?: string | null;
+}
+
 export interface AdminSongDetail extends SongPublic {
     duration_sec: number;
     original_key: string;
@@ -59,6 +64,11 @@ export interface AdminSongDetail extends SongPublic {
 }
 
 export type SongDetail = AdminSongDetail;
+
+export interface AdminSongListResponse {
+    songs: SongDetail[];
+    cursor?: string | null;
+}
 
 export interface StreamSongResponse {
     id: string;

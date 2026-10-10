@@ -14,6 +14,11 @@ class SongPublicResponsePayload(BaseModel):
     stream_url: str | None = None
 
 
+class SongListResponsePayload(BaseModel):
+    songs: list[SongPublicResponsePayload]
+    cursor: str | None = None
+
+
 # --- Admin Only Schemas ---
 class AdminSongResponsePayload(BaseModel):
     id: UUID | str
@@ -30,6 +35,11 @@ class AdminSongResponsePayload(BaseModel):
     is_public: bool = False
     created_at: datetime
     updated_at: datetime
+
+
+class AdminSongListResponsePayload(BaseModel):
+    songs: list[AdminSongResponsePayload]
+    cursor: str | None = None
 
 
 # Aliases for backward compatibility

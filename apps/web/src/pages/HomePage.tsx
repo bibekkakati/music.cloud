@@ -36,16 +36,22 @@ export const HomePage: React.FC<HomePageProps> = ({
         try {
             setLoading(true);
             const data = await songService.getAllSongs(cursorVal);
-            const songList = Array.isArray(data) ? data : [];
+            const songList = data?.songs || [];
             if (append) {
-                setSongs((prev) => [...prev, ...songList]);
+                setSongs((prev) => {
+                    const existingIds = new Set(prev.map((s) => s.id));
+                    const uniqueNew = songList.filter((s) => !existingIds.has(s.id));
+                    return [...prev, ...uniqueNew];
+                });
             } else {
                 setSongs(songList);
             }
-            setHasMore(songList.length >= 20);
-            if (songList.length > 0) {
-                setCursor(songList[songList.length - 1].id);
-            }
+            const nextCursor = data?.cursor;
+            const hasValidCursor =
+                typeof nextCursor === "string" && nextCursor.trim() !== "";
+
+            setHasMore(hasValidCursor);
+            setCursor(hasValidCursor ? nextCursor.trim() : undefined);
         } catch (err: unknown) {
             const statusCode = (err as { response?: { status?: number } })
                 ?.response?.status;
@@ -68,6 +74,8 @@ export const HomePage: React.FC<HomePageProps> = ({
         } else if (!isAuthLoading) {
             setSongs([]);
             setLoading(false);
+            setCursor(undefined);
+            setHasMore(false);
         }
     }, [isAuthenticated, isAuthLoading]);
 
