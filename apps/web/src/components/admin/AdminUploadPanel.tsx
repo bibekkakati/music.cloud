@@ -12,19 +12,21 @@ import {
     Music2,
 } from "lucide-react";
 
+export type UploadStatus =
+    | "idle"
+    | "generating_url"
+    | "uploading"
+    | "uploaded"
+    | "queued"
+    | "error";
+
 export interface UploadItem {
     id: string; // unique client id
     file: File;
     title: string;
     artist: string;
     trimStartSec: number;
-    status:
-        | "idle"
-        | "preparing"
-        | "uploading"
-        | "processing"
-        | "done"
-        | "error";
+    status: UploadStatus;
     progress: number;
     error?: string;
 }
@@ -32,6 +34,84 @@ export interface UploadItem {
 interface AdminUploadPanelProps {
     onUploadSuccess?: () => void;
 }
+
+const getStatusMeta = (status: UploadStatus, progress: number) => {
+    switch (status) {
+        case "generating_url":
+            return {
+                label: "Generating URL",
+                color: "#eab308",
+                bg: "rgba(234, 179, 8, 0.15)",
+                icon: (
+                    <Loader2
+                        size={18}
+                        className="animate-spin"
+                        color="#eab308"
+                    />
+                ),
+                barColor: "#eab308",
+                isInFlight: true,
+            };
+        case "uploading":
+            return {
+                label: `Uploading ${progress}%`,
+                color: "#60a5fa",
+                bg: "rgba(59, 130, 246, 0.15)",
+                icon: (
+                    <Loader2
+                        size={18}
+                        className="animate-spin"
+                        color="#60a5fa"
+                    />
+                ),
+                barColor: "#60a5fa",
+                isInFlight: true,
+            };
+        case "uploaded":
+            return {
+                label: "Uploaded",
+                color: "#38bdf8",
+                bg: "rgba(56, 189, 248, 0.15)",
+                icon: (
+                    <Loader2
+                        size={18}
+                        className="animate-spin"
+                        color="#38bdf8"
+                    />
+                ),
+                barColor: "#38bdf8",
+                isInFlight: true,
+            };
+        case "queued":
+            return {
+                label: "Queued",
+                color: "var(--app-green)",
+                bg: "rgba(30, 215, 96, 0.15)",
+                icon: <CheckCircle2 size={18} color="var(--app-green)" />,
+                barColor: "var(--app-green)",
+                isInFlight: false,
+            };
+        case "error":
+            return {
+                label: "Error",
+                color: "#ef4444",
+                bg: "rgba(239, 68, 68, 0.15)",
+                icon: <AlertCircle size={18} color="#ef4444" />,
+                barColor: "#ef4444",
+                isInFlight: false,
+            };
+        case "idle":
+        default:
+            return {
+                label: "Ready",
+                color: "var(--app-subtext)",
+                bg: "rgba(255, 255, 255, 0.08)",
+                icon: <FileAudio size={18} color="var(--app-subtext)" />,
+                barColor: "var(--app-green)",
+                isInFlight: false,
+            };
+    }
+};
 
 export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
     onUploadSuccess,
@@ -96,7 +176,7 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
     const handleClearFinished = () => {
         setUploadQueue((prev) =>
             prev.filter(
-                (item) => item.status !== "done" && item.status !== "error",
+                (item) => item.status !== "queued" && item.status !== "error",
             ),
         );
     };
@@ -153,8 +233,8 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
             const contentType = item.file.type || "audio/mpeg";
 
             try {
-                // Step 1: Pre-signed URL
-                updateItemStatus(item.id, "preparing", 15);
+                // Step 1: Pre-signed URL (generating url)
+                updateItemStatus(item.id, "generating_url", 10);
                 const uploadData: SongUploadResponse =
                     await adminService.getUploadUrl({
                         extension: fileExt,
@@ -163,26 +243,27 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                         artist: item.artist.trim(),
                     });
 
-                // Step 2: S3 Upload
+                // Step 2: S3 Upload (uploading)
                 updateItemStatus(item.id, "uploading", 20);
                 await adminService.uploadFileToPresignedUrl(
                     uploadData.url,
                     item.file,
                     (pct: number) => {
-                        // Map progress from 20% to 90%
                         const mappedPct = Math.round(20 + pct * 0.7);
                         updateItemStatus(item.id, "uploading", mappedPct);
                     },
                 );
 
-                // Step 3: Trigger Audio Processing
-                updateItemStatus(item.id, "processing", 95);
+                // Step 3: S3 Upload Complete (uploaded)
+                updateItemStatus(item.id, "uploaded", 92);
+
+                // Step 4: Audio Processing Queued (queued)
                 await adminService.processSong({
                     song_id: uploadData.id,
                     trim_start_sec: Number(item.trimStartSec) || 0,
                 });
 
-                updateItemStatus(item.id, "done", 100);
+                updateItemStatus(item.id, "queued", 100);
                 return true;
             } catch (err: unknown) {
                 const msg =
@@ -496,7 +577,7 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                         }}
                     >
                         {uploadQueue.some(
-                            (i) => i.status === "done" || i.status === "error",
+                            (i) => i.status === "queued" || i.status === "error",
                         ) && (
                             <button
                                 type="button"
@@ -659,8 +740,13 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                             paddingRight: 4,
                         }}
                     >
-                        {uploadQueue.map((item) => (
-                            <div
+                        {uploadQueue.map((item) => {
+                            const meta = getStatusMeta(
+                                item.status,
+                                item.progress,
+                            );
+                            return (
+                                <div
                                 key={item.id}
                                 style={{
                                     background: "var(--app-elevated)",
@@ -695,43 +781,14 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                                                 width: 34,
                                                 height: 34,
                                                 borderRadius: 6,
-                                                background:
-                                                    item.status === "done"
-                                                        ? "rgba(30, 215, 96, 0.15)"
-                                                        : item.status ===
-                                                            "error"
-                                                          ? "rgba(239, 68, 68, 0.15)"
-                                                          : "rgba(255, 255, 255, 0.08)",
+                                                background: meta.bg,
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "center",
                                                 flexShrink: 0,
                                             }}
                                         >
-                                            {item.status === "done" ? (
-                                                <CheckCircle2
-                                                    size={18}
-                                                    color="var(--app-green)"
-                                                />
-                                            ) : item.status === "error" ? (
-                                                <AlertCircle
-                                                    size={18}
-                                                    color="#ef4444"
-                                                />
-                                            ) : item.status === "uploading" ||
-                                              item.status === "preparing" ||
-                                              item.status === "processing" ? (
-                                                <Loader2
-                                                    size={18}
-                                                    className="animate-spin"
-                                                    color="var(--primary)"
-                                                />
-                                            ) : (
-                                                <FileAudio
-                                                    size={18}
-                                                    color="var(--app-subtext)"
-                                                />
-                                            )}
+                                            {meta.icon}
                                         </div>
 
                                         <div style={{ minWidth: 0 }}>
@@ -780,81 +837,41 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                                                 borderRadius: 999,
                                                 textTransform: "uppercase",
                                                 letterSpacing: "0.04em",
-                                                background:
-                                                    item.status === "done"
-                                                        ? "rgba(30, 215, 96, 0.15)"
-                                                        : item.status ===
-                                                            "error"
-                                                          ? "rgba(239, 68, 68, 0.15)"
-                                                          : item.status ===
-                                                              "uploading"
-                                                            ? "rgba(59, 130, 246, 0.15)"
-                                                            : item.status ===
-                                                                "processing"
-                                                              ? "rgba(168, 85, 247, 0.15)"
-                                                              : item.status ===
-                                                                  "preparing"
-                                                                ? "rgba(234, 179, 8, 0.15)"
-                                                                : "rgba(255, 255, 255, 0.08)",
-                                                color:
-                                                    item.status === "done"
-                                                        ? "var(--app-green)"
-                                                        : item.status ===
-                                                            "error"
-                                                          ? "#ef4444"
-                                                          : item.status ===
-                                                              "uploading"
-                                                            ? "#60a5fa"
-                                                            : item.status ===
-                                                                "processing"
-                                                              ? "#c084fc"
-                                                              : item.status ===
-                                                                  "preparing"
-                                                                ? "#eab308"
-                                                                : "var(--app-subtext)",
+                                                background: meta.bg,
+                                                color: meta.color,
                                             }}
                                         >
-                                            {item.status === "preparing"
-                                                ? "Signing URL"
-                                                : item.status === "uploading"
-                                                  ? `Uploading ${item.progress}%`
-                                                  : item.status === "processing"
-                                                    ? "Transcoding"
-                                                    : item.status}
+                                            {meta.label}
                                         </span>
 
-                                        {/* Remove Button (when not actively uploading) */}
-                                        {item.status !== "uploading" &&
-                                            item.status !== "preparing" &&
-                                            item.status !== "processing" && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleRemoveItem(
-                                                            item.id,
-                                                        )
-                                                    }
-                                                    style={{
-                                                        background: "none",
-                                                        border: "none",
-                                                        color: "var(--app-subtext)",
-                                                        cursor: "pointer",
-                                                        padding: 4,
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                    }}
-                                                    title="Remove from queue"
-                                                >
-                                                    <X size={15} />
-                                                </button>
-                                            )}
+                                        {/* Remove Button (when not actively in-flight) */}
+                                        {!meta.isInFlight && (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    handleRemoveItem(
+                                                        item.id,
+                                                    )
+                                                }
+                                                style={{
+                                                    background: "none",
+                                                    border: "none",
+                                                    color: "var(--app-subtext)",
+                                                    cursor: "pointer",
+                                                    padding: 4,
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                }}
+                                                title="Remove from queue"
+                                            >
+                                                <X size={15} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
                                 {/* Progress Bar (during active steps) */}
-                                {(item.status === "preparing" ||
-                                    item.status === "uploading" ||
-                                    item.status === "processing") && (
+                                {meta.isInFlight && (
                                     <div
                                         style={{
                                             height: 4,
@@ -867,10 +884,7 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                                         <div
                                             style={{
                                                 height: "100%",
-                                                background:
-                                                    item.status === "processing"
-                                                        ? "#a855f7"
-                                                        : "var(--app-green)",
+                                                background: meta.barColor,
                                                 width: `${item.progress}%`,
                                                 transition: "width 0.2s ease",
                                                 borderRadius: 999,
@@ -986,7 +1000,8 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                                     </div>
                                 )}
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
