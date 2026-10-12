@@ -196,7 +196,7 @@ class PlaylistService:
         results = self.db.exec(statement).all()
         return playlist, [(ps, song) for ps, song in results if song and getattr(song, "is_public", False)]
 
-    def get_or_create_liked_playlist(self, user_id: str | uuid.UUID) -> Playlist:
+    def get_liked_playlist(self, user_id: str | uuid.UUID) -> Playlist:
         """Find the user's Liked playlist or create it with is_deletable=False."""
         owner_uuid = _to_uuid(user_id)
         statement = select(Playlist).where(
@@ -214,7 +214,7 @@ class PlaylistService:
         self, song_id: str | uuid.UUID, user_id: str | uuid.UUID
     ) -> dict[str, Any]:
         """Toggle like status for a song in the user's Liked playlist."""
-        liked_playlist = self.get_or_create_liked_playlist(user_id)
+        liked_playlist = self.get_liked_playlist(user_id)
         song_uuid = _to_uuid(song_id)
 
         # Check if song is already in "Liked" playlist
@@ -249,18 +249,10 @@ class PlaylistService:
         self, song_id: str | uuid.UUID, user_id: str | uuid.UUID
     ) -> bool:
         """Check if a song exists in the user's Liked playlist."""
-        owner_uuid = _to_uuid(user_id)
-        statement = select(Playlist).where(
-            Playlist.owner_id == owner_uuid,
-            Playlist.label == "Liked",
-        )
-        liked_playlist = self.db.exec(statement).first()
-        if not liked_playlist:
-            return False
-
+        liked_playlist = self.get_liked_playlist(user_id)
         song_uuid = _to_uuid(song_id)
-        song_statement = select(PlaylistSong).where(
+        statement = select(PlaylistSong).where(
             PlaylistSong.playlist_id == liked_playlist.id,
             PlaylistSong.song_id == song_uuid,
         )
-        return self.db.exec(song_statement).first() is not None
+        return self.db.exec(statement).first() is not None
