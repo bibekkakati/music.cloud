@@ -30,13 +30,7 @@ class AuthService:
         user, _ = user_service.get_or_create_user(login_data.email)
 
         # Create session in database with initial expiration
-        session_service = SessionService(self.db)
-        expiry_days = session_service.default_expiry_days
-
-        new_session, raw_token = session_service.create_session(
-            user_id=user.id,
-            expiry_days=expiry_days,
-        )
+        new_session, raw_token = SessionService(self.db).create_session(user_id=user.id)
 
         return SessionResponse(
             access_token=raw_token,

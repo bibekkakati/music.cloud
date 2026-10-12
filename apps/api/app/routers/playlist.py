@@ -1,6 +1,11 @@
-from datetime import datetime, timezone
+from app.schemas.playlist import GetCategorySongsResponsePayload
+from app.schemas.playlist import MasterItem
+from app.services.master import MasterService
+from app.schemas.playlist import CategoryResponsePayload
 from sqlalchemy.dialects.postgresql import Any
 from uuid import UUID
+
+from app.utils.stream_helper import get_cover_art_url, get_stream_url
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -25,6 +30,11 @@ from app.schemas.playlist import (
 from app.services.playlist import PlaylistService
 
 router = APIRouter(prefix="/playlist", dependencies=[Depends(get_current_user)])
+
+STATIC_CATEGORIES: list[MasterItem] = [
+    MasterItem(id="made-for-you", label="Made for you"),
+    MasterItem(id="new-releases", label="New Releases"),
+]
 
 
 # ============================================================================
@@ -230,26 +240,107 @@ def get_song_liked_status(
 
 
 @router.get(
+    "/category/master",
+    response_model=CategoryResponsePayload,
+    summary="Get all catgories",
+    status_code=status.HTTP_200_OK,
+)
+def get_category_master(
+    current_user: CurrentUser,
+    db: DatabaseSession,
+) -> dict[str, Any]:
+    """Retrieve available genres, moods and languages"""
+    master_service = MasterService(db)
+    genres = master_service.get_all_genres()
+    moods = master_service.get_all_moods()
+    languages = master_service.get_all_languages()
+
+    return {
+        "static": STATIC_CATEGORIES,
+        "genres": [MasterItem(id=item_id, label=label) for item_id, label in genres.items()],
+        "moods": [MasterItem(id=item_id, label=label) for item_id, label in moods.items()],
+        "languages": [MasterItem(id=item_id, label=label) for item_id, label in languages.items()],
+    }
+
+@router.get(
     "/category",
-    response_model=GetPlaylistSongsResponsePayload,
+    response_model=GetCategorySongsResponsePayload,
     summary="Get songs for a category",
     status_code=status.HTTP_200_OK,
 )
 def get_category_songs(
-    category: str,
+    label: str,
     current_user: CurrentUser,
     db: DatabaseSession,
+    page: int = 1,
+    limit: int = 20,
 ) -> dict[str, Any]:
-    """Retrieve songs for a category (skeleton / placeholder)."""
-    now = datetime.now(timezone.utc)
+    """
+    Retrieve songs for a category using the in-memory song_search index.
+    Client sends the category label as shown in UI plus the raw master id.
+    """
+    from app.services.song_search import song_search
+
+    # Enforce safe bounds: min 1, max 40
+    safe_limit = max(1, min(limit, 40))
+    clean_label = label.strip()
+
+    static_cat = next(
+        (
+            s for s in STATIC_CATEGORIES
+            if s.label.lower() == clean_label.lower() or str(s.id).lower() == clean_label.lower()
+        ),
+        None,
+    )
+    if static_cat:
+        # Static categories: latest songs (e.g. "Made for you", "New Releases")
+        id, label = static_cat.id, static_cat.label
+        matched_songs, total_count = song_search.get_latest_songs(page=page, limit=safe_limit)
+    else:
+        master_service = MasterService(db)
+        tables = (
+            ("genre", master_service.get_genre_by_name),
+            ("mood", master_service.get_mood_by_name),
+            ("lang", master_service.get_language_by_name),
+        )
+
+        resolved = None
+        for category_type, fetch in tables:
+            res = fetch(clean_label)
+            if res:
+                id, label = res
+                resolved = (id, category_type, label)
+                break
+
+        if resolved is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Category not found")
+
+        id, category_type, label = resolved
+        matched_songs, total_count = song_search.get_songs_by_category(
+            category_type, id, page=page, limit=safe_limit
+        )
+
+    safe_page = max(1, page)
+    next_page = safe_page + 1 if safe_page * safe_limit < total_count else None
+
     return {
-        "id": f"category-{category.lower().replace(' ', '-')}",
-        "label": category,
-        "is_deletable": False,
-        "songs_count": 0,
-        "songs": [],
-        "created_at": now,
-        "updated_at": now,
+        "id": str(id),
+        "label": label,
+        "songs_count": total_count,
+        "next_page": next_page,
+        "songs": [
+            {
+                "id": s.id,
+                "title": s.title,
+                "artist": s.artist,
+                "duration_sec": s.duration_sec,
+                "cover_art_url": get_cover_art_url(s.cover_art_key),
+                "stream_url": get_stream_url(s.master_aac_key, s.master_mp3_key),
+                "album": s.album,
+                "year": s.year,
+            }
+            for s in matched_songs
+        ],
     }
 
 
@@ -266,10 +357,34 @@ def get_playlist_songs(
 ) -> dict[str, Any]:
     """Retrieve all songs in a specified playlist."""
     playlist_service = PlaylistService(db)
-    playlist = playlist_service.get_playlist_songs(playlist_id, current_user.id)
-    if not playlist:
+    result = playlist_service.get_playlist_songs(playlist_id, current_user.id)
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Playlist songs not found or access denied",
         )
-    return playlist
+    playlist, song_items = result
+    songs_data = [
+        {
+            "id": song.id,
+            "playlist_song_id": ps.id,
+            "created_at": ps.created_at,
+            "title": song.title,
+            "artist": song.artist,
+            "duration_sec": song.duration_sec,
+            "cover_art_url": get_cover_art_url(song.cover_art_key),
+            "stream_url": get_stream_url(song.master_aac_key, song.master_mp3_key),
+            "album": song.album,
+            "year": song.year,
+        }
+        for ps, song in song_items
+    ]
+    return {
+        "id": playlist.id,
+        "label": playlist.label,
+        "is_deletable": playlist.is_deletable,
+        "songs_count": playlist.count,
+        "created_at": playlist.created_at,
+        "updated_at": playlist.updated_at,
+        "songs": songs_data,
+    }

@@ -102,7 +102,7 @@ class _RenditionResult:
 
 
 @dataclass
-class ProcessingResult:
+class AudioProcessorResult:
     """
     Everything about a completed run, stored on the processor instance
     after process() finishes. Every path here is absolute, so a caller
@@ -134,7 +134,7 @@ class AudioProcessor:
         processor.output_root            # "/out/hls"
         processor.master_playlist_paths  # {"aac": "/out/hls/master_aac.m3u8"}
         processor.info                   # AudioInfo(...)
-        processor.result                 # full ProcessingResult
+        processor.result                 # full AudioProcessorResult
     """
 
     def __init__(
@@ -202,10 +202,10 @@ class AudioProcessor:
         return self._processed
 
     @property
-    def result(self) -> ProcessingResult:
+    def result(self) -> AudioProcessorResult:
         """Full snapshot of everything produced by this run."""
         self._require_processed()
-        return ProcessingResult(
+        return AudioProcessorResult(
             metadata=self._info,
             output_root=self._output_root,
             renditions=self._renditions,

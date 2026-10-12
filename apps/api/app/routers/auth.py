@@ -44,28 +44,5 @@ def logout(
     db: DatabaseSession,
 ):
     """Revoke the current database session."""
-    session_service = SessionService(db)
-    session_service.delete_session(current_session.token)
+    SessionService(db).delete_session(current_session)
 
-
-@router.post("/refresh", response_model=SessionResponse, status_code=status.HTTP_200_OK)
-def refresh_session(
-    current_session: CurrentSession,
-    db: DatabaseSession,
-) -> SessionResponse:
-    """
-    Explicitly renew the current session expiry.
-    """
-    session_service = SessionService(db)
-    refreshed = session_service.refresh_session(current_session.token)
-    if refreshed is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session has expired or is invalid",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return SessionResponse(
-        access_token=refreshed.token,
-        token_type="bearer",
-        expires_at=refreshed.expires_at,
-    )

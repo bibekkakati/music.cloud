@@ -8,11 +8,9 @@ logger = logging.getLogger("uvicorn.error")
 
 
 class AuthConfig(BaseModel):
-    session_expiry_days: int = 30
-    session_renew_threshold_days: int = 1
-    session_renew_duration_days: int = 30
+    session_expiry_days: int = 3
     session_grace_period_minutes: int = 30
-    session_cache_ttl_seconds: float = 300.0
+    session_cache_ttl_seconds: float = 3600.0
     stream_token_expiry_seconds: int = 14400
     login_rate_limit_max_attempts: int = 5
     login_rate_limit_window_seconds: int = 60
@@ -32,7 +30,6 @@ class AudioProcessingConfig(BaseModel):
 
 class SearchConfig(BaseModel):
     fuzzy_similarity_threshold: int = 65
-    max_search_results: int = 50
 
 
 class StorageConfig(BaseModel):
@@ -55,6 +52,7 @@ class Settings(BaseSettings):
     AUTH_SECRET: str
     PASSCODE: str
     DATABASE_URL: str
+    REDIS_URL: str | None = None
     CORS_ORIGINS: str
 
     S3_REGION: str = "auto"

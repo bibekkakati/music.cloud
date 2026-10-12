@@ -18,7 +18,7 @@ import TrackPlayer, {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SongMetadata, SongDetail } from "@music-cloud/types";
 import { streamService } from "../services/streamService";
-import { playlistService, songService } from "@music-cloud/services";
+import { playlistService } from "@music-cloud/services";
 import { registerRemoteHandlers } from "../services/playbackService";
 import { useAuth } from "./AuthContext";
 import { appConfig } from "../config";
@@ -370,7 +370,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         let q = queueRef.current;
         if (q.length <= 1) {
             try {
-                const res = await songService.getAllSongs(
+                const res = await playlistService.getCategorySongs(
+                    "Made for you",
+                    1,
                     appConfig.songs_limit,
                 );
                 const all = res?.songs;
@@ -410,7 +412,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         let q = queueRef.current;
         if (q.length <= 1) {
             try {
-                const res = await songService.getAllSongs(
+                const res = await playlistService.getCategorySongs(
+                    "Made for you",
+                    1,
                     appConfig.songs_limit,
                 );
                 const all = res?.songs;

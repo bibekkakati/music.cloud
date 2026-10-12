@@ -17,7 +17,7 @@ from app.infra.mq import JOB_CONFIG, JOB_PROCESSING_QUEUE, queue
 from app.routers import auth, user, song, playlist
 from app.routers.admin import song as admin_song
 from app.services.session import SessionService
-from app.utils.worker import process_job
+from app.utils.queue_worker import process_job
 
 import os
 import time

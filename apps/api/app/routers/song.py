@@ -1,3 +1,4 @@
+from app.schemas.song import SongDownloadUrlResponsePayload
 from app.models.song import SongProcessingStatus
 from app.services.song_search import song_search
 from typing import Annotated
@@ -7,55 +8,13 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.dependencies.auth import CurrentUser
 from app.infra.database import DatabaseSession
 from app.schemas.song import (
-    SongListResponsePayload,
     SongPublicResponsePayload,
     StreamTokenResponsePayload,
 )
 from app.services.song import SongService
-from app.utils.stream_token import generate_stream_token
+from app.utils.stream_helper import generate_stream_token, get_cover_art_url, get_stream_url
 
 router = APIRouter(prefix="/song")
-
-@router.get(
-    "/all",
-    response_model=SongListResponsePayload,
-    summary="Get all songs details",
-    status_code=status.HTTP_200_OK,
-)  
-def get_all_songs(
-    user: CurrentUser,
-    db: DatabaseSession,
-    cursor: Annotated[str | None, Query(title="Page cursor")] = None,
-    limit: Annotated[int | None, Query(title="Result limit")] = None,
-) -> SongListResponsePayload:
-    song_service = SongService(db)
-    
-    # Determine the actual limit: use user-provided limit if available, otherwise default to 21
-    # We still fetch limit + 1 songs to determine if a next page exists
-    actual_limit = limit if limit is not None else 21
-    query_limit = actual_limit + 1
-    
-    songs = song_service.get_all_songs(
-        cursor, SongProcessingStatus.DONE, is_public=True, limit=query_limit
-    )
-    has_next = len(songs) > actual_limit
-    page_songs = songs[:actual_limit] if has_next else songs
-    next_cursor = str(page_songs[-1].id) if has_next and page_songs else None
-
-    return SongListResponsePayload(
-        songs=[
-            SongPublicResponsePayload(
-                id=song.id,
-                title=song.title,
-                artist=song.artist,
-                duration_sec=song.duration_sec,
-                cover_art_url=song_service.get_cover_art_url(song.cover_art_key),
-                stream_url=song_service.get_stream_url(song.master_aac_key, song.master_mp3_key),
-            )
-            for song in page_songs
-        ],
-        cursor=next_cursor,
-    )
 
 @router.get(
     "/search/suggestions",
@@ -66,7 +25,7 @@ def get_all_songs(
 def search_song_suggestions(
     user: CurrentUser,
     q: Annotated[str, Query(..., title="Search query")],
-    limit: Annotated[int, Query(ge=1, le=50, title="Result limit")] = 20,
+    limit: Annotated[int, Query(ge=1, le=10, title="Result limit")] = 10,
 ) -> list[SongPublicResponsePayload]:
     clean_q = q.strip()
     if len(clean_q) <= 2:
@@ -79,8 +38,8 @@ def search_song_suggestions(
             title=s.title,
             artist=s.artist,
             duration_sec=s.duration_sec,
-            cover_art_url=s.cover_art_url,
-            stream_url=s.stream_url,
+            cover_art_url=get_cover_art_url(s.cover_art_key),
+            stream_url=get_stream_url(s.master_aac_key, s.master_mp3_key),
         )
         for s in results
     ]
@@ -101,6 +60,26 @@ async def get_stream_token(
         token_type="bearer",
         expires_at=expires_at,
     )
+
+@router.get(
+    "/{song_id}/download-url",
+    response_model=SongDownloadUrlResponsePayload,
+    summary="Generate a song download URL",
+    status_code=status.HTTP_200_OK,
+)
+async def get_download_url(
+    user: CurrentUser,
+    song_id: str,
+    db: DatabaseSession,
+) -> SongDownloadUrlResponsePayload:
+    song_service = SongService(db)
+    try:
+        return song_service.get_song_download_url(song_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Song not found",
+        )
 
 
 @router.get(
@@ -126,8 +105,8 @@ def get_song_by_id(
             title=song.title,
             artist=song.artist,
             duration_sec=song.duration_sec,
-            cover_art_url=song_service.get_cover_art_url(song.cover_art_key),
-            stream_url=song_service.get_stream_url(song.master_aac_key, song.master_mp3_key),
+            cover_art_url=get_cover_art_url(song.cover_art_key),
+            stream_url=get_stream_url(song.master_aac_key, song.master_mp3_key),
         )
     except HTTPException:
         raise

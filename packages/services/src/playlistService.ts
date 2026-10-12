@@ -2,12 +2,14 @@ import apiClient from "./api";
 import type {
     PlaylistSummary,
     PlaylistDetail,
+    CategorySongsResponse,
     CreatePlaylistPayload,
     CreatePlaylistResponse,
     UpdatePlaylistPayload,
     UpdatePlaylistResponse,
     AddPlaylistSongPayload,
     PlaylistSongItem,
+    CategoryMasterResponse,
 } from "@music-cloud/types";
 
 export const playlistService = {
@@ -52,9 +54,21 @@ export const playlistService = {
         return response.data;
     },
 
-    getCategorySongs: async (categoryLabel: string): Promise<PlaylistDetail> => {
-        const response = await apiClient.get<PlaylistDetail>(
-            `/api/v1/playlist/category?category=${encodeURIComponent(categoryLabel)}`,
+    getCategoryMaster: async (): Promise<CategoryMasterResponse> => {
+        const response = await apiClient.get<CategoryMasterResponse>(
+            `/api/v1/playlist/category/master`,
+        );
+        return response.data;
+    },
+
+    getCategorySongs: async (
+        label: string,
+        page = 1,
+        limit = 20,
+    ): Promise<CategorySongsResponse> => {
+        const response = await apiClient.get<CategorySongsResponse>(
+            `/api/v1/playlist/category`,
+            { params: { label, page, limit } },
         );
         return response.data;
     },

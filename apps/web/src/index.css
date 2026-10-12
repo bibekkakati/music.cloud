@@ -321,7 +321,7 @@ body {
 /* Header Table Row */
 .app-table-header {
     display: grid;
-    grid-template-columns: 48px 4fr 3fr 1fr;
+    grid-template-columns: 48px 4fr 2fr 1fr 2fr;
     padding: 8px 16px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--app-subtext);
@@ -333,7 +333,7 @@ body {
 
 .app-table-row {
     display: grid;
-    grid-template-columns: 48px 4fr 3fr 1fr;
+    grid-template-columns: 48px 4fr 2fr 1fr 2fr;
     padding: 8px 16px;
     border-radius: 4px;
     align-items: center;

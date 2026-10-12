@@ -134,8 +134,13 @@ const AppContent: React.FC = () => {
                         />
                         <Route path="/search" element={<SearchPage />} />
                         <Route
-                            path="/search/:categoryId"
-                            element={<SongCollectionView mode="category" />}
+                            path="/search/:categoryLabel"
+                            element={
+                                <SongCollectionView
+                                    mode="category"
+                                    onAddToPlaylist={handleAddToPlaylist}
+                                />
+                            }
                         />
                         <Route
                             path="/song/:id"
@@ -153,6 +158,7 @@ const AppContent: React.FC = () => {
                             element={
                                 <SongCollectionView
                                     mode="playlist"
+                                    onAddToPlaylist={handleAddToPlaylist}
                                     onEditPlaylist={handleEditPlaylist}
                                     onPlaylistDeleted={
                                         handlePlaylistMutationSuccess

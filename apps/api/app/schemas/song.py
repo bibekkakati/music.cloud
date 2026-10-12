@@ -12,11 +12,8 @@ class SongPublicResponsePayload(BaseModel):
     duration_sec: int | None = None
     cover_art_url: str | None = None
     stream_url: str | None = None
-
-
-class SongListResponsePayload(BaseModel):
-    songs: list[SongPublicResponsePayload]
-    cursor: str | None = None
+    album: str | None = None
+    year: int | None = None
 
 
 # --- Admin Only Schemas ---
@@ -77,11 +74,6 @@ class SongMetaDataUpdateRequestPayload(BaseModel):
     cover_art_key: str | None = None
 
 
-class SongVisibilityUpdateRequestPayload(BaseModel):
-    song_id: str
-    is_public: bool
-
-
 class StreamTokenResponsePayload(BaseModel):
     token: str
     token_type: str = "bearer"
@@ -95,3 +87,8 @@ class StreamSongResponsePayload(BaseModel):
     master_mp3_key: str | None = None
     master_aac_key: str | None = None
     cover_art_url: str | None = None
+
+class SongDownloadUrlResponsePayload(BaseModel):
+    song_id: str
+    url: str
+    key: str

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { songService } from "@music-cloud/services";
+import { playlistService } from "@music-cloud/services";
 import { getGreeting } from "@music-cloud/utils";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
@@ -33,14 +33,14 @@ export const HomeScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
-    const [cursor, setCursor] = useState<string | undefined>(undefined);
+    const [page, setPage] = useState<number>(1);
     const [hasMore, setHasMore] = useState<boolean>(false);
 
     const fetchSongs = useCallback(
-        async (cursorVal?: string, append = false) => {
+        async (pageNum = 1, append = false) => {
             if (!isAuthenticated) {
                 setSongs([]);
-                setCursor(undefined);
+                setPage(1);
                 setHasMore(false);
                 setIsLoading(false);
                 setIsRefreshing(false);
@@ -55,9 +55,10 @@ export const HomeScreen: React.FC = () => {
                     setIsLoading(true);
                 }
 
-                const data = await songService.getAllSongs(
+                const data = await playlistService.getCategorySongs(
+                    "Made for you",
+                    pageNum,
                     appConfig.songs_limit,
-                    cursorVal,
                 );
                 const songList = data?.songs || [];
 
@@ -73,12 +74,9 @@ export const HomeScreen: React.FC = () => {
                     setSongs(songList);
                 }
 
-                const nextCursor = data?.cursor;
-                const hasValidCursor =
-                    typeof nextCursor === "string" && nextCursor.trim() !== "";
-
-                setHasMore(hasValidCursor);
-                setCursor(hasValidCursor ? nextCursor.trim() : undefined);
+                const nextPage = data?.next_page;
+                setHasMore(typeof nextPage === "number" && nextPage > 0);
+                setPage(nextPage ?? pageNum);
             } catch (err) {
                 console.warn("Failed to load songs:", err);
             } finally {
@@ -91,18 +89,18 @@ export const HomeScreen: React.FC = () => {
     );
 
     useEffect(() => {
-        fetchSongs();
+        fetchSongs(1, false);
     }, [fetchSongs]);
 
     const onRefresh = () => {
         setIsRefreshing(true);
-        setCursor(undefined);
-        fetchSongs(undefined, false);
+        setPage(1);
+        fetchSongs(1, false);
     };
 
     const handleLoadMore = () => {
-        if (!isLoadingMore && hasMore && cursor) {
-            fetchSongs(cursor, true);
+        if (!isLoadingMore && hasMore) {
+            fetchSongs(page, true);
         }
     };
 
@@ -273,7 +271,7 @@ export const HomeScreen: React.FC = () => {
                                     No tracks found
                                 </Text>
                                 <Text style={styles.emptySubtext}>
-                                    Upload audio or pull down to refresh
+                                    Pull down to refresh
                                 </Text>
                             </View>
                         }

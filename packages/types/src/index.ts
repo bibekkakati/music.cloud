@@ -41,14 +41,12 @@ export interface SongPublic {
     duration_sec?: number;
     cover_art_url?: string | null;
     stream_url?: string | null;
+    album?: string;
+    year?: number;
+    created_at?: string;
 }
 
 export type SongMetadata = SongPublic;
-
-export interface SongListResponse {
-    songs: SongMetadata[];
-    cursor?: string | null;
-}
 
 export interface AdminSongDetail extends SongPublic {
     duration_sec: number;
@@ -133,6 +131,26 @@ export interface PlaylistDetail {
     songs: PlaylistSongItem[];
     created_at: string;
     updated_at: string;
+}
+
+export interface CategorySongsResponse {
+    id: string;
+    label: string;
+    songs_count: number;
+    next_page?: number | null;
+    songs: SongMetadata[];
+}
+
+export interface CategoryMasterItem {
+    id: number | string;
+    label: string;
+}
+
+export interface CategoryMasterResponse {
+    static?: CategoryMasterItem[];
+    genres: CategoryMasterItem[];
+    moods: CategoryMasterItem[];
+    languages: CategoryMasterItem[];
 }
 
 export interface CreatePlaylistPayload {

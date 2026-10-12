@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { songService } from "../services/songService";
+import { playlistService } from "../services/playlistService";
 import { authService } from "../services/authService";
 import type { SongMetadata } from "../types";
 import { SongCard } from "../components/SongCard";
@@ -20,13 +20,13 @@ export const HomePage: React.FC<HomePageProps> = ({
 }) => {
     const [songs, setSongs] = useState<SongMetadata[]>([]);
     const [loading, setLoading] = useState(false);
-    const [cursor, setCursor] = useState<string | undefined>(undefined);
+    const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(false);
 
     const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
     const { showToast } = useToast();
 
-    const fetchSongs = async (cursorVal?: string, append = false) => {
+    const fetchSongs = async (pageNum = 1, append = false) => {
         // Only attempt to fetch if there is an active session token
         if (!authService.getToken()) {
             setLoading(false);
@@ -35,9 +35,10 @@ export const HomePage: React.FC<HomePageProps> = ({
 
         try {
             setLoading(true);
-            const data = await songService.getAllSongs(
+            const data = await playlistService.getCategorySongs(
+                "Made for you",
+                pageNum,
                 appConfig.songs_limit,
-                cursorVal,
             );
             const songList = data?.songs || [];
             if (append) {
@@ -51,12 +52,10 @@ export const HomePage: React.FC<HomePageProps> = ({
             } else {
                 setSongs(songList);
             }
-            const nextCursor = data?.cursor;
-            const hasValidCursor =
-                typeof nextCursor === "string" && nextCursor.trim() !== "";
 
-            setHasMore(hasValidCursor);
-            setCursor(hasValidCursor ? nextCursor.trim() : undefined);
+            const nextPage = data?.next_page;
+            setHasMore(typeof nextPage === "number" && nextPage > 0);
+            setPage(nextPage ?? pageNum);
         } catch (err: unknown) {
             const statusCode = (err as { response?: { status?: number } })
                 ?.response?.status;
@@ -65,7 +64,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 const errorMsg =
                     (err as { response?: { data?: { detail?: string } } })
                         ?.response?.data?.detail ||
-                    "Server error loading library songs.";
+                    "Server error loading songs.";
                 showToast("Server Error", "error", errorMsg);
             }
         } finally {
@@ -75,11 +74,11 @@ export const HomePage: React.FC<HomePageProps> = ({
 
     useEffect(() => {
         if (isAuthenticated) {
-            fetchSongs();
+            fetchSongs(1, false);
         } else if (!isAuthLoading) {
             setSongs([]);
             setLoading(false);
-            setCursor(undefined);
+            setPage(1);
             setHasMore(false);
         }
     }, [isAuthenticated, isAuthLoading]);
@@ -382,8 +381,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                                     No tracks uploaded yet
                                 </p>
                                 <p style={{ fontSize: 13 }}>
-                                    Songs added to the private cloud will appear
-                                    here for streaming.
+                                    Songs will appear here for streaming.
                                 </p>
                             </div>
                         ) : (
@@ -405,9 +403,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                         <div style={{ textAlign: "center", marginTop: 24 }}>
                             <button
                                 onClick={() => {
-                                    if (cursor) {
-                                        fetchSongs(cursor, true);
-                                    }
+                                    fetchSongs(page, true);
                                 }}
                                 disabled={loading}
                                 className="app-btn-pill"

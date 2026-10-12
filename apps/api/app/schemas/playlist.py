@@ -68,6 +68,13 @@ class GetPlaylistSongsResponsePayload(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+class GetCategorySongsResponsePayload(BaseModel):
+    id: UUID | str
+    label: str
+    songs_count: int
+    next_page: int | None = None
+    songs: list[SongPublicResponsePayload]
+
 # Toggle like song
 class ToggleLikeSongRequestPayload(BaseModel):
     song_id: UUID | str
@@ -79,3 +86,14 @@ class ToggleLikeSongResponsePayload(BaseModel):
 
 class SongLikedStatusResponsePayload(BaseModel):
     liked: bool
+
+# Master/Category details
+class MasterItem(BaseModel):
+    id: int | str
+    label: str
+
+class CategoryResponsePayload(BaseModel):
+    static: list[MasterItem]
+    genres: list[MasterItem]
+    moods: list[MasterItem]
+    languages: list[MasterItem]

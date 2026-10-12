@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import type { SongMetadata } from "../types";
 import { playlistService } from "../services/playlistService";
 import { useToast } from "../context/ToastContext";
-import { Play, Pause, Plus, Heart, Share2, Loader2 } from "lucide-react";
+import { Play, Pause, Plus, Heart, Share2, Loader2, Trash2 } from "lucide-react";
 
 interface SongContextMenuProps {
     isOpen: boolean;
@@ -13,6 +13,7 @@ interface SongContextMenuProps {
     onClose: () => void;
     onPlay: () => void;
     onAddToPlaylist: () => void;
+    onRemoveFromPlaylist?: () => void;
     onShare: () => void;
 }
 
@@ -24,12 +25,16 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
     onClose,
     onPlay,
     onAddToPlaylist,
+    onRemoveFromPlaylist,
     onShare,
 }) => {
     const menuRef = useRef<HTMLDivElement>(null);
     const [isLiked, setIsLiked] = useState<boolean | null>(null);
     const [loadingLike, setLoadingLike] = useState(false);
-    const [adjustedPos, setAdjustedPos] = useState({ x: position.x, y: position.y });
+    const [adjustedPos, setAdjustedPos] = useState({
+        x: position.x,
+        y: position.y,
+    });
     const { showToast } = useToast();
 
     // 1. Fetch like status whenever a new menu opens for a song
@@ -89,7 +94,10 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
         if (!isOpen) return;
 
         const handleOutsideClick = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+            if (
+                menuRef.current &&
+                !menuRef.current.contains(e.target as Node)
+            ) {
                 onClose();
             }
         };
@@ -199,14 +207,20 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                 onMouseLeave={handleItemLeave}
             >
                 {loadingLike ? (
-                    <Loader2 size={16} className="animate-spin" color="var(--app-subtext)" />
+                    <Loader2
+                        size={16}
+                        className="animate-spin"
+                        color="var(--app-subtext)"
+                    />
                 ) : isLiked ? (
                     <Heart size={16} fill="#1ed760" color="#1ed760" />
                 ) : (
                     <Heart size={16} color="#ffffff" />
                 )}
                 <span>
-                    {isLiked ? "Remove from Liked Songs" : "Save to Liked Songs"}
+                    {isLiked
+                        ? "Remove from Liked Songs"
+                        : "Save to Liked Songs"}
                 </span>
             </div>
 
@@ -232,6 +246,22 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                 <Plus size={16} color="#ffffff" />
                 <span>Add to playlist</span>
             </div>
+
+            {/* Remove from this playlist item */}
+            {onRemoveFromPlaylist && (
+                <div
+                    onClick={() => {
+                        onRemoveFromPlaylist();
+                        onClose();
+                    }}
+                    style={itemStyle}
+                    onMouseEnter={handleItemEnter}
+                    onMouseLeave={handleItemLeave}
+                >
+                    <Trash2 size={16} color="var(--app-subtext)" />
+                    <span>Remove from this playlist</span>
+                </div>
+            )}
 
             {/* Share item */}
             <div

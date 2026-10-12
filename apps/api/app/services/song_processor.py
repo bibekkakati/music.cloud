@@ -13,7 +13,7 @@ from app.models.song import Song, SongProcessingStatus
 from app.services.song import SongService
 from app.services.song_search import song_search
 from app.services.storage import storage
-from app.utils.audio import AudioProcessor
+from app.utils.audio_processor import AudioProcessor, AudioProcessorResult
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -123,7 +123,7 @@ class SongProcessor:
         original_file: Path,
         output_dir: Path,
         trim_start_sec: float,
-    ):
+    ) -> AudioProcessorResult:
         """
         Process audio file via ffmpeg
         """
@@ -289,7 +289,7 @@ class SongProcessor:
     def _mark_completed(
         self,
         song_id: str,
-        result,
+        result: AudioProcessorResult,
         master_mp3_key: str | None,
         master_aac_key: str | None,
         cover_art_key: str | None,
@@ -311,6 +311,11 @@ class SongProcessor:
             # multiple artist names are separeted by "/" in metadata
             # replace "/" by ", " in artist name
             song.artist = song.artist.replace("/", ", ")
+            # cleanup of dashes in artist names
+            song.artist = song.artist.replace("-", " ")
+            
+            song.year = metadata.year or None
+            song.album = metadata.album or None
 
             song.duration_sec = metadata.duration_sec
 
@@ -326,9 +331,8 @@ class SongProcessor:
             db.commit()
             db.refresh(song)
 
-            # Update search index with transcoded song metadata and cover art URL
-            cover_art_url = SongService(db).get_cover_art_url(song.cover_art_key)
-            song_search.update_song(song, cover_art_url)
+            # Update search index with transcoded song metadata
+            song_search.update_song(song)
 
         logger.info(
             "Song %s processed successfully",
@@ -376,7 +380,7 @@ class SongProcessor:
 
             self._mark_processing(song_id)
 
-            result = await self._process_audio(
+            result: AudioProcessorResult = await self._process_audio(
                 original_file,
                 output_dir,
                 trim_start_sec,

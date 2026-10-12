@@ -12,13 +12,13 @@ import {
     Edit2,
     Music,
     Loader2,
-    Clock3,
     Heart,
 } from "lucide-react";
-import { isLikedPlaylist, BROWSE_CATEGORIES } from "@music-cloud/utils";
+import { isLikedPlaylist, getCardColorByKey } from "@music-cloud/utils";
 
 interface SongCollectionViewProps {
     mode?: "playlist" | "category";
+    onAddToPlaylist?: (song: SongMetadata) => void;
     onEditPlaylist?: (playlist: {
         id: string;
         label: string;
@@ -29,43 +29,78 @@ interface SongCollectionViewProps {
 
 export const SongCollectionView: React.FC<SongCollectionViewProps> = ({
     mode = "playlist",
+    onAddToPlaylist,
     onEditPlaylist,
     onPlaylistDeleted,
 }) => {
-    const { id, categoryId } = useParams<{
+    const { id, categoryId, categoryLabel } = useParams<{
         id?: string;
         categoryId?: string;
+        categoryLabel?: string;
     }>();
     const navigate = useNavigate();
 
-    const isCategoryMode = mode === "category" || Boolean(categoryId);
-    const resolvedCategory = isCategoryMode
-        ? BROWSE_CATEGORIES.find(
-              (c) =>
-                  c.id.toLowerCase() === (categoryId || id || "").toLowerCase(),
-          )
-        : null;
+    const isCategoryMode =
+        mode === "category" || Boolean(categoryLabel) || Boolean(categoryId);
 
     const [collection, setCollection] = useState<PlaylistDetail | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
     const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
     const { showToast } = useToast();
 
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (pageNum = 1, append = false) => {
         try {
-            setLoading(true);
+            if (append) {
+                setLoadingMore(true);
+            } else {
+                setLoading(true);
+            }
+
             if (isCategoryMode) {
-                const label = resolvedCategory
-                    ? resolvedCategory.title
-                    : categoryId || id || "Category";
-                const data = await playlistService.getCategorySongs(label);
-                setCollection(data);
+                if (!categoryLabel) return;
+                const data =
+                    await playlistService.getCategorySongs(categoryLabel, pageNum, 20);
+                
+                // Adapt to collection format
+                setCollection((prev) => {
+                    const newSongs = data.songs.map((s) => ({
+                        ...s,
+                        playlist_song_id: s.id,
+                        created_at: s.created_at || "",
+                    }));
+                    if (append && prev) {
+                        const existingIds = new Set(prev.songs.map((item) => item.id));
+                        const uniqueNew = newSongs.filter((item) => !existingIds.has(item.id));
+                        return {
+                            ...prev,
+                            songs: [...prev.songs, ...uniqueNew],
+                            songs_count: data.songs_count,
+                        };
+                    }
+                    return {
+                        id: String(data.id),
+                        label: data.label,
+                        is_deletable: false,
+                        songs_count: data.songs_count,
+                        created_at: "",
+                        updated_at: "",
+                        songs: newSongs,
+                    };
+                });
+
+                const nextPage = data.next_page;
+                setHasMore(typeof nextPage === "number" && nextPage > 0);
+                setPage(nextPage ?? pageNum);
             } else {
                 if (!id) return;
                 const data = await playlistService.getPlaylistSongs(id);
                 setCollection(data);
+                setHasMore(false);
             }
         } catch (err: unknown) {
             const msg =
@@ -77,29 +112,44 @@ export const SongCollectionView: React.FC<SongCollectionViewProps> = ({
             showToast("Error", "error", msg);
         } finally {
             setLoading(false);
+            setLoadingMore(false);
         }
-    }, [isCategoryMode, resolvedCategory, categoryId, id, showToast]);
+    }, [isCategoryMode, categoryId, categoryLabel, id, showToast]);
 
     const refreshDataSilent = useCallback(async () => {
         try {
             if (isCategoryMode) {
-                const label = resolvedCategory
-                    ? resolvedCategory.title
-                    : categoryId || id || "Category";
-                const data = await playlistService.getCategorySongs(label);
-                setCollection(data);
+                if (!categoryLabel) return;
+                const data =
+                    await playlistService.getCategorySongs(categoryLabel, 1, 20);
+                setCollection({
+                    id: String(data.id),
+                    label: data.label,
+                    is_deletable: false,
+                    songs_count: data.songs_count,
+                    created_at: "",
+                    updated_at: "",
+                    songs: data.songs.map((s) => ({
+                        ...s,
+                        playlist_song_id: s.id,
+                        created_at: s.created_at || "",
+                    })),
+                });
+                setHasMore(data.songs.length < data.songs_count);
+                setPage(1);
             } else {
                 if (!id) return;
                 const data = await playlistService.getPlaylistSongs(id);
                 setCollection(data);
+                setHasMore(false);
             }
         } catch {
             // Silently ignore background refresh errors
         }
-    }, [isCategoryMode, resolvedCategory, categoryId, id]);
+    }, [isCategoryMode, categoryId, categoryLabel, id]);
 
     useEffect(() => {
-        loadData();
+        loadData(1, false);
     }, [loadData]);
 
     // Listen for additions/removals to dynamically update the currently opened collection
@@ -309,7 +359,9 @@ export const SongCollectionView: React.FC<SongCollectionViewProps> = ({
     const isLiked =
         !isCategoryMode &&
         isLikedPlaylist(collection.label, collection.is_deletable);
-    const categoryBgColor = resolvedCategory?.color || "#5038a0";
+    const categoryBgColor = getCardColorByKey(
+        categoryId || collection.label || "category",
+    );
 
     return (
         <div className="playlist-page-container" style={{ paddingBottom: 120 }}>
@@ -433,16 +485,17 @@ export const SongCollectionView: React.FC<SongCollectionViewProps> = ({
                         #
                     </div>
                     <div className="songrow-col-main">Title</div>
+                    <div className="songrow-col-date">Album</div>
                     <div className="songrow-col-date">Date added</div>
                     <div
                         className="songrow-col-duration"
                         style={{
                             display: "flex",
                             justifyContent: "flex-end",
-                            paddingRight: 6,
+                            paddingRight: 32,
                         }}
                     >
-                        <Clock3 size={16} />
+                        Duration
                     </div>
                 </div>
 
@@ -473,9 +526,9 @@ export const SongCollectionView: React.FC<SongCollectionViewProps> = ({
                                     }
                                     song={song}
                                     index={index}
-                                    dateAdded={song.created_at}
+                                    onAddToPlaylist={onAddToPlaylist}
                                     onRemoveFromPlaylist={
-                                        isCategoryMode
+                                        isCategoryMode || collection.is_deletable === false
                                             ? undefined
                                             : handleRemoveSong
                                     }
@@ -483,6 +536,28 @@ export const SongCollectionView: React.FC<SongCollectionViewProps> = ({
                                 />
                             );
                         })}
+                    </div>
+                )}
+
+                {/* Category Mode: Load More button */}
+                {isCategoryMode && hasMore && (
+                    <div style={{ textAlign: "center", marginTop: 24, paddingBottom: 24 }}>
+                        <button
+                            onClick={() => {
+                                loadData(page, true);
+                            }}
+                            disabled={loadingMore}
+                            className="app-btn-pill"
+                        >
+                            {loadingMore ? (
+                                <Loader2
+                                    size={16}
+                                    className="animate-spin"
+                                />
+                            ) : (
+                                "Load More"
+                            )}
+                        </button>
                     </div>
                 )}
             </div>

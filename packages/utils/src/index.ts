@@ -72,44 +72,45 @@ export const getGreeting = (): string => {
 };
 
 /**
- * Browse / Search categories shared across web and mobile
+ * Vibrant colors palette for dynamic categories (Spotify-style curated hues)
  */
-export interface BrowseCategory {
-    id: string;
-    title: string;
-    name: string;
-    color: string;
-}
-
-export const BROWSE_CATEGORIES: BrowseCategory[] = [
-    {
-        id: "personalised",
-        title: "Made For You",
-        name: "Made For You",
-        color: "#006450",
-    },
-    {
-        id: "new-releases",
-        title: "New Releases",
-        name: "New Releases",
-        color: "#e8115b",
-    },
-    { id: "hindi", title: "Hindi", name: "Hindi", color: "#8c1932" },
-    { id: "english", title: "English", name: "English", color: "#7358ff" },
-    { id: "assamese", title: "Assamese", name: "Assamese", color: "#af2896" },
-    { id: "bengali", title: "Bengali", name: "Bengali", color: "#c9d56dff" },
-    { id: "pop", title: "Pop", name: "Pop", color: "#8d67ab" },
-    { id: "hip-hop", title: "Hip-Hop", name: "Hip-Hop", color: "#ba5d07" },
-    { id: "rock", title: "Rock", name: "Rock", color: "#e91429" },
-    {
-        id: "electronic",
-        title: "Electronic",
-        name: "Electronic",
-        color: "#0d73ec",
-    },
-    { id: "chill", title: "Chill", name: "Chill", color: "#27856a" },
-    { id: "focus", title: "Focus", name: "Focus", color: "#477d95" },
-    { id: "workout", title: "Workout", name: "Workout", color: "#503750" },
+export const CARD_COLORS: string[] = [
+    "#e13300", // Crimson / Red-Orange
+    "#7358ff", // Vibrant Indigo / Purple
+    "#1e3264", // Deep Navy
+    "#e8115b", // Vibrant Magenta / Hot Pink
+    "#148a08", // Emerald Green
+    "#bc5900", // Warm Amber
+    "#d84000", // Rust Orange
+    "#8c1932", // Wine Red
+    "#0d73ec", // Electric Blue
+    "#8d67ab", // Lavender / Soft Violet
+    "#503750", // Plum
+    "#006450", // Forest Teal
+    "#af2896", // Violet Orchid
+    "#27856a", // Teal
+    "#ba5d07", // Ochre
+    "#e91429", // Signal Red
 ];
 
-export const CATEGORIES = BROWSE_CATEGORIES;
+/**
+ * Returns a vibrant color cycling through the palette by index.
+ * Automatically wraps around when the end of the palette is reached.
+ */
+export function getCardColorByIndex(index: number): string {
+    const safeIndex = Math.abs(Math.floor(index));
+    return CARD_COLORS[safeIndex % CARD_COLORS.length];
+}
+
+/**
+ * Returns a consistent vibrant color deterministically for any string/number key.
+ */
+export function getCardColorByKey(key: string | number): string {
+    const str = String(key).toLowerCase().trim();
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return getCardColorByIndex(hash);
+}

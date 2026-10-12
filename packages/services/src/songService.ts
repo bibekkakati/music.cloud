@@ -1,37 +1,10 @@
 import apiClient from "./api";
 import type {
     SongMetadata,
-    SongListResponse,
     StreamTokenResponse,
 } from "@music-cloud/types";
 
 export const songService = {
-    getAllSongs: async (
-        limit: number,
-        cursor?: string,
-    ): Promise<SongListResponse> => {
-        const params: Record<string, string> = {
-            limit: limit.toString(),
-        };
-
-        if (cursor && cursor !== "0") {
-            params.cursor = cursor;
-        }
-        const response = await apiClient.get<SongListResponse>(
-            "/api/v1/song/all",
-            {
-                params,
-            },
-        );
-        const data = response.data;
-        if (Array.isArray(data)) {
-            return { songs: data, cursor: null };
-        }
-        return {
-            songs: data?.songs || [],
-            cursor: data?.cursor ?? null,
-        };
-    },
 
     searchSuggestions: async (
         query: string,

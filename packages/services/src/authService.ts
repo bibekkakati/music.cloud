@@ -23,16 +23,6 @@ export const authService = {
         }
     },
 
-    refreshToken: async (): Promise<SessionResponse> => {
-        const response = await apiClient.post<SessionResponse>(
-            "/api/v1/auth/refresh",
-        );
-        if (response.data.access_token) {
-            await getAuthStorageAdapter().setToken(response.data.access_token);
-        }
-        return response.data;
-    },
-
     getToken: (): string | null => {
         const res = getAuthStorageAdapter().getToken();
         if (res instanceof Promise) {

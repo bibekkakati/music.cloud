@@ -14,7 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { formatTime } from "@music-cloud/utils";
 import type { SongMetadata } from "@music-cloud/types";
-import { songService } from "@music-cloud/services";
+import { playlistService } from "@music-cloud/services";
 import { usePlayer, type PlayableSong } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { SongCoverArt } from "./SongCoverArt";
@@ -55,8 +55,8 @@ export const NowPlayingModal: React.FC = () => {
 
     useEffect(() => {
         if (queue.length <= 1) {
-            songService
-                .getAllSongs(appConfig.songs_limit)
+            playlistService
+                .getCategorySongs("Made for you", 1, appConfig.songs_limit)
                 .then((res) => {
                     const all = res?.songs;
                     if (Array.isArray(all) && all.length > 1) {

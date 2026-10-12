@@ -14,9 +14,9 @@ from app.schemas.song import (
     SongMetaDataUpdateRequestPayload,
     SongProcessRequestPayload,
     SongUploadResponsePayload,
-    SongVisibilityUpdateRequestPayload,
 )
 from app.services.song import SongService
+from app.utils.stream_helper import get_cover_art_url
 
 router = APIRouter(
     prefix="/song", dependencies=[Depends(require_admin)]
@@ -138,7 +138,7 @@ def get_all_songs(
         songs=[
             AdminSongResponsePayload(
                 **song.model_dump(),
-                cover_art_url=song_service.get_cover_art_url(song.cover_art_key),
+                cover_art_url=get_cover_art_url(song.cover_art_key),
             )
             for song in page_songs
         ],
@@ -162,42 +162,10 @@ def get_song(
         song = song_service.get_song(song_id)
         return AdminSongResponsePayload(
             **song.model_dump(),
-            cover_art_url=song_service.get_cover_art_url(song.cover_art_key),
+            cover_art_url=get_cover_art_url(song.cover_art_key),
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail="Song not found") from e
-
-
-@router.put(
-    "/visibility",
-    response_model=AdminSongResponsePayload,
-    summary="Update song visibility (public or private)",
-    status_code=status.HTTP_200_OK,
-)
-def update_song_visibility(
-    payload: Annotated[SongVisibilityUpdateRequestPayload, Body(..., embed=True)],
-    user: AdminUser,
-    db: DatabaseSession,
-) -> AdminSongResponsePayload:
-    if not payload.song_id:
-        raise HTTPException(status_code=400, detail="Song ID is required")
-
-    song_service = SongService(db)
-    try:
-        song = song_service.update_song_visibility(
-            payload.song_id, payload.is_public
-        )
-        cover_art_url = song_service.get_cover_art_url(song.cover_art_key)
-        if song.is_public:
-            song_search.update_song(song, cover_art_url)
-        else:
-            song_search.remove_song(str(song.id))
-        return AdminSongResponsePayload(
-            **song.model_dump(),
-            cover_art_url=cover_art_url,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 @router.put(
@@ -226,9 +194,9 @@ def update_song_metadata(
             payload.is_public,
             payload.cover_art_key,
         )
-        cover_art_url = song_service.get_cover_art_url(song.cover_art_key)
+        cover_art_url = get_cover_art_url(song.cover_art_key)
         if song.is_public:
-            song_search.update_song(song, cover_art_url)
+            song_search.update_song(song)
         else:
             song_search.remove_song(str(song.id))
         return AdminSongResponsePayload(
@@ -279,23 +247,6 @@ def get_cover_art_upload_url(
     except ValueError as e:
         raise HTTPException(status_code=404, detail="Song not found") from e
 
-
-@router.get(
-    "/cover-art/upload/url",
-    response_model=CoverArtUploadResponsePayload,
-    summary="Request a presigned URL to upload song cover art (query parameter)",
-    status_code=status.HTTP_200_OK,
-)
-def get_cover_art_upload_url_by_query(
-    song_id: Annotated[str, Query(..., title="Song ID")],
-    extension: Annotated[str, Query(..., title="File extension (jpg, png, webp)")],
-    content_type: Annotated[str, Query(..., title="Content type (image/jpeg, etc.)")],
-    user: AdminUser,
-    db: DatabaseSession,
-):
-    return get_cover_art_upload_url(song_id, extension, content_type, user, db)
-
-
 @router.put(
     "/{song_id}/cover-art",
     response_model=AdminSongResponsePayload,
@@ -314,9 +265,9 @@ def update_song_cover_art(
     song_service = SongService(db)
     try:
         song = song_service.update_song_cover_art(song_id, payload.cover_art_key)
-        cover_art_url = song_service.get_cover_art_url(song.cover_art_key)
+        cover_art_url = get_cover_art_url(song.cover_art_key)
         if song.is_public:
-            song_search.update_song(song, cover_art_url)
+            song_search.update_song(song)
         return AdminSongResponsePayload(
             **song.model_dump(),
             cover_art_url=cover_art_url,

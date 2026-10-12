@@ -2,7 +2,8 @@ from uuid import uuid7, UUID
 from datetime import datetime, timezone
 from enum import Enum
 
-from sqlmodel import Field, SQLModel
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlmodel import SQLModel, Field, Column
 
 
 class SongProcessingStatus(str, Enum):
@@ -12,13 +13,17 @@ class SongProcessingStatus(str, Enum):
     DONE = "done"
     FAILED = "failed"
 
-
 class Song(SQLModel, table=True):
     __tablename__ = "songs"
 
     id: UUID = Field(default_factory=uuid7, primary_key=True, index=True)
     title: str = Field(nullable=False)
     artist: str = Field(nullable=False)
+    album: str = Field(nullable=True)
+    genre: int = Field(nullable=True)
+    year: int = Field(nullable=True)
+    moods: list[int] = Field(default=[], sa_column=Column(JSONB))
+    language: int = Field(nullable=True)
     duration_sec: int = Field(nullable=True)
     original_key: str = Field(nullable=False)
     master_mp3_key: str = Field(nullable=True)

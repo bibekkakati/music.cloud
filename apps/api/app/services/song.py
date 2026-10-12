@@ -1,3 +1,4 @@
+from app.schemas.song import SongDownloadUrlResponsePayload
 from datetime import datetime, timezone
 import logging
 from uuid import UUID, uuid7
@@ -18,33 +19,6 @@ class SongService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.base_folder: str = "./tmp"
-
-    def get_stream_url(self, master_aac_key: str | None, master_mp3_key: str | None = None) -> str | None:
-        """
-        Build the absolute stream URL for the song.
-        Prefers HLS AAC master playlist (master_aac_key), falls back to master_mp3_key.
-        """
-        key = master_aac_key or master_mp3_key
-        if not key:
-            return None
-        if key.startswith("http://") or key.startswith("https://"):
-            return key
-        stream_base_url = (settings.EDGE_WORKER_URL or "").rstrip("/")
-        if not stream_base_url:
-            return key
-        return f"{stream_base_url}/{key.lstrip('/')}"
-
-    def get_cover_art_url(self, cover_art_key: str | None) -> str | None:
-        """
-        Build the Edge URL for song cover art.
-        Served directly by the edge Edge worker with aggressive caching.
-        """
-        if not cover_art_key:
-            return None
-        if cover_art_key.startswith("http://") or cover_art_key.startswith("https://"):
-            return cover_art_key
-        base_url = settings.EDGE_WORKER_URL.rstrip("/")
-        return f"{base_url}/{cover_art_key.lstrip('/')}"
 
     def get_song(self, song_id: str) -> Song:
         """
@@ -223,20 +197,6 @@ class SongService:
 
         return song
 
-    def update_song_visibility(self, song_id: str, is_public: bool) -> Song:
-        """
-        Updates the visibility (public/private) of a song.
-        """
-        song = self.get_song(song_id)
-
-        song.is_public = is_public
-
-        self.db.add(song)
-        self.db.commit()
-        self.db.refresh(song)
-
-        return song
-
     async def process_song(self, user: User, song_id: str, trim_start_sec: float) -> Song:
         """
         Process song after upload (extract metadata, generate variants, etc).
@@ -263,3 +223,21 @@ class SongService:
         )
 
         return song
+
+    def get_song_download_url(
+        self,
+        song_id: str,
+    ) -> SongDownloadUrlResponsePayload:
+        """
+        Generates a pre-signed download URL for original song.
+        """
+        song = self.get_song(song_id)
+
+        url = storage.generate_presigned_download_url(
+            key=song.original_key,
+        )
+        return SongDownloadUrlResponsePayload(
+            song_id=str(song.id),
+            url=url,
+            key=song.original_key,
+        )

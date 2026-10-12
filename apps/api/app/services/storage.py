@@ -33,12 +33,9 @@ class Storage:
         self,
         key: str,
         expires_in: int = 3600,
-        filename: str | None = None,
     ) -> str:
         """Presigned GET URL for downloading `key`. Optionally forces a download filename."""
         params = {"Bucket": self.bucket, "Key": key}
-        if filename:
-            params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
 
         return self.client.generate_presigned_url(
             ClientMethod="get_object",

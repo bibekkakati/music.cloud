@@ -40,9 +40,6 @@ export const AdminPage: React.FC = () => {
     const [reprocessingSongIds, setReprocessingSongIds] = useState<Set<string>>(
         new Set(),
     );
-    const [togglingVisibilityIds, setTogglingVisibilityIds] = useState<
-        Set<string>
-    >(new Set());
 
     // --- Modals State ---
     const [inspectingSong, setInspectingSong] = useState<SongDetail | null>(
@@ -266,52 +263,6 @@ export const AdminPage: React.FC = () => {
         }
     };
 
-    // Toggle Song Visibility (Public / Private)
-    const handleToggleVisibility = async (song: SongDetail) => {
-        const nextIsPublic = song.is_public === false ? true : false;
-        setTogglingVisibilityIds((prev) => new Set(prev).add(song.id));
-        try {
-            const updated = await adminService.updateSongVisibility(
-                song.id,
-                nextIsPublic,
-            );
-            setSongs((prev) =>
-                prev.map((s) =>
-                    s.id === song.id
-                        ? { ...s, ...updated, is_public: updated.is_public }
-                        : s,
-                ),
-            );
-            if (inspectingSong?.id === song.id) {
-                setInspectingSong((prev) =>
-                    prev
-                        ? { ...prev, ...updated, is_public: updated.is_public }
-                        : null,
-                );
-            }
-            showToast(
-                nextIsPublic ? "Song is now Public" : "Song is now Private",
-                "success",
-                `"${song.title}" is ${
-                    nextIsPublic
-                        ? "visible to normal users"
-                        : "hidden from normal users"
-                }`,
-            );
-        } catch (err: unknown) {
-            const msg =
-                (err as { response?: { data?: { detail?: string } } })?.response
-                    ?.data?.detail || "Failed to update song visibility";
-            showToast("Error", "error", msg);
-        } finally {
-            setTogglingVisibilityIds((prev) => {
-                const next = new Set(prev);
-                next.delete(song.id);
-                return next;
-            });
-        }
-    };
-
     if (isLoading) {
         return (
             <div
@@ -460,13 +411,11 @@ export const AdminPage: React.FC = () => {
                     loadingSongs={loadingSongs}
                     refreshingSongIds={refreshingSongIds}
                     reprocessingSongIds={reprocessingSongIds}
-                    togglingVisibilityIds={togglingVisibilityIds}
                     currentPage={currentPage}
                     hasNextPage={hasNextPage}
                     onPlaySong={playSong}
                     onInspectSong={setInspectingSong}
                     onEditSong={setEditingSong}
-                    onToggleVisibility={handleToggleVisibility}
                     onReprocessSong={handleReprocessSong}
                     onRefreshSongStatus={handleRefreshSongStatus}
                     onNextPage={handleNextPage}

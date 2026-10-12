@@ -21,13 +21,11 @@ interface AdminCatalogTableProps {
     loadingSongs: boolean;
     refreshingSongIds: Set<string>;
     reprocessingSongIds: Set<string>;
-    togglingVisibilityIds: Set<string>;
     currentPage: number;
     hasNextPage: boolean;
     onPlaySong: (song: SongDetail, playlist: SongDetail[]) => void;
     onInspectSong: (song: SongDetail) => void;
     onEditSong: (song: SongDetail) => void;
-    onToggleVisibility: (song: SongDetail) => void;
     onReprocessSong: (song: SongDetail) => void;
     onRefreshSongStatus: (songId: string) => void;
     onNextPage: () => void;
@@ -40,13 +38,11 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
     loadingSongs,
     refreshingSongIds,
     reprocessingSongIds,
-    togglingVisibilityIds,
     currentPage,
     hasNextPage,
     onPlaySong,
     onInspectSong,
     onEditSong,
-    onToggleVisibility,
     onReprocessSong,
     onRefreshSongStatus,
     onNextPage,
@@ -404,37 +400,6 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                                                 gap: 6,
                                             }}
                                         >
-                                            {/* Toggle Visibility */}
-                                            <button
-                                                type="button"
-                                                onClick={() => onToggleVisibility(song)}
-                                                disabled={togglingVisibilityIds.has(song.id)}
-                                                className="btn-ghost"
-                                                title={
-                                                    song.is_public !== false
-                                                        ? "Mark as Private (hide from normal users)"
-                                                        : "Mark as Public (visible to all users)"
-                                                }
-                                                style={{
-                                                    padding: 6,
-                                                    color:
-                                                        song.is_public !== false
-                                                            ? "var(--app-green)"
-                                                            : "#f59e0b",
-                                                }}
-                                            >
-                                                {togglingVisibilityIds.has(song.id) ? (
-                                                    <Loader2
-                                                        size={15}
-                                                        className="animate-spin"
-                                                    />
-                                                ) : song.is_public !== false ? (
-                                                    <Globe size={15} />
-                                                ) : (
-                                                    <Lock size={15} />
-                                                )}
-                                            </button>
-
                                             <button
                                                 onClick={() => onPlaySong(song, songs)}
                                                 className="btn-ghost"

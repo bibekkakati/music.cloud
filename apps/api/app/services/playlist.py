@@ -4,7 +4,6 @@ from sqlmodel import Session, select
 
 from app.models.playlist import Playlist, PlaylistSong
 from app.models.song import Song
-from app.services.song import SongService
 
 
 def _to_uuid(val: str | uuid.UUID) -> uuid.UUID:
@@ -179,7 +178,7 @@ class PlaylistService:
 
     def get_playlist_songs(
         self, playlist_id: str | uuid.UUID, user_id: str | uuid.UUID
-    ) -> dict[str, Any] | None:
+    ) -> tuple[Playlist, list[tuple[PlaylistSong, Song]]] | None:
         p_uuid = _to_uuid(playlist_id)
 
         playlist = self.db.get(Playlist, p_uuid)
@@ -195,32 +194,7 @@ class PlaylistService:
             .order_by(PlaylistSong.created_at.asc())
         )
         results = self.db.exec(statement).all()
-        song_service = SongService(self.db)
-
-        songs_data = []
-        for ps, song in results:
-            if not song or not getattr(song, "is_public", False):
-                continue
-            songs_data.append({
-                "id": ps.song_id,
-                "playlist_song_id": ps.id,
-                "created_at": ps.created_at,
-                "title": song.title if song else None,
-                "artist": song.artist if song else None,
-                "duration_sec": song.duration_sec if song else None,
-                "cover_art_url": song_service.get_cover_art_url(song.cover_art_key) if song else None,
-                "stream_url": song_service.get_stream_url(song.master_aac_key, song.master_mp3_key) if song else None,
-            })
-
-        return {
-            "id": playlist.id,
-            "label": playlist.label,
-            "is_deletable": playlist.is_deletable,
-            "songs_count": playlist.count,
-            "created_at": playlist.created_at,
-            "updated_at": playlist.updated_at,
-            "songs": songs_data,
-        }
+        return playlist, [(ps, song) for ps, song in results if song and getattr(song, "is_public", False)]
 
     def get_or_create_liked_playlist(self, user_id: str | uuid.UUID) -> Playlist:
         """Find the user's Liked playlist or create it with is_deletable=False."""

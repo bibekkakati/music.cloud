@@ -84,7 +84,7 @@ export const adminService = {
             limit: limit.toString(),
         };
 
-        if (cursor && cursor !== "0") {
+        if (cursor) {
             params.cursor = cursor;
         }
         const response = await apiClient.get<AdminSongListResponse>(
