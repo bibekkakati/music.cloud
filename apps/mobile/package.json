@@ -1,40 +1,42 @@
 {
-    "name": "@music-cloud/mobile",
-    "version": "1.0.0",
-    "main": "index.ts",
-    "dependencies": {
-        "@expo/vector-icons": "^15.0.2",
-        "@music-cloud/services": "*",
-        "@music-cloud/types": "*",
-        "@music-cloud/utils": "*",
-        "@react-native-async-storage/async-storage": "2.2.0",
-        "@react-native-community/slider": "5.2.0",
-        "@react-navigation/bottom-tabs": "^7.20.0",
-        "@react-navigation/native": "^7.5.0",
-        "@react-navigation/native-stack": "^7.20.0",
-        "axios": "^1.20.0",
-        "expo": "~57.0.27",
-        "expo-image": "~57.0.5",
-        "expo-linear-gradient": "~57.0.2",
-        "react": "^19.2.8",
-        "react-native": "0.86.3",
-        "react-native-safe-area-context": "~5.10.1",
-        "react-native-screens": "~4.28.0",
-        "react-native-track-player": "^4.1.2"
-    },
-    "devDependencies": {
-        "@types/react": "^19.2.18",
-        "patch-package": "^8.0.1",
-        "typescript": "~6.0.2"
-    },
-    "scripts": {
-        "start": "expo start",
-        "android": "expo run:android",
-        "ios": "expo run:ios",
-        "web": "expo start --web",
-        "prebuild": "expo prebuild",
-        "postinstall": "node scripts/patch.js",
-        "build:apk": "cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a"
-    },
-    "private": true
+  "name": "@music-cloud/mobile",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@music-cloud/services": "*",
+    "@music-cloud/types": "*",
+    "@music-cloud/utils": "*",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/netinfo": "12.0.1",
+    "@react-native-community/slider": "5.2.0",
+    "@react-navigation/bottom-tabs": "^7.20.0",
+    "@react-navigation/native": "^7.5.0",
+    "@react-navigation/native-stack": "^7.20.0",
+    "axios": "^1.20.0",
+    "expo": "~57.0.27",
+    "expo-image": "~57.0.5",
+    "expo-linear-gradient": "~57.0.2",
+    "expo-sqlite": "~57.0.4",
+    "react": "^19.2.8",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-screens": "~4.28.0",
+    "react-native-track-player": "^4.1.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "patch-package": "^8.0.1",
+    "typescript": "~6.0.2"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "prebuild": "expo prebuild",
+    "postinstall": "node scripts/patch.js",
+    "build:apk": "cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a"
+  },
+  "private": true
 }

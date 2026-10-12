@@ -18,6 +18,7 @@ import TrackPlayer, {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { SongMetadata, SongDetail } from "@music-cloud/types";
 import { streamService } from "../services/streamService";
+import { downloadService } from "../services/downloadService";
 import { playlistService } from "@music-cloud/services";
 import { registerRemoteHandlers } from "../services/playbackService";
 import { useAuth } from "./AuthContext";
@@ -270,7 +271,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         let active = true;
         setIsLikeLoading(true);
 
-        streamService.preloadToken();
+        // Only preload stream token if song is NOT downloaded locally
+        downloadService.isSongDownloaded(currentSong.id).then((isDownloaded) => {
+            if (active && !isDownloaded) {
+                streamService.preloadToken();
+            }
+        });
 
         playlistService
             .getSongLikedStatus(currentSong.id)
@@ -461,7 +467,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         queueList?: PlayableSong[],
         initialSeekTime = 0,
     ) => {
-        if (!authRef.current.isAuthenticated) {
+        // 1. Check if song is downloaded offline
+        const localDownloaded = await downloadService.getDownloadedSong(song.id);
+
+        if (!localDownloaded && !authRef.current.isAuthenticated) {
             authRef.current.openAuthModal();
             return;
         }
@@ -481,44 +490,70 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 setQueue(updatedQueue);
             }
 
-            setCurrentSong(song);
-            currentSongRef.current = song;
+            const effectiveSong: PlayableSong = localDownloaded
+                ? {
+                      ...song,
+                      stream_url: localDownloaded.local_audio_path,
+                      cover_art_url:
+                          localDownloaded.local_cover_path ||
+                          song.cover_art_url,
+                  }
+                : song;
 
-            // Get valid streaming token
-            const token = await streamService.getValidStreamToken();
+            setCurrentSong(effectiveSong);
+            currentSongRef.current = effectiveSong;
 
-            if (currentRequestId !== playRequestIdRef.current) {
-                return;
+            let trackUrl: string;
+            let trackType: TrackType;
+            let trackHeaders: Record<string, string> | undefined;
+
+            if (localDownloaded) {
+                // Single local audio file (mp3/aac)
+                trackUrl = localDownloaded.local_audio_path;
+                trackType = TrackType.Default;
+                trackHeaders = undefined;
+            } else {
+                // Get valid streaming token
+                const token = await streamService.getValidStreamToken();
+
+                if (currentRequestId !== playRequestIdRef.current) {
+                    return;
+                }
+
+                const rawStreamUrl =
+                    song.stream_url ||
+                    (song as SongDetail).master_aac_key ||
+                    (song as SongDetail).master_mp3_key;
+
+                if (!rawStreamUrl) {
+                    console.error("No stream URL available for song:", song.id);
+                    return;
+                }
+
+                const streamUrl = attachTokenToStreamUrl(rawStreamUrl, token);
+                const isHls = streamUrl.includes(".m3u8");
+
+                trackUrl = streamUrl;
+                trackType = isHls ? TrackType.HLS : TrackType.Default;
+                trackHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
             }
 
-            const rawStreamUrl =
-                song.stream_url ||
-                (song as SongDetail).master_aac_key ||
-                (song as SongDetail).master_mp3_key;
-
-            if (!rawStreamUrl) {
-                console.error("No stream URL available for song:", song.id);
-                return;
-            }
-
-            const streamUrl = attachTokenToStreamUrl(rawStreamUrl, token);
-            const isHls = streamUrl.includes(".m3u8");
+            const artworkUri =
+                localDownloaded?.local_cover_path ||
+                (song.cover_art_url && song.cover_art_url.startsWith("http")
+                    ? song.cover_art_url
+                    : undefined);
 
             const track: Track = {
-                id: song.id,
-                url: streamUrl,
-                type: isHls ? TrackType.HLS : TrackType.Default,
+                id: String(song.id),
+                url: trackUrl,
+                type: trackType,
                 title: song.title || "Unknown Title",
                 artist: song.artist || "Unknown Artist",
-                album: "Music Cloud",
-                artwork:
-                    song.cover_art_url && song.cover_art_url.startsWith("http")
-                        ? song.cover_art_url
-                        : undefined,
-                duration: (song as SongDetail).duration_sec || 0,
-                headers: token
-                    ? { Authorization: `Bearer ${token}` }
-                    : undefined,
+                album: song.album || "Music Cloud",
+                artwork: artworkUri,
+                duration: (song as SongDetail).duration_sec || localDownloaded?.duration_sec || 0,
+                headers: trackHeaders,
             };
 
             await TrackPlayer.reset();
@@ -534,7 +569,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             await TrackPlayer.play();
 
             saveState({
-                currentSong: song,
+                currentSong: effectiveSong,
                 queue: updatedQueue,
                 currentTime: initialSeekTime,
                 duration: track.duration || 0,
@@ -553,7 +588,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     const togglePlay = async () => {
-        if (!authRef.current.isAuthenticated) {
+        const isCurrentDownloaded = currentSongRef.current
+            ? await downloadService.isSongDownloaded(currentSongRef.current.id)
+            : false;
+
+        if (!isCurrentDownloaded && !authRef.current.isAuthenticated) {
             authRef.current.openAuthModal();
             return;
         }
@@ -578,6 +617,23 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 );
             }
             return;
+        }
+
+        // If current song is downloaded, but the active track URL is not local (e.g. was streaming previously),
+        // re-play using the local audio file immediately.
+        if (
+            isCurrentDownloaded &&
+            activeTrack &&
+            !activeTrack.url.startsWith("file://")
+        ) {
+            if (currentSongRef.current) {
+                await playSong(
+                    currentSongRef.current,
+                    queueRef.current,
+                    progress.position,
+                );
+                return;
+            }
         }
 
         if (state.state === State.Playing) {

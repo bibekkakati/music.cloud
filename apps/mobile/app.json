@@ -67,7 +67,8 @@
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
-      "./plugins/withIosSceneLifecycle"
+      "./plugins/withIosSceneLifecycle",
+      "expo-sqlite"
     ],
     "platforms": [
       "ios",

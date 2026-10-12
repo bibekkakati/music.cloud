@@ -20,6 +20,7 @@ import { SongRow } from "../components/SongRow";
 import { SongActionSheet } from "../components/SongActionSheet";
 import { PlaylistActionSheet } from "../components/PlaylistActionSheet";
 import { EditPlaylistModal } from "../components/EditPlaylistModal";
+import { downloadService } from "../services/downloadService";
 import { appConfig } from "../config";
 import type {
     PlaylistDetail,
@@ -34,11 +35,13 @@ export const SongCollectionView: React.FC = () => {
         playlistId,
         categoryId,
         categoryLabel,
+        isDownloadsMode,
         title: initialTitle,
     } = route.params || {};
 
     const isCategoryMode =
-        Boolean(categoryLabel) || Boolean(categoryId) || !playlistId;
+        !isDownloadsMode &&
+        (Boolean(categoryLabel) || Boolean(categoryId) || !playlistId);
 
     const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
     const { triggerPlaylistRefresh } = useUI();
@@ -64,21 +67,56 @@ export const SongCollectionView: React.FC = () => {
                     setIsLoading(true);
                 }
 
-                if (isCategoryMode) {
+                if (isDownloadsMode) {
+                    // Fetch from local SQLite storage
+                    const downloaded =
+                        await downloadService.getAllDownloadedSongs();
+                    const newSongs: PlaylistSongItem[] = downloaded.map(
+                        (s) => ({
+                            id: s.id,
+                            title: s.title,
+                            artist: s.artist,
+                            duration_sec: s.duration_sec,
+                            album: s.album ?? undefined,
+                            year: s.year ?? undefined,
+                            cover_art_url:
+                                s.local_cover_path || s.cover_art_url,
+                            stream_url: s.local_audio_path,
+                            playlist_song_id: s.id,
+                            created_at: s.created_at,
+                        }),
+                    );
+                    setCollection({
+                        id: "downloads",
+                        label: "Downloaded Songs",
+                        is_deletable: false,
+                        songs_count: downloaded.length,
+                        created_at: "",
+                        updated_at: "",
+                        songs: newSongs,
+                    });
+                    setHasMore(false);
+                } else if (isCategoryMode) {
                     const data = await playlistService.getCategorySongs(
                         categoryLabel ?? initialTitle,
                         pageNum,
                         20,
                     );
-                    const newSongs: PlaylistSongItem[] = data.songs.map((s) => ({
-                        ...s,
-                        playlist_song_id: s.id,
-                        created_at: s.created_at || "",
-                    }));
+                    const newSongs: PlaylistSongItem[] = data.songs.map(
+                        (s) => ({
+                            ...s,
+                            playlist_song_id: s.id,
+                            created_at: s.created_at || "",
+                        }),
+                    );
 
                     if (append && collection) {
-                        const existingIds = new Set(collection.songs.map((x) => x.id));
-                        const uniqueNew = newSongs.filter((x) => !existingIds.has(x.id));
+                        const existingIds = new Set(
+                            collection.songs.map((x) => x.id),
+                        );
+                        const uniqueNew = newSongs.filter(
+                            (x) => !existingIds.has(x.id),
+                        );
                         setCollection({
                             ...collection,
                             songs: [...collection.songs, ...uniqueNew],
@@ -101,7 +139,8 @@ export const SongCollectionView: React.FC = () => {
                     setPage(nextPage ?? pageNum);
                 } else {
                     if (!playlistId) return;
-                    const data = await playlistService.getPlaylistSongs(playlistId);
+                    const data =
+                        await playlistService.getPlaylistSongs(playlistId);
                     setCollection(data);
                     setHasMore(false);
                 }
@@ -112,12 +151,34 @@ export const SongCollectionView: React.FC = () => {
                 setIsLoadingMore(false);
             }
         },
-        [isCategoryMode, categoryLabel, initialTitle, playlistId, collection],
+        [
+            isDownloadsMode,
+            isCategoryMode,
+            categoryLabel,
+            initialTitle,
+            playlistId,
+            collection,
+        ],
     );
 
     useEffect(() => {
         fetchData(1, false);
-    }, [isCategoryMode, categoryLabel, initialTitle, playlistId]);
+
+        if (isDownloadsMode) {
+            const unsubscribe = downloadService.subscribe(() => {
+                fetchData(1, false);
+            });
+            return () => {
+                unsubscribe();
+            };
+        }
+    }, [
+        isDownloadsMode,
+        isCategoryMode,
+        categoryLabel,
+        initialTitle,
+        playlistId,
+    ]);
 
     const collectionSongs: SongMetadata[] = (collection?.songs || []).map(
         (s: PlaylistSongItem) => ({
@@ -206,6 +267,7 @@ export const SongCollectionView: React.FC = () => {
 
     const isLikedSongs =
         !isCategoryMode &&
+        !isDownloadsMode &&
         isLikedPlaylist(
             collection?.label || initialTitle,
             collection?.is_deletable,
@@ -215,11 +277,13 @@ export const SongCollectionView: React.FC = () => {
         categoryId || initialTitle || collection?.label || "category",
     );
 
-    const displayTitle = isCategoryMode
-        ? initialTitle || collection?.label || "Category"
-        : isLikedSongs
-          ? "Liked Songs"
-          : collection?.label || initialTitle || "Playlist";
+    const displayTitle = isDownloadsMode
+        ? "Downloaded Songs"
+        : isCategoryMode
+          ? initialTitle || collection?.label || "Category"
+          : isLikedSongs
+            ? "Liked Songs"
+            : collection?.label || initialTitle || "Playlist";
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -233,24 +297,26 @@ export const SongCollectionView: React.FC = () => {
                         <Ionicons name="arrow-back" size={24} color="#ffffff" />
                     </TouchableOpacity>
 
-                    {!isCategoryMode && collection?.is_deletable && (
-                        <TouchableOpacity
-                            onPress={() => setIsPlaylistMenuOpen(true)}
-                            style={styles.menuBtn}
-                            hitSlop={{
-                                top: 12,
-                                bottom: 12,
-                                left: 12,
-                                right: 12,
-                            }}
-                        >
-                            <Ionicons
-                                name="ellipsis-horizontal"
-                                size={24}
-                                color="#ffffff"
-                            />
-                        </TouchableOpacity>
-                    )}
+                    {!isCategoryMode &&
+                        !isDownloadsMode &&
+                        collection?.is_deletable && (
+                            <TouchableOpacity
+                                onPress={() => setIsPlaylistMenuOpen(true)}
+                                style={styles.menuBtn}
+                                hitSlop={{
+                                    top: 12,
+                                    bottom: 12,
+                                    left: 12,
+                                    right: 12,
+                                }}
+                            >
+                                <Ionicons
+                                    name="ellipsis-horizontal"
+                                    size={24}
+                                    color="#ffffff"
+                                />
+                            </TouchableOpacity>
+                        )}
                 </View>
 
                 {isLoading ? (
@@ -271,19 +337,23 @@ export const SongCollectionView: React.FC = () => {
                                 {/* Artwork Box */}
                                 <LinearGradient
                                     colors={
-                                        isCategoryMode
-                                            ? [categoryBgColor, "#121212"]
-                                            : isLikedSongs
-                                              ? ["#450af5", "#8e8ee5"]
-                                              : ["#333333", "#1e1e1e"]
+                                        isDownloadsMode
+                                            ? ["#059669", "#10b981"]
+                                            : isCategoryMode
+                                              ? [categoryBgColor, "#121212"]
+                                              : isLikedSongs
+                                                ? ["#450af5", "#8e8ee5"]
+                                                : ["#333333", "#1e1e1e"]
                                     }
                                     style={styles.heroArtwork}
                                 >
                                     <Ionicons
                                         name={
-                                            isLikedSongs
-                                                ? "heart"
-                                                : "musical-notes"
+                                            isDownloadsMode
+                                                ? "arrow-down-circle"
+                                                : isLikedSongs
+                                                  ? "heart"
+                                                  : "musical-notes"
                                         }
                                         size={64}
                                         color="#ffffff"
@@ -322,9 +392,11 @@ export const SongCollectionView: React.FC = () => {
                         ListEmptyComponent={
                             <View style={styles.emptyContainer}>
                                 <Text style={styles.emptyText}>
-                                    {isCategoryMode
-                                        ? `No songs in ${displayTitle} yet`
-                                        : "No songs in this playlist yet"}
+                                    {isDownloadsMode
+                                        ? "Download tracks to listen offline."
+                                        : isCategoryMode
+                                          ? `No songs in ${displayTitle} yet`
+                                          : "No songs in this playlist yet"}
                                 </Text>
                             </View>
                         }
@@ -356,8 +428,16 @@ export const SongCollectionView: React.FC = () => {
                         onEndReachedThreshold={0.5}
                         ListFooterComponent={
                             isCategoryMode && hasMore ? (
-                                <View style={{ paddingVertical: 20, alignItems: "center" }}>
-                                    <ActivityIndicator size="small" color="#1ed760" />
+                                <View
+                                    style={{
+                                        paddingVertical: 20,
+                                        alignItems: "center",
+                                    }}
+                                >
+                                    <ActivityIndicator
+                                        size="small"
+                                        color="#1ed760"
+                                    />
                                 </View>
                             ) : null
                         }

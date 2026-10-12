@@ -17,6 +17,7 @@ import { playlistService } from '@music-cloud/services';
 import { isLikedPlaylist } from '@music-cloud/utils';
 import { useAuth } from '../context/AuthContext';
 import { useUI } from '../context/UIContext';
+import { useDownload } from '../context/DownloadContext';
 import { AppHeader } from '../components/AppHeader';
 import { appConfig } from '../config';
 import { PlaylistActionSheet } from '../components/PlaylistActionSheet';
@@ -27,6 +28,7 @@ export const LibraryScreen: React.FC = () => {
   const navigation = useNavigation<any>();
   const { isAuthenticated, openAuthModal } = useAuth();
   const { openCreatePlaylist, playlistRefreshTrigger, triggerPlaylistRefresh } = useUI();
+  const { downloadsCount } = useDownload();
 
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -139,6 +141,33 @@ export const LibraryScreen: React.FC = () => {
             }
             ListHeaderComponent={
               <View>
+                {/* Downloads Tile */}
+                <TouchableOpacity
+                  style={styles.playlistRow}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    navigation.navigate('PlaylistDetail', {
+                      isDownloadsMode: true,
+                      title: 'Downloaded Songs',
+                    });
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#059669', '#10b981']}
+                    style={styles.likedArtwork}
+                  >
+                    <Ionicons name="arrow-down-circle" size={24} color="#ffffff" />
+                  </LinearGradient>
+                  <View style={styles.playlistDetails}>
+                    <View style={styles.labelRow}>
+                      <Text style={styles.playlistTitle}>Downloads</Text>
+                    </View>
+                    <Text style={styles.playlistSubtitle}>
+                      {downloadsCount} {downloadsCount === 1 ? 'song' : 'songs'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
                 {/* Liked Songs Tile */}
                 <TouchableOpacity
                   style={styles.playlistRow}

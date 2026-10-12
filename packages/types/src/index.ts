@@ -186,3 +186,9 @@ export interface RemovePlaylistSongPayload {
 export interface RemovePlaylistPayload {
     id: string;
 }
+
+export interface SongDownloadUrlResponse {
+    song_id: string;
+    url: string;
+    key: string;
+}

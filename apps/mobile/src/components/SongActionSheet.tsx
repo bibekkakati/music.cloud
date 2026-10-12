@@ -14,8 +14,11 @@ import { SongCoverArt } from "./SongCoverArt";
 import { playlistService } from "@music-cloud/services";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
+import { useDownload } from "../context/DownloadContext";
+import { useNetwork } from "../context/NetworkContext";
 import { appConfig } from "../config";
 import type { SongMetadata } from "@music-cloud/types";
+import { Alert, ActivityIndicator } from "react-native";
 
 interface SongActionSheetProps {
     visible: boolean;
@@ -37,6 +40,9 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
     const { currentSong, isPlaying, playSong, togglePlay, openPlaylistModal } =
         usePlayer();
     const { isAuthenticated, openAuthModal } = useAuth();
+    const { isDownloaded, isDownloading, downloadSong, deleteDownloadedSong } =
+        useDownload();
+    const { isOffline } = useNetwork();
 
     const [isLiked, setIsLiked] = useState<boolean | null>(null);
 
@@ -69,6 +75,60 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
 
     if (!song) return null;
 
+    const songDownloaded = song ? isDownloaded(song.id) : false;
+    const songDownloading = song ? isDownloading(song.id) : false;
+
+    const handleToggleDownload = async () => {
+        if (!song) return;
+
+        if (songDownloaded) {
+            // Confirm delete
+            Alert.alert(
+                "Remove Download",
+                `Remove "${song.title}" from your downloaded songs?`,
+                [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                        text: "Remove",
+                        style: "destructive",
+                        onPress: async () => {
+                            try {
+                                await deleteDownloadedSong(song.id);
+                            } catch (e: any) {
+                                Alert.alert(
+                                    "Error",
+                                    e?.message || "Failed to remove download.",
+                                );
+                            }
+                        },
+                    },
+                ],
+            );
+        } else {
+            // Need network to download
+            if (isOffline) {
+                Alert.alert(
+                    "Offline",
+                    "Cannot download while offline. Please connect to internet.",
+                );
+                return;
+            }
+            if (!isAuthenticated) {
+                onClose();
+                openAuthModal();
+                return;
+            }
+            try {
+                await downloadSong(song);
+            } catch (e: any) {
+                Alert.alert(
+                    "Download Error",
+                    e?.message || "Failed to download song.",
+                );
+            }
+        }
+    };
+
     const handlePlayToggle = () => {
         onClose();
         if (isCurrentSong) {
@@ -79,6 +139,10 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
     };
 
     const handleToggleLike = async () => {
+        if (isOffline) {
+            Alert.alert("Offline", "Cannot update likes while offline.");
+            return;
+        }
         if (!isAuthenticated) {
             onClose();
             openAuthModal();
@@ -102,6 +166,10 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
     };
 
     const handleAddToPlaylist = () => {
+        if (isOffline) {
+            Alert.alert("Offline", "Cannot manage playlists while offline.");
+            return;
+        }
         onClose();
         if (!isAuthenticated) {
             openAuthModal();
@@ -123,6 +191,10 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
     };
 
     const handleRemove = () => {
+        if (isOffline) {
+            Alert.alert("Offline", "Cannot edit playlists while offline.");
+            return;
+        }
         onClose();
         if (onRemoveFromPlaylist) {
             onRemoveFromPlaylist(song);
@@ -201,7 +273,10 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
 
                             {/* Action 2: Like / Unlike */}
                             <TouchableOpacity
-                                style={styles.actionItem}
+                                style={[
+                                    styles.actionItem,
+                                    isOffline && { opacity: 0.4 },
+                                ]}
                                 onPress={handleToggleLike}
                                 activeOpacity={0.7}
                             >
@@ -230,7 +305,10 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
 
                             {/* Action 3: Add to playlist */}
                             <TouchableOpacity
-                                style={styles.actionItem}
+                                style={[
+                                    styles.actionItem,
+                                    isOffline && { opacity: 0.4 },
+                                ]}
                                 onPress={handleAddToPlaylist}
                                 activeOpacity={0.7}
                             >
@@ -244,10 +322,59 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
                                 </Text>
                             </TouchableOpacity>
 
-                            {/* Action 4: Remove from this playlist (if applicable) */}
+                            {/* Action 4: Download / Remove Download */}
+                            <TouchableOpacity
+                                style={[
+                                    styles.actionItem,
+                                    !songDownloaded &&
+                                        isOffline && { opacity: 0.4 },
+                                ]}
+                                onPress={handleToggleDownload}
+                                disabled={songDownloading}
+                                activeOpacity={0.7}
+                            >
+                                {songDownloading ? (
+                                    <ActivityIndicator
+                                        size="small"
+                                        color={appConfig.colors.accentGreen}
+                                        style={{ width: 22, marginRight: 0 }}
+                                    />
+                                ) : (
+                                    <Ionicons
+                                        name={
+                                            songDownloaded
+                                                ? "trash-bin-outline"
+                                                : "arrow-down-circle-outline"
+                                        }
+                                        size={22}
+                                        color={
+                                            songDownloaded
+                                                ? "#f87171"
+                                                : "#ffffff"
+                                        }
+                                    />
+                                )}
+                                <Text
+                                    style={[
+                                        styles.actionLabel,
+                                        songDownloaded && { color: "#f87171" },
+                                    ]}
+                                >
+                                    {songDownloading
+                                        ? "Downloading..."
+                                        : songDownloaded
+                                          ? "Remove Download"
+                                          : "Download Song"}
+                                </Text>
+                            </TouchableOpacity>
+
+                            {/* Action 5: Remove from this playlist (if applicable) */}
                             {canRemoveFromPlaylist && (
                                 <TouchableOpacity
-                                    style={styles.actionItem}
+                                    style={[
+                                        styles.actionItem,
+                                        isOffline && { opacity: 0.4 },
+                                    ]}
                                     onPress={handleRemove}
                                     activeOpacity={0.7}
                                 >
@@ -267,7 +394,7 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
                                 </TouchableOpacity>
                             )}
 
-                            {/* Action 5: Share */}
+                            {/* Action 6: Share */}
                             <TouchableOpacity
                                 style={styles.actionItem}
                                 onPress={handleShare}

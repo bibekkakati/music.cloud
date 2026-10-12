@@ -9,11 +9,21 @@ import { LibraryScreen } from "../screens/LibraryScreen";
 import { SongCollectionView } from "../screens/SongCollectionView";
 import { appConfig } from "../config";
 
+import { useNetwork } from "../context/NetworkContext";
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+// Screen wrapper for Offline Downloads Tab
+function OfflineDownloadsTabScreen() {
+    return (
+        <SongCollectionView />
+    );
+}
+
 function MainTabNavigator() {
     const insets = useSafeAreaInsets();
+    const { isOffline } = useNetwork();
 
     return (
         <Tab.Navigator
@@ -58,50 +68,85 @@ function MainTabNavigator() {
                     ),
                 }}
             />
-            <Tab.Screen
-                name="SearchTab"
-                component={SearchScreen}
-                options={{
-                    tabBarLabel: "Search",
-                    tabBarIcon: ({
-                        color,
-                        size,
-                        focused,
-                    }: {
-                        color: string;
-                        size: number;
-                        focused: boolean;
-                    }) => (
-                        <Ionicons
-                            name={focused ? "search" : "search-outline"}
-                            size={size - 2}
-                            color={color}
-                        />
-                    ),
-                }}
-            />
-            <Tab.Screen
-                name="LibraryTab"
-                component={LibraryScreen}
-                options={{
-                    tabBarLabel: "Your Library",
-                    tabBarIcon: ({
-                        color,
-                        size,
-                        focused,
-                    }: {
-                        color: string;
-                        size: number;
-                        focused: boolean;
-                    }) => (
-                        <Ionicons
-                            name={focused ? "list" : "list-outline"}
-                            size={size - 2}
-                            color={color}
-                        />
-                    ),
-                }}
-            />
+
+            {isOffline ? (
+                /* Offline Bottom Bar: Downloads Tab */
+                <Tab.Screen
+                    name="DownloadsTab"
+                    component={OfflineDownloadsTabScreen}
+                    initialParams={{
+                        isDownloadsMode: true,
+                        title: "Downloaded Songs",
+                    }}
+                    options={{
+                        tabBarLabel: "Downloads",
+                        tabBarIcon: ({
+                            color,
+                            size,
+                            focused,
+                        }: {
+                            color: string;
+                            size: number;
+                            focused: boolean;
+                        }) => (
+                            <Ionicons
+                                name={focused ? "arrow-down-circle" : "arrow-down-circle-outline"}
+                                size={size - 2}
+                                color={color}
+                            />
+                        ),
+                    }}
+                />
+            ) : (
+                /* Online Bottom Bar: Search & Library Tabs */
+                <>
+                    <Tab.Screen
+                        name="SearchTab"
+                        component={SearchScreen}
+                        options={{
+                            tabBarLabel: "Search",
+                            tabBarIcon: ({
+                                color,
+                                size,
+                                focused,
+                            }: {
+                                color: string;
+                                size: number;
+                                focused: boolean;
+                            }) => (
+                                <Ionicons
+                                    name={focused ? "search" : "search-outline"}
+                                    size={size - 2}
+                                    color={color}
+                                />
+                            ),
+                        }}
+                    />
+                    <Tab.Screen
+                        name="LibraryTab"
+                        component={LibraryScreen}
+                        options={{
+                            tabBarLabel: "Your Library",
+                            tabBarIcon: ({
+                                color,
+                                size,
+                                focused,
+                            }: {
+                                color: string;
+                                size: number;
+                                focused: boolean;
+                            }) => (
+                                <Ionicons
+                                    name={focused ? "list" : "list-outline"}
+                                    size={size - 2}
+                                    color={color}
+                                />
+                            ),
+                        }}
+                    />
+                </>
+            )}
+
             {/* PlaylistDetail & CategoryDetail are registered inside MainTabs so the bottom navigation bar remains visible */}
             <Tab.Screen
                 name="PlaylistDetail"

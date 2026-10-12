@@ -1,6 +1,6 @@
 import uuid
 from typing import Any
-from sqlmodel import Session, select
+from sqlmodel import Session, select, delete
 
 from app.models.playlist import Playlist, PlaylistSong
 from app.models.song import Song
@@ -36,12 +36,10 @@ class PlaylistService:
         if not playlist.is_deletable:
             return None
 
-        # Clear playlist songs
-        playlist_songs = self.db.exec(
-            select(PlaylistSong).where(PlaylistSong.playlist_id == p_uuid)
-        ).all()
-        for playlist_song in playlist_songs:
-            self.db.delete(playlist_song)
+        # Clear playlist songs in a single delete statement
+        self.db.exec(
+            delete(PlaylistSong).where(PlaylistSong.playlist_id == p_uuid)
+        )
 
         self.db.delete(playlist)
         self.db.commit()

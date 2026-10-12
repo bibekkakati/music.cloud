@@ -5,6 +5,8 @@ import {
     useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
+import { NetworkProvider } from "./src/context/NetworkContext";
+import { DownloadProvider } from "./src/context/DownloadContext";
 import { AuthProvider } from "./src/context/AuthContext";
 import { PlayerProvider } from "./src/context/PlayerContext";
 import { UIProvider } from "./src/context/UIContext";
@@ -56,13 +58,17 @@ function MainApp() {
 export default function App() {
     return (
         <SafeAreaProvider>
-            <AuthProvider>
-                <PlayerProvider>
-                    <UIProvider>
-                        <MainApp />
-                    </UIProvider>
-                </PlayerProvider>
-            </AuthProvider>
+            <NetworkProvider>
+                <DownloadProvider>
+                    <AuthProvider>
+                        <PlayerProvider>
+                            <UIProvider>
+                                <MainApp />
+                            </UIProvider>
+                        </PlayerProvider>
+                    </AuthProvider>
+                </DownloadProvider>
+            </NetworkProvider>
         </SafeAreaProvider>
     );
 }

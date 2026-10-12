@@ -8,6 +8,7 @@ import {
     RefreshControl,
     ActivityIndicator,
     ScrollView,
+    Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -16,6 +17,7 @@ import { playlistService } from "@music-cloud/services";
 import { getGreeting } from "@music-cloud/utils";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
+import { useNetwork } from "../context/NetworkContext";
 import { AppHeader } from "../components/AppHeader";
 import { SongCard } from "../components/SongCard";
 import { appConfig } from "../config";
@@ -23,6 +25,7 @@ import type { SongMetadata } from "@music-cloud/types";
 
 export const HomeScreen: React.FC = () => {
     const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+    const { isOffline, refreshConnection } = useNetwork();
     const {
         isAuthenticated,
         isLoading: isAuthLoading,
@@ -38,7 +41,7 @@ export const HomeScreen: React.FC = () => {
 
     const fetchSongs = useCallback(
         async (pageNum = 1, append = false) => {
-            if (!isAuthenticated) {
+            if (!isAuthenticated || isOffline) {
                 setSongs([]);
                 setPage(1);
                 setHasMore(false);
@@ -85,12 +88,14 @@ export const HomeScreen: React.FC = () => {
                 setIsLoadingMore(false);
             }
         },
-        [isAuthenticated],
+        [isAuthenticated, isOffline],
     );
 
     useEffect(() => {
-        fetchSongs(1, false);
-    }, [fetchSongs]);
+        if (!isOffline && isAuthenticated) {
+            fetchSongs(1, false);
+        }
+    }, [isOffline, isAuthenticated, fetchSongs]);
 
     const onRefresh = () => {
         setIsRefreshing(true);
@@ -110,12 +115,28 @@ export const HomeScreen: React.FC = () => {
                 {/* Top Navbar Header */}
                 <AppHeader />
 
-                {!isAuthenticated && !isAuthLoading ? (
-                    /* Unauthenticated Landing Experience */
+                {(!isAuthenticated || isOffline) && !isAuthLoading ? (
+                    /* Unauthenticated / Offline Landing Experience */
                     <ScrollView
                         style={styles.landingScroll}
                         contentContainerStyle={styles.landingContent}
                         showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={async () => {
+                                    setIsRefreshing(true);
+                                    if (isOffline) {
+                                        await refreshConnection();
+                                    } else {
+                                        setPage(1);
+                                        await fetchSongs(1, false);
+                                    }
+                                    setIsRefreshing(false);
+                                }}
+                                tintColor={appConfig.colors.accentGreen}
+                            />
+                        }
                     >
                         {/* Hero Welcome Card */}
                         <LinearGradient
@@ -127,12 +148,12 @@ export const HomeScreen: React.FC = () => {
                             {/* Pill Badge */}
                             <View style={styles.heroBadge}>
                                 <Ionicons
-                                    name="radio"
+                                    name={isOffline ? "cloud-offline" : "radio"}
                                     size={13}
-                                    color={appConfig.colors.accentGreen}
+                                    color={isOffline ? "#ef4444" : appConfig.colors.accentGreen}
                                 />
                                 <Text style={styles.heroBadgeText}>
-                                    PRIVATE AUDIO CLOUD
+                                    {isOffline ? "OFFLINE MODE" : "PRIVATE AUDIO CLOUD"}
                                 </Text>
                             </View>
 
@@ -151,16 +172,25 @@ export const HomeScreen: React.FC = () => {
                             {/* CTA Button */}
                             <TouchableOpacity
                                 style={styles.heroCtaBtn}
-                                onPress={openAuthModal}
+                                onPress={() => {
+                                    if (isOffline) {
+                                        Alert.alert(
+                                            "Offline",
+                                            "You are currently offline. Check your internet connection or browse your Downloads.",
+                                        );
+                                        return;
+                                    }
+                                    openAuthModal();
+                                }}
                                 activeOpacity={0.8}
                             >
                                 <Ionicons
-                                    name="log-in-outline"
+                                    name={isOffline ? "cloud-offline-outline" : "log-in-outline"}
                                     size={18}
                                     color="#000000"
                                 />
                                 <Text style={styles.heroCtaText}>
-                                    Log in to Start Listening
+                                    {isOffline ? "Offline Mode" : "Log in to Start Listening"}
                                 </Text>
                             </TouchableOpacity>
                         </LinearGradient>
