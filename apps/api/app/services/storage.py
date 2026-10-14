@@ -89,5 +89,12 @@ class Storage:
                 return False
             raise
 
+    def delete_file(self, key: str) -> None:
+        """Delete an object from S3/R2."""
+        try:
+            self.client.delete_object(Bucket=self.bucket, Key=key)
+        except ClientError:
+            pass
+
 
 storage = Storage(s3client, settings.S3_BUCKET)

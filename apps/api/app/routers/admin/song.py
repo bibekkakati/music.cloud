@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 
 from app.dependencies.auth import AdminUser, require_admin
 from app.infra.database import DatabaseSession
-from app.models.song import Song
+from app.models.song import Song, SongProcessingStatus
 from app.schemas.song import (
     AdminSongListResponsePayload,
     AdminSongResponsePayload,
@@ -127,9 +127,17 @@ def get_all_songs(
     user: AdminUser,
     db: DatabaseSession,
     cursor: Annotated[str | None, Query(title="Page cursor")] = None,
+    status: Annotated[str | None, Query(title="Song status filter")] = None,
 ) -> AdminSongListResponsePayload:
     song_service = SongService(db)
-    songs = song_service.get_all_songs(cursor, limit=21)
+    status_filter: SongProcessingStatus | None = None
+    if status and status.strip() and status.upper() != "ALL":
+        try:
+            status_filter = SongProcessingStatus(status.lower().strip())
+        except ValueError:
+            status_filter = None
+
+    songs = song_service.get_all_songs(cursor, status=status_filter, limit=21)
     has_next = len(songs) > 20
     page_songs = songs[:20] if has_next else songs
     next_cursor = str(page_songs[-1].id) if has_next and page_songs else None
@@ -274,3 +282,21 @@ def update_song_cover_art(
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.delete(
+    "/{song_id}",
+    summary="Delete a song",
+    status_code=status.HTTP_200_OK,
+)
+def delete_song(
+    song_id: Annotated[str, Path(..., title="Song ID")],
+    user: AdminUser,
+    db: DatabaseSession,
+):
+    song_service = SongService(db)
+    try:
+        song_service.delete_song(song_id)
+        return {"message": "Song deleted successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="Song not found") from e

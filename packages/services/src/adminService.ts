@@ -22,6 +22,12 @@ export interface GetCoverArtUploadUrlParams {
     contentType: string;
 }
 
+export interface PresignedUploadOptions {
+    signal?: AbortSignal;
+    maxRetries?: number;
+    onRetry?: (attempt: number, maxRetries: number, error: unknown) => void;
+}
+
 export const adminService = {
     getUploadUrl: async (
         params: GetUploadUrlParams,
@@ -39,20 +45,73 @@ export const adminService = {
         presignedUrl: string,
         file: Blob | File | any,
         onProgress?: (percentage: number) => void,
+        options?: PresignedUploadOptions,
     ): Promise<void> => {
-        await axios.put(presignedUrl, file, {
-            headers: {
-                "Content-Type": file.type || "audio/mpeg",
-            },
-            onUploadProgress: (progressEvent) => {
-                if (progressEvent.total && onProgress) {
-                    const percent = Math.round(
-                        (progressEvent.loaded * 100) / progressEvent.total,
-                    );
-                    onProgress(percent);
+        const maxRetries = options?.maxRetries ?? 5;
+        let attempt = 0;
+
+        while (true) {
+            try {
+                await axios.put(presignedUrl, file, {
+                    headers: {
+                        "Content-Type": file.type || "audio/mpeg",
+                    },
+                    signal: options?.signal,
+                    onUploadProgress: (progressEvent) => {
+                        if (progressEvent.total && onProgress) {
+                            const percent = Math.round(
+                                (progressEvent.loaded * 100) / progressEvent.total,
+                            );
+                            onProgress(percent);
+                        }
+                    },
+                });
+                return;
+            } catch (err: unknown) {
+                // If cancelled by AbortSignal, throw immediately without retrying
+                if (axios.isCancel(err) || options?.signal?.aborted) {
+                    throw err;
                 }
-            },
-        });
+
+                attempt++;
+                if (attempt > maxRetries) {
+                    throw err;
+                }
+
+                // Notify retry callback so UI can show retry message
+                options?.onRetry?.(attempt, maxRetries, err);
+
+                // If browser reports offline, wait for the 'online' event (with fallback timeout)
+                if (
+                    typeof window !== "undefined" &&
+                    typeof navigator !== "undefined" &&
+                    !navigator.onLine
+                ) {
+                    await new Promise<void>((resolve) => {
+                        let timeoutId: any;
+                        const handleOnline = () => {
+                            window.removeEventListener("online", handleOnline);
+                            clearTimeout(timeoutId);
+                            // Short grace period for network connectivity to stabilize
+                            setTimeout(resolve, 1000);
+                        };
+                        window.addEventListener("online", handleOnline);
+                        timeoutId = setTimeout(() => {
+                            window.removeEventListener("online", handleOnline);
+                            resolve();
+                        }, 20000);
+                    });
+                } else {
+                    // Exponential backoff: 2s, 4s, 8s, 10s...
+                    const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                }
+            }
+        }
+    },
+
+    deleteSong: async (songId: string): Promise<void> => {
+        await apiClient.delete(`/api/v1/admin/song/${songId}`);
     },
 
     processSong: async (payload: SongProcessPayload): Promise<void> => {
@@ -79,6 +138,7 @@ export const adminService = {
     getAllSongs: async (
         limit: number,
         cursor?: string,
+        status?: string,
     ): Promise<AdminSongListResponse> => {
         const params: Record<string, string> = {
             limit: limit.toString(),
@@ -86,6 +146,9 @@ export const adminService = {
 
         if (cursor) {
             params.cursor = cursor;
+        }
+        if (status && status.trim() && status.toUpperCase() !== "ALL") {
+            params.status = status.toLowerCase().trim();
         }
         const response = await apiClient.get<AdminSongListResponse>(
             "/api/v1/admin/song/all",

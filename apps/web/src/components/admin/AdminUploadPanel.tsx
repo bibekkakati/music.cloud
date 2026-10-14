@@ -10,12 +10,14 @@ import {
     X,
     AlertCircle,
     Music2,
+    RotateCw,
 } from "lucide-react";
 
 export type UploadStatus =
     | "idle"
     | "generating_url"
     | "uploading"
+    | "retrying"
     | "uploaded"
     | "queued"
     | "error";
@@ -29,13 +31,22 @@ export interface UploadItem {
     status: UploadStatus;
     progress: number;
     error?: string;
+    uploadData?: SongUploadResponse & {
+        createdAt: number;
+    };
+    retryMessage?: string;
+    abortController?: AbortController;
 }
 
 interface AdminUploadPanelProps {
     onUploadSuccess?: () => void;
 }
 
-const getStatusMeta = (status: UploadStatus, progress: number) => {
+const getStatusMeta = (
+    status: UploadStatus,
+    progress: number,
+    retryMessage?: string,
+) => {
     switch (status) {
         case "generating_url":
             return {
@@ -65,6 +76,21 @@ const getStatusMeta = (status: UploadStatus, progress: number) => {
                     />
                 ),
                 barColor: "#60a5fa",
+                isInFlight: true,
+            };
+        case "retrying":
+            return {
+                label: retryMessage || "Retrying upload...",
+                color: "#f59e0b",
+                bg: "rgba(245, 158, 11, 0.15)",
+                icon: (
+                    <RotateCw
+                        size={18}
+                        className="animate-spin"
+                        color="#f59e0b"
+                    />
+                ),
+                barColor: "#f59e0b",
                 isInFlight: true,
             };
         case "uploaded":
@@ -170,7 +196,16 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
     };
 
     const handleRemoveItem = (id: string) => {
-        setUploadQueue((prev) => prev.filter((item) => item.id !== id));
+        const item = uploadQueue.find((i) => i.id === id);
+        if (item?.abortController) {
+            item.abortController.abort();
+        }
+        if (item?.uploadData?.id) {
+            adminService.deleteSong(item.uploadData.id).catch((err) => {
+                console.warn("Failed to clean up draft song record:", err);
+            });
+        }
+        setUploadQueue((prev) => prev.filter((i) => i.id !== id));
     };
 
     const handleClearFinished = () => {
@@ -212,6 +247,7 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
             status: UploadItem["status"],
             progress: number,
             error?: string,
+            retryMessage?: string,
         ) => {
             setUploadQueue((prev) =>
                 prev.map((item) =>
@@ -221,6 +257,7 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                               status,
                               progress,
                               ...(error !== undefined ? { error } : {}),
+                              ...(retryMessage !== undefined ? { retryMessage } : {}),
                           }
                         : item,
                 ),
@@ -232,18 +269,38 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                 item.file.name.split(".").pop()?.toLowerCase() || "mp3";
             const contentType = item.file.type || "audio/mpeg";
 
-            try {
-                // Step 1: Pre-signed URL (generating url)
-                updateItemStatus(item.id, "generating_url", 10);
-                const uploadData: SongUploadResponse =
-                    await adminService.getUploadUrl({
-                        extension: fileExt,
-                        content_type: contentType,
-                        title: item.title.trim(),
-                        artist: item.artist.trim(),
-                    });
+            const abortController = new AbortController();
+            setUploadQueue((prev) =>
+                prev.map((i) =>
+                    i.id === item.id ? { ...i, abortController } : i,
+                ),
+            );
 
-                // Step 2: S3 Upload (uploading)
+            try {
+                // Step 1: Pre-signed URL (reuse existing if not expired within 50 min)
+                let uploadData = item.uploadData;
+                const isUrlExpired =
+                    uploadData &&
+                    Date.now() - uploadData.createdAt > 50 * 60 * 1000;
+
+                if (!uploadData || isUrlExpired) {
+                    updateItemStatus(item.id, "generating_url", 10);
+                    const res: SongUploadResponse =
+                        await adminService.getUploadUrl({
+                            extension: fileExt,
+                            content_type: contentType,
+                            title: item.title.trim(),
+                            artist: item.artist.trim(),
+                        });
+                    uploadData = { ...res, createdAt: Date.now() };
+                    setUploadQueue((prev) =>
+                        prev.map((i) =>
+                            i.id === item.id ? { ...i, uploadData } : i,
+                        ),
+                    );
+                }
+
+                // Step 2: S3 Upload (uploading) with client-side auto-retry
                 updateItemStatus(item.id, "uploading", 20);
                 await adminService.uploadFileToPresignedUrl(
                     uploadData.url,
@@ -251,6 +308,23 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                     (pct: number) => {
                         const mappedPct = Math.round(20 + pct * 0.7);
                         updateItemStatus(item.id, "uploading", mappedPct);
+                    },
+                    {
+                        signal: abortController.signal,
+                        maxRetries: 5,
+                        onRetry: (attempt, maxRetries) => {
+                            const msg =
+                                typeof navigator !== "undefined" && !navigator.onLine
+                                    ? `Network disconnected. Waiting for connection (${attempt}/${maxRetries})...`
+                                    : `Upload interrupted. Retrying (${attempt}/${maxRetries})...`;
+                            updateItemStatus(
+                                item.id,
+                                "retrying",
+                                20,
+                                undefined,
+                                msg,
+                            );
+                        },
                     },
                 );
 
@@ -266,9 +340,13 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                 updateItemStatus(item.id, "queued", 100);
                 return true;
             } catch (err: unknown) {
+                if (abortController.signal.aborted) {
+                    return false;
+                }
                 const msg =
                     (err as { response?: { data?: { detail?: string } } })
                         ?.response?.data?.detail ||
+                    (err as Error)?.message ||
                     "Upload or processing failed";
                 updateItemStatus(item.id, "error", 0, msg);
                 return false;
@@ -304,6 +382,17 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                 `Successfully uploaded & queued ${successCount} track(s).`,
             );
             onUploadSuccess?.();
+        }
+    };
+
+    const handleRetrySingleItem = async (id: string) => {
+        const item = uploadQueue.find((i) => i.id === id);
+        if (!item || isUploadingBatch) return;
+        setIsUploadingBatch(true);
+        try {
+            await handleStartBatchUpload();
+        } finally {
+            setIsUploadingBatch(false);
         }
     };
 
@@ -744,6 +833,7 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                             const meta = getStatusMeta(
                                 item.status,
                                 item.progress,
+                                item.retryMessage,
                             );
                             return (
                                 <div
@@ -893,19 +983,50 @@ export const AdminUploadPanel: React.FC<AdminUploadPanelProps> = ({
                                     </div>
                                 )}
 
-                                {/* Error message */}
-                                {item.status === "error" && item.error && (
+                                {/* Error message & Retry Action */}
+                                {item.status === "error" && (
                                     <div
                                         style={{
-                                            fontSize: 11,
-                                            color: "#f87171",
-                                            background:
-                                                "rgba(239, 68, 68, 0.08)",
-                                            padding: "6px 8px",
-                                            borderRadius: 4,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            gap: 8,
+                                            background: "rgba(239, 68, 68, 0.08)",
+                                            padding: "8px 10px",
+                                            borderRadius: 6,
+                                            marginTop: 2,
                                         }}
                                     >
-                                        {item.error}
+                                        <span
+                                            style={{
+                                                fontSize: 12,
+                                                color: "#f87171",
+                                                flex: 1,
+                                            }}
+                                        >
+                                            {item.error || "Upload interrupted"}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRetrySingleItem(item.id)}
+                                            disabled={isUploadingBatch}
+                                            style={{
+                                                background: "rgba(239, 68, 68, 0.2)",
+                                                border: "1px solid rgba(239, 68, 68, 0.4)",
+                                                borderRadius: 4,
+                                                color: "#fca5a5",
+                                                padding: "4px 10px",
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                cursor: isUploadingBatch ? "not-allowed" : "pointer",
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 4,
+                                            }}
+                                        >
+                                            <RotateCw size={12} />
+                                            Retry
+                                        </button>
                                     </div>
                                 )}
 

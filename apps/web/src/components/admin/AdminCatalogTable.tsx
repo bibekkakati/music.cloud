@@ -14,6 +14,8 @@ import {
     Lock,
     ChevronLeft,
     ChevronRight,
+    Trash2,
+    Filter,
 } from "lucide-react";
 
 interface AdminCatalogTableProps {
@@ -23,15 +25,27 @@ interface AdminCatalogTableProps {
     reprocessingSongIds: Set<string>;
     currentPage: number;
     hasNextPage: boolean;
+    selectedStatus: string;
+    onStatusChange: (status: string) => void;
     onPlaySong: (song: SongDetail, playlist: SongDetail[]) => void;
     onInspectSong: (song: SongDetail) => void;
     onEditSong: (song: SongDetail) => void;
     onReprocessSong: (song: SongDetail) => void;
     onRefreshSongStatus: (songId: string) => void;
+    onDeleteSong?: (song: SongDetail) => void;
     onNextPage: () => void;
     onPrevPage: () => void;
     onSwitchToUpload: () => void;
 }
+
+const STATUS_OPTIONS: { label: string; value: string; color?: string }[] = [
+    { label: "All", value: "ALL" },
+    { label: "Done", value: "DONE", color: "#1ed760" },
+    { label: "Processing", value: "PROCESSING", color: "#eab308" },
+    { label: "Uploaded", value: "UPLOADED", color: "#38bdf8" },
+    { label: "Uploading", value: "UPLOADING", color: "#f97316" },
+    { label: "Failed", value: "FAILED", color: "#ef4444" },
+];
 
 export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
     songs,
@@ -40,73 +54,200 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
     reprocessingSongIds,
     currentPage,
     hasNextPage,
+    selectedStatus,
+    onStatusChange,
     onPlaySong,
     onInspectSong,
     onEditSong,
     onReprocessSong,
     onRefreshSongStatus,
+    onDeleteSong,
     onNextPage,
     onPrevPage,
     onSwitchToUpload,
 }) => {
-    if (loadingSongs && songs.length === 0) {
-        return (
-            <div style={{ padding: "80px 0", textAlign: "center" }}>
-                <Loader2
-                    size={36}
-                    className="animate-spin"
-                    color="var(--app-green)"
-                    style={{ margin: "0 auto 12px" }}
-                />
-                <span
+    const isFiltered = selectedStatus.toUpperCase() !== "ALL";
+
+    const renderFilterToolbar = () => (
+        <div
+            style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 12,
+                marginBottom: 20,
+                paddingBottom: 16,
+                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                }}
+            >
+                <div
                     style={{
-                        fontSize: 14,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontSize: 13,
+                        fontWeight: 600,
                         color: "var(--app-subtext)",
+                        marginRight: 4,
                     }}
                 >
-                    Loading catalog tracks...
-                </span>
+                    <Filter size={14} />
+                    <span>Status:</span>
+                </div>
+                {STATUS_OPTIONS.map((opt) => {
+                    const isActive = selectedStatus.toUpperCase() === opt.value;
+                    return (
+                        <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => onStatusChange(opt.value)}
+                            className={`app-tag-pill ${isActive ? "active" : ""}`}
+                            style={{
+                                padding: "6px 14px",
+                                fontSize: 12,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                cursor: "pointer",
+                            }}
+                        >
+                            {opt.color && (
+                                <span
+                                    style={{
+                                        width: 7,
+                                        height: 7,
+                                        borderRadius: "50%",
+                                        backgroundColor: opt.color,
+                                        display: "inline-block",
+                                    }}
+                                />
+                            )}
+                            <span>{opt.label}</span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    fontSize: 12,
+                    color: "var(--app-subtext)",
+                }}
+            >
+                {loadingSongs && (
+                    <span
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            color: "var(--app-green)",
+                        }}
+                    >
+                        <Loader2 size={13} className="animate-spin" />
+                        Loading...
+                    </span>
+                )}
+                {songs.length > 0 && (
+                    <span>
+                        {songs.length} track{songs.length === 1 ? "" : "s"} on page {currentPage}
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+
+    if (loadingSongs && songs.length === 0) {
+        return (
+            <div>
+                {renderFilterToolbar()}
+                <div style={{ padding: "80px 0", textAlign: "center" }}>
+                    <Loader2
+                        size={36}
+                        className="animate-spin"
+                        color="var(--app-green)"
+                        style={{ margin: "0 auto 12px" }}
+                    />
+                    <span
+                        style={{
+                            fontSize: 14,
+                            color: "var(--app-subtext)",
+                        }}
+                    >
+                        Loading catalog tracks...
+                    </span>
+                </div>
             </div>
         );
     }
 
     if (songs.length === 0) {
         return (
-            <div
-                style={{
-                    padding: "80px 0",
-                    textAlign: "center",
-                    color: "var(--app-subtext)",
-                }}
-            >
-                <p
+            <div>
+                {renderFilterToolbar()}
+                <div
                     style={{
-                        fontSize: 18,
-                        fontWeight: 700,
-                        color: "var(--app-text)",
-                        marginBottom: 6,
+                        padding: "80px 0",
+                        textAlign: "center",
+                        color: "var(--app-subtext)",
                     }}
                 >
-                    No songs in the catalog
-                </p>
-                <p style={{ fontSize: 14, marginBottom: 20 }}>
-                    Upload your first track to get started.
-                </p>
-                <button
-                    type="button"
-                    onClick={onSwitchToUpload}
-                    className="app-btn-green"
-                    style={{ padding: "12px 28px", fontSize: 14 }}
-                >
-                    <Upload size={16} />
-                    <span>Upload Track</span>
-                </button>
+                    <p
+                        style={{
+                            fontSize: 18,
+                            fontWeight: 700,
+                            color: "var(--app-text)",
+                            marginBottom: 6,
+                        }}
+                    >
+                        {isFiltered
+                            ? `No tracks found with status "${selectedStatus.toLowerCase()}"`
+                            : "No songs in the catalog"}
+                    </p>
+                    <p style={{ fontSize: 14, marginBottom: 20 }}>
+                        {isFiltered
+                            ? "Try choosing a different status filter or reset to view all tracks."
+                            : "Upload your first track to get started."}
+                    </p>
+                    {isFiltered ? (
+                        <button
+                            type="button"
+                            onClick={() => onStatusChange("ALL")}
+                            className="app-tag-pill active"
+                            style={{ padding: "10px 24px", fontSize: 13 }}
+                        >
+                            Reset Filter to All
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={onSwitchToUpload}
+                            className="app-btn-green"
+                            style={{ padding: "12px 28px", fontSize: 14 }}
+                        >
+                            <Upload size={16} />
+                            <span>Upload Track</span>
+                        </button>
+                    )}
+                </div>
             </div>
         );
     }
 
     return (
         <>
+            {renderFilterToolbar()}
             <div style={{ overflowX: "auto" }}>
                 <table
                     style={{
@@ -452,6 +593,20 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                                                     <RotateCw size={15} />
                                                 )}
                                             </button>
+
+                                            {onDeleteSong && (
+                                                <button
+                                                    onClick={() => onDeleteSong(song)}
+                                                    className="btn-ghost"
+                                                    title="Delete Track"
+                                                    style={{
+                                                        padding: 6,
+                                                        color: "#ef4444",
+                                                    }}
+                                                >
+                                                    <Trash2 size={15} />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

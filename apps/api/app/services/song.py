@@ -3,11 +3,12 @@ from datetime import datetime, timezone
 import logging
 from uuid import UUID, uuid7
 
-from sqlmodel import Session, select
+from sqlmodel import Session, select, delete
 
 from app.core.config import settings
 from app.infra.mq import queue
 from app.models.song import Song, SongProcessingStatus
+from app.models.playlist import PlaylistSong
 from app.models.user import User
 from app.schemas.song import CoverArtUploadResponsePayload, SongUploadResponsePayload
 from app.services.storage import storage
@@ -241,3 +242,26 @@ class SongService:
             url=url,
             key=song.original_key,
         )
+
+    def delete_song(self, song_id: str) -> None:
+        """
+        Permanently delete a song and its associated storage assets.
+        """
+        song = self.get_song(song_id)
+        # Clear playlist associations
+        self.db.exec(delete(PlaylistSong).where(PlaylistSong.song_id == song.id))
+        # Remove from search index
+        try:
+            from app.services.song_search import song_search
+            song_search.remove_song(str(song.id))
+        except Exception:
+            pass
+        # Delete S3 objects
+        for key in [song.original_key, song.master_mp3_key, song.master_aac_key, song.cover_art_key]:
+            if key:
+                try:
+                    storage.delete_file(key)
+                except Exception:
+                    pass
+        self.db.delete(song)
+        self.db.commit()

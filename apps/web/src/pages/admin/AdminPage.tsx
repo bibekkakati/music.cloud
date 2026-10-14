@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { adminService } from "../../services/adminService";
 import type { SongDetail } from "../../types";
 import { useAuth } from "../../context/AuthContext";
@@ -24,6 +24,9 @@ export const AdminPage: React.FC = () => {
     // --- Catalog State & Bounded Pagination ---
     const [songs, setSongs] = useState<SongDetail[]>([]);
     const [loadingSongs, setLoadingSongs] = useState(false);
+    const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+    const selectedStatusRef = useRef(selectedStatus);
+    selectedStatusRef.current = selectedStatus;
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [pageCursors, setPageCursors] = useState<{
         [page: number]: string | undefined;
@@ -49,12 +52,17 @@ export const AdminPage: React.FC = () => {
 
     // Load Catalog Page
     const fetchCatalogPage = useCallback(
-        async (page: number, cursor?: string) => {
+        async (page: number, cursor?: string, statusFilter?: string) => {
             try {
                 setLoadingSongs(true);
+                const activeFilter =
+                    statusFilter !== undefined
+                        ? statusFilter
+                        : selectedStatusRef.current;
                 const data = await adminService.getAllSongs(
                     appConfig.songs_limit,
                     cursor,
+                    activeFilter,
                 );
                 const songList = data?.songs || [];
                 setSongs(songList);
@@ -83,6 +91,12 @@ export const AdminPage: React.FC = () => {
         },
         [showToast],
     );
+
+    const handleStatusFilterChange = (newStatus: string) => {
+        setSelectedStatus(newStatus);
+        setPageCursors({ 1: undefined });
+        fetchCatalogPage(1, undefined, newStatus);
+    };
 
     const handleNextPage = () => {
         if (!hasNextPage || loadingSongs) return;
@@ -217,6 +231,28 @@ export const AdminPage: React.FC = () => {
                 next.delete(song.id);
                 return next;
             });
+        }
+    };
+
+    // Delete Song
+    const handleDeleteSong = async (song: SongDetail) => {
+        if (
+            !window.confirm(
+                `Are you sure you want to delete "${song.title}"? This cannot be undone.`,
+            )
+        ) {
+            return;
+        }
+
+        try {
+            await adminService.deleteSong(song.id);
+            showToast("Track Deleted", "success", `Deleted "${song.title}".`);
+            setSongs((prev) => prev.filter((s) => s.id !== song.id));
+        } catch (err: unknown) {
+            const msg =
+                (err as { response?: { data?: { detail?: string } } })?.response
+                    ?.data?.detail || "Failed to delete song";
+            showToast("Delete Failed", "error", msg);
         }
     };
 
@@ -413,11 +449,14 @@ export const AdminPage: React.FC = () => {
                     reprocessingSongIds={reprocessingSongIds}
                     currentPage={currentPage}
                     hasNextPage={hasNextPage}
+                    selectedStatus={selectedStatus}
+                    onStatusChange={handleStatusFilterChange}
                     onPlaySong={playSong}
                     onInspectSong={setInspectingSong}
                     onEditSong={setEditingSong}
                     onReprocessSong={handleReprocessSong}
                     onRefreshSongStatus={handleRefreshSongStatus}
+                    onDeleteSong={handleDeleteSong}
                     onNextPage={handleNextPage}
                     onPrevPage={handlePrevPage}
                     onSwitchToUpload={() => setActiveTab("upload")}
