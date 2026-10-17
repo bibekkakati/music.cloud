@@ -8,11 +8,11 @@ import {
     Search,
     Plus,
     Library,
-    Settings,
     Music,
     X,
     Heart,
     Pin,
+    Settings,
 } from "lucide-react";
 import { isLikedPlaylist } from "@music-cloud/utils";
 import { Logo } from "./Logo";
@@ -152,34 +152,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                         strokeWidth={isActive ? 2.8 : 2}
                                     />
                                     <span>Search</span>
-                                </>
-                            )}
-                        </NavLink>
-
-                        <NavLink
-                            to="/settings"
-                            onClick={() => onClose && onClose()}
-                            style={({ isActive }) => ({
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 16,
-                                color: isActive
-                                    ? "#ffffff"
-                                    : "var(--app-subtext)",
-                                fontWeight: 700,
-                                fontSize: 14,
-                                textDecoration: "none",
-                                padding: "6px 0",
-                                transition: "color 0.2s ease",
-                            })}
-                        >
-                            {({ isActive }) => (
-                                <>
-                                    <Settings
-                                        size={24}
-                                        strokeWidth={isActive ? 2.8 : 2}
-                                    />
-                                    <span>Settings</span>
                                 </>
                             )}
                         </NavLink>

@@ -257,18 +257,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                         {/* Status Badges */}
                         <div className="settings-meta-row">
-                            <div className="settings-meta-tags">
-                                {isUsingDefault ? (
-                                    <span className="settings-badge badge-neutral">
-                                        Using Environment Default
-                                    </span>
-                                ) : (
-                                    <span className="settings-badge badge-accent">
-                                        Custom Self-Hosted Instance
-                                    </span>
-                                )}
-                            </div>
-
                             {/* Ping / Connection Result */}
                             {testResult && (
                                 <div

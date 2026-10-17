@@ -1,16 +1,18 @@
-from app.schemas.song import SongDownloadUrlResponsePayload
-from datetime import datetime, timezone
 import logging
+from datetime import UTC, datetime
 from uuid import UUID, uuid7
 
-from sqlmodel import Session, select, delete
+from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.infra.mq import queue
 from app.models.song import Song, SongProcessingStatus
-from app.models.playlist import PlaylistSong
 from app.models.user import User
-from app.schemas.song import CoverArtUploadResponsePayload, SongUploadResponsePayload
+from app.schemas.song import (
+    CoverArtUploadResponsePayload,
+    SongDownloadUrlResponsePayload,
+    SongUploadResponsePayload,
+)
 from app.services.storage import storage
 
 logger = logging.getLogger("uvicorn.error")
@@ -163,7 +165,7 @@ class SongService:
         """
         song = self.get_song(song_id)
         song.cover_art_key = cover_art_key
-        song.updated_at = datetime.now(timezone.utc)
+        song.updated_at = datetime.now(UTC)
 
         self.db.add(song)
         self.db.commit()
@@ -190,7 +192,7 @@ class SongService:
             song.is_public = is_public
         if cover_art_key is not None:
             song.cover_art_key = cover_art_key
-        song.updated_at = datetime.now(timezone.utc)
+        song.updated_at = datetime.now(UTC)
 
         self.db.add(song)
         self.db.commit()
@@ -198,7 +200,9 @@ class SongService:
 
         return song
 
-    async def process_song(self, user: User, song_id: str, trim_start_sec: float) -> Song:
+    async def process_song(
+        self, user: User, song_id: str, trim_start_sec: float
+    ) -> Song:
         """
         Process song after upload (extract metadata, generate variants, etc).
         """
@@ -243,25 +247,23 @@ class SongService:
             key=song.original_key,
         )
 
-    def delete_song(self, song_id: str) -> None:
+    async def delete_song(self, song_id: str) -> None:
         """
-        Permanently delete a song and its associated storage assets.
+        Enqueues asynchronous permanent song deletion to BullMQ and evicts song from search index.
         """
         song = self.get_song(song_id)
-        # Clear playlist associations
-        self.db.exec(delete(PlaylistSong).where(PlaylistSong.song_id == song.id))
-        # Remove from search index
+
+        # Evict from search index immediately so user queries won't return it
         try:
             from app.services.song_search import song_search
+
             song_search.remove_song(str(song.id))
-        except Exception:
-            pass
-        # Delete S3 objects
-        for key in [song.original_key, song.master_mp3_key, song.master_aac_key, song.cover_art_key]:
-            if key:
-                try:
-                    storage.delete_file(key)
-                except Exception:
-                    pass
-        self.db.delete(song)
-        self.db.commit()
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Error evicting song %s from search index: %s", song_id, e)
+
+        # Enqueue job to BullMQ sending only the song_id
+        await queue.add(
+            "delete-song",
+            {"song_id": str(song.id)},
+            {"attempts": 3, "removeOnComplete": True},
+        )

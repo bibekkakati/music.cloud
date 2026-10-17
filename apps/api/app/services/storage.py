@@ -1,10 +1,13 @@
 import io
+import logging
 from collections.abc import Iterator
 
 from botocore.exceptions import ClientError
 
 from app.core.config import settings
 from app.infra.s3client import s3client
+
+logger = logging.getLogger("uvicorn.error")
 
 
 class Storage:
@@ -96,5 +99,30 @@ class Storage:
         except ClientError:
             pass
 
+    def delete_prefix(self, prefix: str) -> None:
+        """
+        Idempotently deletes all objects in the bucket matching the given prefix.
+        Paginates using list_objects_v2 and batches deletions using delete_objects.
+        """
+        if not prefix:
+            return
+
+        try:
+            paginator = self.client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
+                objects = page.get("Contents")
+                if not objects:
+                    continue
+
+                delete_keys = [{"Key": obj["Key"]} for obj in objects]
+                self.client.delete_objects(
+                    Bucket=self.bucket,
+                    Delete={"Objects": delete_keys, "Quiet": True},
+                )
+        except ClientError as e:
+            logger.warning("Error deleting prefix '%s' from storage: %s", prefix, e)
+            raise
+
 
 storage = Storage(s3client, settings.S3_BUCKET)
+

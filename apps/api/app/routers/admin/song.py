@@ -1,11 +1,10 @@
-from app.services.song_search import song_search
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 
 from app.dependencies.auth import AdminUser, require_admin
 from app.infra.database import DatabaseSession
-from app.models.song import Song, SongProcessingStatus
+from app.models.song import SongProcessingStatus
 from app.schemas.song import (
     AdminSongListResponsePayload,
     AdminSongResponsePayload,
@@ -16,11 +15,10 @@ from app.schemas.song import (
     SongUploadResponsePayload,
 )
 from app.services.song import SongService
+from app.services.song_search import song_search
 from app.utils.stream_helper import get_cover_art_url
 
-router = APIRouter(
-    prefix="/song", dependencies=[Depends(require_admin)]
-)
+router = APIRouter(prefix="/song", dependencies=[Depends(require_admin)])
 
 SUPPORTED_CONTENT_TYPES = [
     "audio/mpeg",
@@ -255,6 +253,7 @@ def get_cover_art_upload_url(
     except ValueError as e:
         raise HTTPException(status_code=404, detail="Song not found") from e
 
+
 @router.put(
     "/{song_id}/cover-art",
     response_model=AdminSongResponsePayload,
@@ -289,14 +288,14 @@ def update_song_cover_art(
     summary="Delete a song",
     status_code=status.HTTP_200_OK,
 )
-def delete_song(
+async def delete_song(
     song_id: Annotated[str, Path(..., title="Song ID")],
     user: AdminUser,
     db: DatabaseSession,
 ):
     song_service = SongService(db)
     try:
-        song_service.delete_song(song_id)
-        return {"message": "Song deleted successfully"}
+        await song_service.delete_song(song_id)
+        return {"message": "Song deleted successfully", "song_id": song_id}
     except ValueError as e:
         raise HTTPException(status_code=404, detail="Song not found") from e

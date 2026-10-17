@@ -2,6 +2,7 @@ import logging
 
 from bullmq import Job
 
+from app.services.song_deleter import SongDeleter
 from app.services.song_processor import SongProcessor
 
 logger = logging.getLogger("uvicorn.error")
@@ -16,6 +17,10 @@ class JobProcessor:
         await song_processor.start_processing_pipeline(
             job.data["song_id"], job.data["trim_start_sec"]
         )
+
+    async def delete_song(self, job: Job):
+        song_deleter = SongDeleter()
+        await song_deleter.execute_deletion_pipeline(job.data["song_id"])
 
 
 async def process_job(job: Job, job_token: str):
@@ -33,3 +38,5 @@ async def process_job(job: Job, job_token: str):
     job_processor = JobProcessor()
     if job.name == "process-song":
         await job_processor.process_song(job)
+    elif job.name == "delete-song":
+        await job_processor.delete_song(job)

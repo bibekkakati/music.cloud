@@ -679,14 +679,6 @@ body {
     z-index: 70;
 }
 
-/* 5a. Spotify-style Guest Prompt Banner */
-.guest-prompt-bar {
-    background: linear-gradient(90deg, #af2896 0%, #509bf5 100%);
-    border-top: none;
-    cursor: default;
-    padding: 12px 24px;
-}
-
 .guest-prompt-content {
     display: flex;
     align-items: center;
@@ -1116,11 +1108,6 @@ body {
 
     /* Hide idle mini player on mobile to maximize viewport when no track is active */
     .app-footer-player.player-idle {
-        display: none !important;
-    }
-
-    /* Hide guest prompt bar on mobile (mobile uses BottomNav) */
-    .guest-prompt-bar {
         display: none !important;
     }
 
