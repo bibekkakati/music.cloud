@@ -4,7 +4,16 @@ import { songService } from "../services/songService";
 import type { SongMetadata } from "../types";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
-import { Search, Loader2, Play, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+    Search,
+    Loader2,
+    Play,
+    ChevronLeft,
+    ChevronRight,
+    Settings,
+    LogOut,
+    ShieldCheck,
+} from "lucide-react";
 import { SongCoverArt } from "./SongCoverArt";
 import { Logo } from "./Logo";
 
@@ -21,12 +30,14 @@ export const Navbar: React.FC<NavbarProps> = ({
     const [suggestions, setSuggestions] = useState<SongMetadata[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const profileDropdownRef = useRef<HTMLDivElement>(null);
 
     const navigate = useNavigate();
     const location = useLocation();
     const { playSong } = usePlayer();
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, logout } = useAuth();
 
     const isSearchPage = location.pathname.startsWith("/search");
 
@@ -63,7 +74,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         return () => clearTimeout(timer);
     }, [query, isSearchPage]);
 
-    // Click outside to close dropdown
+    // Close profile dropdown on navigation
+    useEffect(() => {
+        setIsProfileOpen(false);
+    }, [location.pathname]);
+
+    // Click outside to close dropdowns
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (
@@ -72,11 +88,24 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) {
                 setIsOpen(false);
             }
+            if (
+                profileDropdownRef.current &&
+                !profileDropdownRef.current.contains(e.target as Node)
+            ) {
+                setIsProfileOpen(false);
+            }
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () =>
             document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    const handleLogout = async () => {
+        setIsProfileOpen(false);
+        if (window.confirm("Are you sure you want to log out of MusicCloud?")) {
+            await logout();
+        }
+    };
 
     const handleSelectSong = (song: SongMetadata) => {
         playSong(song, suggestions);
@@ -342,40 +371,215 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* 3. Right: Auth Profile / Log In */}
-            <div className="navbar-right">
+            <div
+                className="navbar-right"
+                ref={profileDropdownRef}
+                style={{ position: "relative" }}
+            >
                 {isAuthenticated && user ? (
-                    <div
-                        style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: "50%",
-                            background: "#242424",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            border: "2px solid rgba(255, 255, 255, 0.15)",
-                            transition: "transform 0.15s, border-color 0.15s",
-                        }}
-                        title={user.email}
-                        onMouseEnter={(e) =>
-                            (e.currentTarget.style.borderColor = "#ffffff")
-                        }
-                        onMouseLeave={(e) =>
-                            (e.currentTarget.style.borderColor =
-                                "rgba(255, 255, 255, 0.15)")
-                        }
-                    >
-                        <span
+                    <>
+                        <div
+                            onClick={() => setIsProfileOpen((prev) => !prev)}
                             style={{
-                                fontSize: 14,
-                                fontWeight: 700,
-                                color: "#ffffff",
+                                width: 36,
+                                height: 36,
+                                borderRadius: "50%",
+                                background: isProfileOpen ? "#ffffff" : "#242424",
+                                color: isProfileOpen ? "#000000" : "#ffffff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                border: "2px solid rgba(255, 255, 255, 0.15)",
+                                transition: "all 0.15s ease",
+                            }}
+                            title={user.email}
+                            onMouseEnter={(e) => {
+                                if (!isProfileOpen)
+                                    e.currentTarget.style.borderColor = "#ffffff";
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!isProfileOpen)
+                                    e.currentTarget.style.borderColor =
+                                        "rgba(255, 255, 255, 0.15)";
                             }}
                         >
-                            {user.email.charAt(0).toUpperCase()}
-                        </span>
-                    </div>
+                            <span
+                                style={{
+                                    fontSize: 14,
+                                    fontWeight: 700,
+                                }}
+                            >
+                                {user.email.charAt(0).toUpperCase()}
+                            </span>
+                        </div>
+
+                        {/* Profile Dropdown Menu */}
+                        {isProfileOpen && (
+                            <div
+                                className="navbar-profile-dropdown animate-fade-in"
+                                style={{
+                                    position: "absolute",
+                                    top: "calc(100% + 8px)",
+                                    right: 0,
+                                    width: 220,
+                                    backgroundColor: "#282828",
+                                    borderRadius: 8,
+                                    padding: "6px 0",
+                                    boxShadow: "0 16px 28px rgba(0, 0, 0, 0.5)",
+                                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                                    zIndex: 100,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        padding: "8px 14px",
+                                        borderBottom:
+                                            "1px solid rgba(255, 255, 255, 0.08)",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            color: "#ffffff",
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                        }}
+                                    >
+                                        {user.email}
+                                    </div>
+                                    <div
+                                        style={{
+                                            fontSize: 11,
+                                            color: user.is_admin
+                                                ? "var(--app-green)"
+                                                : "var(--app-subtext)",
+                                            fontWeight: 600,
+                                            textTransform: "uppercase",
+                                            letterSpacing: "0.05em",
+                                            marginTop: 2,
+                                        }}
+                                    >
+                                        {user.is_admin
+                                            ? "Administrator"
+                                            : "Member"}
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        setIsProfileOpen(false);
+                                        navigate("/settings");
+                                    }}
+                                    className="navbar-dropdown-item"
+                                    style={{
+                                        width: "100%",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 10,
+                                        padding: "10px 14px",
+                                        background: "transparent",
+                                        border: "none",
+                                        color: "#ffffff",
+                                        fontSize: 13,
+                                        fontWeight: 500,
+                                        cursor: "pointer",
+                                        textAlign: "left",
+                                        transition: "background-color 0.15s",
+                                    }}
+                                    onMouseEnter={(e) =>
+                                        (e.currentTarget.style.backgroundColor =
+                                            "rgba(255, 255, 255, 0.08)")
+                                    }
+                                    onMouseLeave={(e) =>
+                                        (e.currentTarget.style.backgroundColor =
+                                            "transparent")
+                                    }
+                                >
+                                    <Settings size={16} />
+                                    <span>Settings</span>
+                                </button>
+
+                                {user.is_admin && (
+                                    <button
+                                        onClick={() => {
+                                            setIsProfileOpen(false);
+                                            navigate("/admin");
+                                        }}
+                                        className="navbar-dropdown-item"
+                                        style={{
+                                            width: "100%",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 10,
+                                            padding: "10px 14px",
+                                            background: "transparent",
+                                            border: "none",
+                                            color: "#ffffff",
+                                            fontSize: 13,
+                                            fontWeight: 500,
+                                            cursor: "pointer",
+                                            textAlign: "left",
+                                            transition: "background-color 0.15s",
+                                        }}
+                                        onMouseEnter={(e) =>
+                                            (e.currentTarget.style.backgroundColor =
+                                                "rgba(255, 255, 255, 0.08)")
+                                        }
+                                        onMouseLeave={(e) =>
+                                            (e.currentTarget.style.backgroundColor =
+                                                "transparent")
+                                        }
+                                    >
+                                        <ShieldCheck size={16} />
+                                        <span>Admin Console</span>
+                                    </button>
+                                )}
+
+                                <div
+                                    style={{
+                                        height: 1,
+                                        backgroundColor:
+                                            "rgba(255, 255, 255, 0.08)",
+                                        margin: "4px 0",
+                                    }}
+                                />
+
+                                <button
+                                    onClick={handleLogout}
+                                    className="navbar-dropdown-item"
+                                    style={{
+                                        width: "100%",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 10,
+                                        padding: "10px 14px",
+                                        background: "transparent",
+                                        border: "none",
+                                        color: "#ff6b6b",
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                        textAlign: "left",
+                                        transition: "background-color 0.15s",
+                                    }}
+                                    onMouseEnter={(e) =>
+                                        (e.currentTarget.style.backgroundColor =
+                                            "rgba(231, 76, 60, 0.15)")
+                                    }
+                                    onMouseLeave={(e) =>
+                                        (e.currentTarget.style.backgroundColor =
+                                            "transparent")
+                                    }
+                                >
+                                    <LogOut size={16} />
+                                    <span>Log out</span>
+                                </button>
+                            </div>
+                        )}
+                    </>
                 ) : (
                     <button onClick={onOpenAuthModal} className="app-btn-pill">
                         Log in

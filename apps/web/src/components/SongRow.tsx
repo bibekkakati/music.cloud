@@ -102,7 +102,12 @@ export const SongRow: React.FC<SongRowProps> = ({
                             )}
                         </button>
                     ) : (
-                        <span style={{ fontSize: 14, color: "var(--app-subtext)" }}>
+                        <span
+                            style={{
+                                fontSize: 14,
+                                color: "var(--app-subtext)",
+                            }}
+                        >
                             {index + 1}
                         </span>
                     )}
@@ -212,7 +217,7 @@ export const SongRow: React.FC<SongRowProps> = ({
                         {formatDuration(durationSec)}
                     </span>
 
-                    {/* Spotify-style vertical dots options button */}
+                    {/* Vertical dots options button */}
                     <button
                         onClick={handleMoreButtonClick}
                         title="More options"
@@ -230,7 +235,8 @@ export const SongRow: React.FC<SongRowProps> = ({
                                 : "var(--app-subtext)",
                             opacity:
                                 isHovered || Boolean(contextMenuPos) ? 1 : 0,
-                            transition: "opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease",
+                            transition:
+                                "opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease",
                         }}
                         onMouseEnter={(e) => {
                             e.currentTarget.style.color = "#ffffff";
@@ -238,7 +244,9 @@ export const SongRow: React.FC<SongRowProps> = ({
                                 "rgba(255, 255, 255, 0.1)";
                         }}
                         onMouseLeave={(e) => {
-                            e.currentTarget.style.color = Boolean(contextMenuPos)
+                            e.currentTarget.style.color = Boolean(
+                                contextMenuPos,
+                            )
                                 ? "#ffffff"
                                 : "var(--app-subtext)";
                             e.currentTarget.style.backgroundColor =

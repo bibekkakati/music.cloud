@@ -16,6 +16,7 @@ import { SearchPage } from "./pages/SearchPage";
 import { SongCollectionView } from "./pages/SongCollectionView";
 import { AdminPage } from "./pages/admin/AdminPage";
 import { SongRoutePage } from "./pages/SongRoutePage";
+import { SettingsPage } from "./pages/SettingsPage";
 import type { SongMetadata, PlaylistSummary } from "./types";
 
 const AppContent: React.FC = () => {
@@ -168,6 +169,17 @@ const AppContent: React.FC = () => {
                         />
                         {/* Manual Protected Admin Route */}
                         <Route path="/admin" element={<AdminPage />} />
+                        {/* Settings Route */}
+                        <Route
+                            path="/settings"
+                            element={
+                                <SettingsPage
+                                    onOpenAuthModal={() =>
+                                        setAuthModalOpen(true)
+                                    }
+                                />
+                            }
+                        />
                     </Routes>
                 </main>
             </div>

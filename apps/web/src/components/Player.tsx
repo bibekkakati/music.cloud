@@ -65,6 +65,13 @@ export const Player: React.FC<PlayerProps> = ({
     const [isVolumeHovered, setIsVolumeHovered] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
 
+    // Automatically dismiss full-screen modal when current song is cleared (e.g. on logout)
+    React.useEffect(() => {
+        if (!currentSong) {
+            setIsExpanded(false);
+        }
+    }, [currentSong]);
+
     const progressPercent =
         currentSong && duration > 0 ? (currentTime / duration) * 100 : 0;
     const volumePercent = (isMuted ? 0 : volume) * 100;
@@ -387,10 +394,31 @@ export const Player: React.FC<PlayerProps> = ({
             {/* ========================================================= */}
             {/* 2. Primary Footer Player (Desktop, iPad & Mobile Mini) */}
             {/* ========================================================= */}
-            <footer className={`app-footer-player ${!currentSong ? "player-idle" : ""}`}>
-                {/* Mobile Top Edge Progress Line */}
-                <div
-                    className="mobile-mini-progressbar"
+            {!isAuthenticated ? (
+                /* Sleek Spotify-style Desktop Guest Prompt Banner */
+                <footer className="app-footer-player guest-prompt-bar">
+                    <div className="guest-prompt-content">
+                        <div className="guest-prompt-text-group">
+                            <span className="guest-prompt-eyebrow">
+                                PREVIEW OF MUSICCLOUD
+                            </span>
+                            <span className="guest-prompt-message">
+                                Sign in to stream high-fidelity audio, create playlists, and enjoy personalized recommendations.
+                            </span>
+                        </div>
+                        <button
+                            onClick={handleAuthAction}
+                            className="guest-prompt-login-btn"
+                        >
+                            Log in
+                        </button>
+                    </div>
+                </footer>
+            ) : (
+                <footer className={`app-footer-player ${!currentSong ? "player-idle" : ""}`}>
+                    {/* Mobile Top Edge Progress Line */}
+                    <div
+                        className="mobile-mini-progressbar"
                     style={{
                         position: "absolute",
                         top: 0,
@@ -963,6 +991,7 @@ export const Player: React.FC<PlayerProps> = ({
                     </div>
                 </div>
             </footer>
-        </>
-    );
+        )}
+    </>
+);
 };

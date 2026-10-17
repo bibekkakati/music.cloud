@@ -275,6 +275,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             hlsRef.current.destroy();
             hlsRef.current = null;
         }
+        if (typeof navigator !== "undefined" && "mediaSession" in navigator) {
+            navigator.mediaSession.metadata = null;
+            navigator.mediaSession.playbackState = "none";
+        }
         activeStreamToken = null;
         setCurrentSong(null);
         setQueue([]);
@@ -283,8 +287,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         setDuration(0);
         setStreamToken(null);
         setIsLiked(false);
-        localStorage.removeItem(PLAYER_STORAGE_KEY);
+        try {
+            localStorage.removeItem(PLAYER_STORAGE_KEY);
+        } catch {
+            // ignore
+        }
     }, []);
+
+    // Watch for authentication transitions (logout) to immediately halt and clear player
+    const wasAuthenticatedRef = useRef(isAuthenticated);
+    useEffect(() => {
+        if (wasAuthenticatedRef.current && !isAuthenticated) {
+            resetAndStopPlayer();
+        }
+        wasAuthenticatedRef.current = isAuthenticated;
+    }, [isAuthenticated, resetAndStopPlayer]);
 
     // Trigger cleanup when user gets logged out or is unauthenticated (only after auth check finishes)
     useEffect(() => {

@@ -72,7 +72,7 @@ export const getGreeting = (): string => {
 };
 
 /**
- * Vibrant colors palette for dynamic categories (Spotify-style curated hues)
+ * Vibrant colors palette for dynamic categories
  */
 export const CARD_COLORS: string[] = [
     "#e13300", // Crimson / Red-Orange

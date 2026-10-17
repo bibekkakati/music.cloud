@@ -8,7 +8,7 @@ import {
     Search,
     Plus,
     Library,
-    LogOut,
+    Settings,
     Music,
     X,
     Heart,
@@ -32,7 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isOpen = false,
     onClose,
 }) => {
-    const { user, isAuthenticated, logout } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
     const [librarySearch, setLibrarySearch] = useState("");
 
@@ -130,6 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                         <NavLink
                             to="/search"
+                            onClick={() => onClose && onClose()}
                             style={({ isActive }) => ({
                                 display: "flex",
                                 alignItems: "center",
@@ -151,6 +152,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                         strokeWidth={isActive ? 2.8 : 2}
                                     />
                                     <span>Search</span>
+                                </>
+                            )}
+                        </NavLink>
+
+                        <NavLink
+                            to="/settings"
+                            onClick={() => onClose && onClose()}
+                            style={({ isActive }) => ({
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 16,
+                                color: isActive
+                                    ? "#ffffff"
+                                    : "var(--app-subtext)",
+                                fontWeight: 700,
+                                fontSize: 14,
+                                textDecoration: "none",
+                                padding: "6px 0",
+                                transition: "color 0.2s ease",
+                            })}
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <Settings
+                                        size={24}
+                                        strokeWidth={isActive ? 2.8 : 2}
+                                    />
+                                    <span>Settings</span>
                                 </>
                             )}
                         </NavLink>
@@ -450,24 +479,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         )}
                     </div>
 
-                    {/* User Status Bar at bottom of sidebar */}
-                    {isAuthenticated && user && (
-                        <div
-                            style={{
-                                padding: "12px 16px",
-                                borderTop:
-                                    "1px solid rgba(255, 255, 255, 0.08)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                            }}
-                        >
-                            <div
+                    {/* User Status & Settings Bar at bottom of sidebar */}
+                    <div
+                        style={{
+                            padding: "12px 16px",
+                            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                        }}
+                    >
+                        {isAuthenticated && user ? (
+                            <NavLink
+                                to="/settings"
+                                onClick={() => onClose && onClose()}
                                 style={{
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 10,
                                     minWidth: 0,
+                                    textDecoration: "none",
+                                    color: "#ffffff",
+                                    flex: 1,
                                 }}
                             >
                                 <div
@@ -494,22 +527,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                         overflow: "hidden",
                                         textOverflow: "ellipsis",
                                         whiteSpace: "nowrap",
+                                        flex: 1,
                                     }}
                                 >
                                     {user.email.split("@")[0]}
                                 </div>
-                            </div>
-
-                            <button
-                                onClick={logout}
-                                className="app-btn-ghost"
-                                title="Log out"
-                                style={{ color: "var(--app-subtext)" }}
+                            </NavLink>
+                        ) : (
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    color: "var(--app-subtext)",
+                                }}
                             >
-                                <LogOut size={16} />
-                            </button>
-                        </div>
-                    )}
+                                Guest Mode
+                            </div>
+                        )}
+
+                        <NavLink
+                            to="/settings"
+                            onClick={() => onClose && onClose()}
+                            className="app-btn-ghost"
+                            title="Settings"
+                            style={{
+                                color: "var(--app-subtext)",
+                                padding: 4,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                            }}
+                        >
+                            <Settings size={18} />
+                        </NavLink>
+                    </div>
                 </div>
             </aside>
         </>
