@@ -7,7 +7,6 @@ import {
     updateApiBaseUrl,
 } from "../api";
 import {
-    Server,
     Link as LinkIcon,
     CheckCircle2,
     AlertCircle,
@@ -17,7 +16,6 @@ import {
     LogOut,
     LogIn,
     ShieldCheck,
-    User as UserIcon,
     Info,
     Loader2,
 } from "lucide-react";
