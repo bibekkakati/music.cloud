@@ -162,31 +162,35 @@ function getAuthToken(request, url) {
 	return url.searchParams.get("token");
 }
 
-let _originsRaw, _origins = [];
+let _originsRaw, _origins = new Set();
 function allowedOrigins(env) {
 	const raw = env.ALLOWED_ORIGINS || "";
 	if (raw !== _originsRaw) {
 		_originsRaw = raw;
-		_origins = raw.split(",").map((s) => s.trim()).filter(Boolean);
+		_origins = new Set(
+			raw.split(",").map((s) => s.trim()).filter((s) => s && s !== "*")
+		);
 	}
 	return _origins;
 }
 
+const DEV_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
 function corsHeaders(request, env) {
 	const origin = request.headers.get("Origin");
-	const allowed = allowedOrigins(env);
-	const h = new Headers({
-		"Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-		"Access-Control-Allow-Headers": "Authorization, Content-Type, If-None-Match",
-		"Access-Control-Expose-Headers": "Content-Length, ETag, X-Cache-Status",
-		"Access-Control-Max-Age": "86400",
-		"Vary": "Origin",
-	});
-	const isAllowed = origin && (
-		allowed.includes(origin) ||
-		allowed.includes("*") ||
-		/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
-	);
-	h.set("Access-Control-Allow-Origin", isAllowed ? origin : "*");
+	const h = new Headers({ "Vary": "Origin" });
+	if (!origin) return h;
+
+	const isAllowed =
+		allowedOrigins(env).has(origin) ||
+		(env.ENVIRONMENT === "development" && DEV_ORIGIN.test(origin));
+
+	if (!isAllowed) return null; // caller should respond 403
+
+	h.set("Access-Control-Allow-Origin", origin);
+	h.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+	h.set("Access-Control-Allow-Headers", "Authorization, Content-Type, If-None-Match");
+	h.set("Access-Control-Expose-Headers", "Content-Length, ETag, X-Cache-Status");
+	h.set("Access-Control-Max-Age", "86400");
 	return h;
 }
