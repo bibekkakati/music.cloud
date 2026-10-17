@@ -43,6 +43,9 @@ export interface SongPublic {
     stream_url?: string | null;
     album?: string;
     year?: number;
+    genre?: string | null;
+    moods?: string[];
+    language?: string | null;
     created_at?: string;
 }
 
@@ -59,6 +62,9 @@ export interface AdminSongDetail extends SongPublic {
     updated_at: string;
     status?: string;
     is_public?: boolean;
+    genre?: string | null;
+    moods?: string[];
+    language?: string | null;
 }
 
 export type SongDetail = AdminSongDetail;

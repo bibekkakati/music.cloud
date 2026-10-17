@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 
 from app.dependencies.auth import AdminUser, require_admin
 from app.infra.database import DatabaseSession
-from app.models.song import SongProcessingStatus
+from app.models.song import Song, SongProcessingStatus
 from app.schemas.song import (
     AdminSongListResponsePayload,
     AdminSongResponsePayload,
@@ -14,11 +14,46 @@ from app.schemas.song import (
     SongProcessRequestPayload,
     SongUploadResponsePayload,
 )
+from app.services.master import MasterService
 from app.services.song import SongService
 from app.services.song_search import song_search
-from app.utils.stream_helper import get_cover_art_url
+from app.utils.stream_helper import get_cover_art_url, get_stream_url
 
 router = APIRouter(prefix="/song", dependencies=[Depends(require_admin)])
+
+
+def to_admin_song_payload(
+    song: Song,
+    master_service: MasterService,
+    all_genres: dict[int, str] | None = None,
+    all_moods: dict[int, str] | None = None,
+    all_languages: dict[int, str] | None = None,
+) -> AdminSongResponsePayload:
+    genres = all_genres if all_genres is not None else master_service.get_all_genres()
+    moods = all_moods if all_moods is not None else master_service.get_all_moods()
+    languages = (
+        all_languages
+        if all_languages is not None
+        else master_service.get_all_languages()
+    )
+
+    genre_name = genres.get(song.genre) if song.genre is not None else None
+    mood_names = [moods[m] for m in (song.moods or []) if m in moods]
+    language_name = languages.get(song.language) if song.language is not None else None
+
+    return AdminSongResponsePayload(
+        **song.model_dump(exclude={"genre", "moods", "language"}),
+        genre=genre_name,
+        moods=mood_names,
+        language=language_name,
+        cover_art_url=get_cover_art_url(song.cover_art_key),
+        stream_url=(
+            get_stream_url(song.master_aac_key, song.master_mp3_key)
+            if song.status == SongProcessingStatus.DONE
+            else None
+        ),
+    )
+
 
 SUPPORTED_CONTENT_TYPES = [
     "audio/mpeg",
@@ -140,11 +175,19 @@ def get_all_songs(
     page_songs = songs[:20] if has_next else songs
     next_cursor = str(page_songs[-1].id) if has_next and page_songs else None
 
+    master_service = MasterService(db)
+    all_genres = master_service.get_all_genres()
+    all_moods = master_service.get_all_moods()
+    all_languages = master_service.get_all_languages()
+
     return AdminSongListResponsePayload(
         songs=[
-            AdminSongResponsePayload(
-                **song.model_dump(),
-                cover_art_url=get_cover_art_url(song.cover_art_key),
+            to_admin_song_payload(
+                song,
+                master_service=master_service,
+                all_genres=all_genres,
+                all_moods=all_moods,
+                all_languages=all_languages,
             )
             for song in page_songs
         ],
@@ -166,10 +209,7 @@ def get_song(
     song_service = SongService(db)
     try:
         song = song_service.get_song(song_id)
-        return AdminSongResponsePayload(
-            **song.model_dump(),
-            cover_art_url=get_cover_art_url(song.cover_art_key),
-        )
+        return to_admin_song_payload(song, MasterService(db))
     except ValueError as e:
         raise HTTPException(status_code=404, detail="Song not found") from e
 
@@ -205,10 +245,7 @@ def update_song_metadata(
             song_search.update_song(song)
         else:
             song_search.remove_song(str(song.id))
-        return AdminSongResponsePayload(
-            **song.model_dump(),
-            cover_art_url=cover_art_url,
-        )
+        return to_admin_song_payload(song, MasterService(db))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -275,10 +312,7 @@ def update_song_cover_art(
         cover_art_url = get_cover_art_url(song.cover_art_key)
         if song.is_public:
             song_search.update_song(song)
-        return AdminSongResponsePayload(
-            **song.model_dump(),
-            cover_art_url=cover_art_url,
-        )
+        return to_admin_song_payload(song, MasterService(db))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -299,3 +333,22 @@ async def delete_song(
         return {"message": "Song deleted successfully", "song_id": song_id}
     except ValueError as e:
         raise HTTPException(status_code=404, detail="Song not found") from e
+
+
+@router.post(
+    "/{song_id}/sync-properties",
+    response_model=AdminSongResponsePayload,
+    summary="Trigger agent to identify and synchronize song genre, moods, and language",
+    status_code=status.HTTP_200_OK,
+)
+async def sync_properties(
+    song_id: Annotated[str, Path(..., title="Song ID")],
+    user: AdminUser,
+    db: DatabaseSession,
+):
+    song_service = SongService(db)
+    try:
+        song = await song_service.sync_properties(song_id)
+        return to_admin_song_payload(song, MasterService(db))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e

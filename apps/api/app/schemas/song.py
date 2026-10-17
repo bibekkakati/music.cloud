@@ -14,6 +14,9 @@ class SongPublicResponsePayload(BaseModel):
     stream_url: str | None = None
     album: str | None = None
     year: int | None = None
+    genre: str | None = None
+    moods: list[str] = []
+    language: str | None = None
 
 
 # --- Admin Only Schemas ---
@@ -21,12 +24,17 @@ class AdminSongResponsePayload(BaseModel):
     id: UUID | str
     title: str
     artist: str
+    album: str | None = None
+    genre: str | None = None
+    moods: list[str] = []
+    language: str | None = None
     duration_sec: int | None = None
     original_key: str
     master_mp3_key: str | None = None
     master_aac_key: str | None = None
     cover_art_key: str | None = None
     cover_art_url: str | None = None
+    stream_url: str | None = None
     source_bitrate_kbps: int | None = None
     status: str | None = None
     is_public: bool = False

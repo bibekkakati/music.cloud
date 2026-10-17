@@ -3,16 +3,13 @@ import logging
 import shutil
 from contextlib import nullcontext
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlmodel import Session
 
 from app.core.config import settings
 from app.infra.database import engine
-from app.models.song import Song, SongProcessingStatus
 from app.services.song import SongService
-from app.services.song_search import song_search
 from app.services.storage import storage
 from app.utils.audio_processor import AudioProcessor, AudioProcessorResult
 
@@ -81,16 +78,12 @@ class SongProcessor:
 
     def _mark_processing(self, song_id: str) -> None:
         """
-        Mark song as processing using a short-lived DB transaction
+        Mark song as processing using SongService
         """
         try:
             with self._get_db() as db:
-                song = db.get(Song, song_id)
-                if song:
-                    song.status = SongProcessingStatus.PROCESSING
-                    db.add(song)
-                    db.commit()
-        except Exception as e:
+                SongService(db).mark_processing(song_id)
+        except Exception as e:  # noqa: BLE001
             logger.warning("Could not mark song %s as processing: %s", song_id, e)
 
     def _mark_failed(
@@ -99,7 +92,7 @@ class SongProcessor:
         error: Exception,
     ) -> None:
         """
-        Mark song as failed using a fresh DB transaction
+        Mark song as failed using SongService
         """
         logger.error(
             "Audio processing failed for song %s: %s",
@@ -109,12 +102,8 @@ class SongProcessor:
 
         try:
             with Session(engine) as db:
-                song = db.get(Song, song_id)
-                if song:
-                    song.status = SongProcessingStatus.FAILED
-                    db.add(song)
-                    db.commit()
-        except Exception as e:
+                SongService(db).mark_failed(song_id)
+        except Exception as e:  # noqa: BLE001
             logger.error("Could not mark song %s as failed in database: %s", song_id, e)
 
     async def _process_audio(
@@ -124,12 +113,12 @@ class SongProcessor:
         trim_start_sec: float,
     ) -> AudioProcessorResult:
         """
-        Process audio file via ffmpeg
+        Process audio file via ffmpeg HLS pipeline
         """
         processor = AudioProcessor(
-            original_file,
-            output_dir,
-            trim_start_sec,
+            source_path=str(original_file),
+            output_root=str(output_dir),
+            trim_start_sec=trim_start_sec,
         )
 
         await processor.process()
@@ -140,10 +129,10 @@ class SongProcessor:
     def _build_upload_manifest(
         self,
         song_id: str,
-        result,
+        result: AudioProcessorResult,
     ) -> tuple[list[StorageUpload], str | None, str | None, str | None]:
         """
-        Build upload manifest
+        Build upload manifest for HLS playlists, segments, and cover art
         """
         storage_base_key = f"{song_id}/"
 
@@ -198,6 +187,7 @@ class SongProcessor:
             StorageUpload(
                 local_path=Path(playlist_path),
                 s3_key=s3_key,
+                content_type="application/vnd.apple.mpegurl",
             )
         )
 
@@ -221,10 +211,17 @@ class SongProcessor:
                 if not file_path.is_file():
                     continue
 
+                content_type = (
+                    "application/vnd.apple.mpegurl"
+                    if file_path.suffix == ".m3u8"
+                    else "video/mp2t"
+                )
+
                 uploads.append(
                     StorageUpload(
                         local_path=file_path,
                         s3_key=f"{variant_base_key}/{file_path.name}",
+                        content_type=content_type,
                     )
                 )
 
@@ -294,44 +291,27 @@ class SongProcessor:
         cover_art_key: str | None,
     ) -> None:
         """
-        Mark song as completed and update search index
+        Mark song as completed and update search index via SongService
         """
         metadata = result.metadata
 
         with self._get_db() as db:
-            song = db.get(Song, song_id)
-            if not song:
-                logger.error("Song %s not found when marking completed", song_id)
-                return
-
-            song.title = metadata.title or song.title
-            song.artist = metadata.artist or song.artist
-
-            # multiple artist names are separeted by "/" in metadata
-            # replace "/" by ", " in artist name
-            song.artist = song.artist.replace("/", ", ")
-            # cleanup of dashes in artist names
-            song.artist = song.artist.replace("-", " ")
-
-            song.year = metadata.year or None
-            song.album = metadata.album or None
-
-            song.duration_sec = metadata.duration_sec
-
-            song.master_mp3_key = master_mp3_key
-            song.master_aac_key = master_aac_key
-            song.cover_art_key = cover_art_key
-
-            song.source_bitrate_kbps = metadata.bitrate_kbps
-            song.status = SongProcessingStatus.DONE
-            song.updated_at = datetime.now(UTC)
-
-            db.add(song)
-            db.commit()
-            db.refresh(song)
-
-            # Update search index with transcoded song metadata
-            song_search.update_song(song)
+            SongService(db).mark_completed(
+                song_id=song_id,
+                title=metadata.title,
+                artist=metadata.artist,
+                year=(
+                    int(metadata.year)
+                    if metadata.year and metadata.year.isdigit()
+                    else None
+                ),
+                album=metadata.album,
+                duration_sec=round(metadata.duration_sec),
+                bitrate_kbps=metadata.bitrate_kbps,
+                master_mp3_key=master_mp3_key,
+                master_aac_key=master_aac_key,
+                cover_art_key=cover_art_key,
+            )
 
         logger.info(
             "Song %s processed successfully",
@@ -344,21 +324,32 @@ class SongProcessor:
         output_dir: Path,
     ) -> None:
         """
-        Cleanup workspace
+        Cleanup temporary workspace files safely
         """
         try:
             if original_file.exists():
-                original_file.unlink()
-
+                original_file.unlink(missing_ok=True)
             if output_dir.exists():
-                shutil.rmtree(output_dir)
-
-        except Exception:
+                shutil.rmtree(output_dir, ignore_errors=True)
+            logger.info("Cleaned up workspace directory: %s", output_dir)
+        except Exception as e:  # noqa: BLE001
             logger.warning(
-                "Failed to cleanup workspace: %s",
-                output_dir,
-                exc_info=True,
+                "Could not cleanup workspace for %s: %s",
+                original_file,
+                e,
             )
+
+    async def _tag_song_properties(self, song_id: str) -> None:
+        """
+        Trigger agent to identify mood, genre, and language via SongService.sync_properties.
+        Failures are logged as warnings and never propagate or fail the pipeline.
+        """
+        try:
+            with self._get_db() as db:
+                await SongService(db).sync_properties(song_id)
+            logger.info("Tagged song properties successfully for song %s", song_id)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Failed to fetch song properties %s: %s", song_id, e)
 
     async def start_processing_pipeline(
         self,
@@ -369,13 +360,14 @@ class SongProcessor:
         """
         Start song processing pipeline
         """
-        # Fetch initial song record
+        # Fetch initial song record via SongService
         with self._get_db() as db:
-            song = db.get(Song, song_id)
-            if not song:
-                logger.error("Song %s not found in database", song_id)
+            try:
+                song = SongService(db).get_song(song_id)
+                original_key = song.original_key
+            except Exception as e:
+                logger.error("Song %s not found in database: %s", song_id, e)
                 return
-            original_key = song.original_key
 
         try:
             original_file, output_dir = await self._prepare_workspace(
@@ -416,5 +408,11 @@ class SongProcessor:
                 output_dir,
             )
 
+            # Auto-tag song with genre, moods, and language
+            await self._tag_song_properties(song_id)
+
         except Exception as e:  # noqa: BLE001
             self._mark_failed(song_id, e)
+
+
+song_processor = SongProcessor()

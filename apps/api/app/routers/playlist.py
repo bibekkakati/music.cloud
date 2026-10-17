@@ -1,13 +1,7 @@
-from app.schemas.playlist import GetCategorySongsResponsePayload
-from app.schemas.playlist import MasterItem
-from app.services.master import MasterService
-from app.schemas.playlist import CategoryResponsePayload
-from sqlalchemy.dialects.postgresql import Any
 from uuid import UUID
 
-from app.utils.stream_helper import get_cover_art_url, get_stream_url
-
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.dialects.postgresql import Any
 
 from app.dependencies.auth import CurrentUser, get_current_user
 from app.infra.database import DatabaseSession
@@ -15,19 +9,25 @@ from app.models.playlist import Playlist, PlaylistSong
 from app.schemas.playlist import (
     AddPlaylistSongRequestPayload,
     AddPlaylistSongResponsePayload,
+    CategoryResponsePayload,
     CreatePlaylistRequestPayload,
     CreatePlaylistResponsePayload,
-    GetPlaylistSongsResponsePayload,
+    GetCategorySongsResponsePayload,
     GetPlaylistsByUserResponsePayload,
+    GetPlaylistSongsResponsePayload,
+    MasterItem,
     RemovePlaylistRequestPayload,
     RemovePlaylistSongBySongIdRequestPayload,
-    UpdatePlaylistRequestPayload,
-    UpdatePlaylistResponsePayload,
+    SongLikedStatusResponsePayload,
     ToggleLikeSongRequestPayload,
     ToggleLikeSongResponsePayload,
-    SongLikedStatusResponsePayload,
+    UpdatePlaylistRequestPayload,
+    UpdatePlaylistResponsePayload,
 )
+from app.services.master import MasterService
 from app.services.playlist import PlaylistService
+from app.services.song_search import song_search
+from app.utils.stream_helper import get_cover_art_url, get_stream_url
 
 router = APIRouter(prefix="/playlist", dependencies=[Depends(get_current_user)])
 
@@ -58,11 +58,16 @@ def get_playlists(
     playlists: list[dict] = playlist_service.get_playlists(current_user.id)
 
     if song_id:
-        song_playlists_set = set(playlist_service.get_playlists_by_song(user_id=current_user.id, song_id=song_id))
+        song_playlists_set = set(
+            playlist_service.get_playlists_by_song(
+                user_id=current_user.id, song_id=song_id
+            )
+        )
         for playlist in playlists:
-            playlist['contains_song'] = playlist['id'] in song_playlists_set
+            playlist["contains_song"] = playlist["id"] in song_playlists_set
 
     return playlists
+
 
 @router.post(
     "",
@@ -257,10 +262,17 @@ def get_category_master(
 
     return {
         "static": STATIC_CATEGORIES,
-        "genres": [MasterItem(id=item_id, label=label) for item_id, label in genres.items()],
-        "moods": [MasterItem(id=item_id, label=label) for item_id, label in moods.items()],
-        "languages": [MasterItem(id=item_id, label=label) for item_id, label in languages.items()],
+        "genres": [
+            MasterItem(id=item_id, label=label) for item_id, label in genres.items()
+        ],
+        "moods": [
+            MasterItem(id=item_id, label=label) for item_id, label in moods.items()
+        ],
+        "languages": [
+            MasterItem(id=item_id, label=label) for item_id, label in languages.items()
+        ],
     }
+
 
 @router.get(
     "/category",
@@ -279,23 +291,25 @@ def get_category_songs(
     Retrieve songs for a category using the in-memory song_search index.
     Client sends the category label as shown in UI plus the raw master id.
     """
-    from app.services.song_search import song_search
-
     # Enforce safe bounds: min 1, max 40
     safe_limit = max(1, min(limit, 40))
     clean_label = label.strip()
 
     static_cat = next(
         (
-            s for s in STATIC_CATEGORIES
-            if s.label.lower() == clean_label.lower() or str(s.id).lower() == clean_label.lower()
+            s
+            for s in STATIC_CATEGORIES
+            if s.label.lower() == clean_label.lower()
+            or str(s.id).lower() == clean_label.lower()
         ),
         None,
     )
     if static_cat:
         # Static categories: latest songs (e.g. "Made for you", "New Releases")
         id, label = static_cat.id, static_cat.label
-        matched_songs, total_count = song_search.get_latest_songs(page=page, limit=safe_limit)
+        matched_songs, total_count = song_search.get_latest_songs(
+            page=page, limit=safe_limit
+        )
     else:
         master_service = MasterService(db)
         tables = (

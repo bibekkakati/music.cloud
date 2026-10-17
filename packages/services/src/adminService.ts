@@ -242,4 +242,12 @@ export const adminService = {
         );
         return response.data;
     },
+
+    syncSongProperties: async (songId: string): Promise<SongDetail> => {
+        const response = await apiClient.post<SongDetail>(
+            `/api/v1/admin/song/${songId}/sync-properties`,
+        );
+        return response.data;
+    },
 };
+

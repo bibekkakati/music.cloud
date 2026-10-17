@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from rapidfuzz import fuzz
 
 from app.core.config import settings
 from app.models.song import Song, SongProcessingStatus
-from app.services.song import SongService
+
+if TYPE_CHECKING:
+    from app.services.song import SongService
 
 logger = logging.getLogger("uvicorn.error")
 

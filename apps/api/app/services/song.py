@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import UTC, datetime
 from uuid import UUID, uuid7
@@ -13,6 +14,9 @@ from app.schemas.song import (
     SongDownloadUrlResponsePayload,
     SongUploadResponsePayload,
 )
+from app.services.ai_agent import aiagent
+from app.services.master import MasterService
+from app.services.song_search import song_search
 from app.services.storage import storage
 
 logger = logging.getLogger("uvicorn.error")
@@ -23,7 +27,7 @@ class SongService:
         self.db = db
         self.base_folder: str = "./tmp"
 
-    def get_song(self, song_id: str) -> Song:
+    def get_song(self, song_id: str | UUID) -> Song:
         """
         Get song from database
         """
@@ -32,6 +36,64 @@ class SongService:
         if not song:
             raise ValueError("Song not found")
 
+        return song
+
+    def mark_processing(self, song_id: str | UUID) -> None:
+        """Mark song status as PROCESSING."""
+        song = self.db.get(Song, song_id)
+        if song:
+            song.status = SongProcessingStatus.PROCESSING
+            self.db.add(song)
+            self.db.commit()
+
+    def mark_failed(self, song_id: str | UUID) -> None:
+        """Mark song status as FAILED."""
+        song = self.db.get(Song, song_id)
+        if song:
+            song.status = SongProcessingStatus.FAILED
+            self.db.add(song)
+            self.db.commit()
+
+    def mark_completed(
+        self,
+        song_id: str | UUID,
+        title: str | None,
+        artist: str | None,
+        year: int | None,
+        album: str | None,
+        duration_sec: int,
+        bitrate_kbps: int,
+        master_mp3_key: str | None,
+        master_aac_key: str | None,
+        cover_art_key: str | None,
+    ) -> Song | None:
+        """Mark song as completed with extracted audio metadata and update search index."""
+        song = self.db.get(Song, song_id)
+        if not song:
+            logger.error("Song %s not found when marking completed", song_id)
+            return None
+
+        if title:
+            song.title = title
+        if artist:
+            clean_artist = artist.replace("/", ", ").replace("-", " ")
+            song.artist = clean_artist
+
+        song.year = year
+        song.album = album
+        song.duration_sec = duration_sec
+        song.source_bitrate_kbps = bitrate_kbps
+        song.master_mp3_key = master_mp3_key
+        song.master_aac_key = master_aac_key
+        song.cover_art_key = cover_art_key
+        song.status = SongProcessingStatus.DONE
+        song.updated_at = datetime.now(UTC)
+
+        self.db.add(song)
+        self.db.commit()
+        self.db.refresh(song)
+
+        song_search.update_song(song)
         return song
 
     def get_all_songs(
@@ -255,8 +317,6 @@ class SongService:
 
         # Evict from search index immediately so user queries won't return it
         try:
-            from app.services.song_search import song_search
-
             song_search.remove_song(str(song.id))
         except Exception as e:  # noqa: BLE001
             logger.warning("Error evicting song %s from search index: %s", song_id, e)
@@ -267,3 +327,48 @@ class SongService:
             {"song_id": str(song.id)},
             {"attempts": 3, "removeOnComplete": True},
         )
+
+    async def sync_properties(self, song_id: str | UUID) -> Song:
+        """
+        Manually trigger the agent to extract genre, moods, and language for a song,
+        map them using MasterService, and save to the database and search index.
+        """
+        song = self.get_song(song_id)
+
+        properties = await asyncio.to_thread(
+            aiagent.get_song_properties,
+            title=song.title,
+            artist=song.artist,
+            album=song.album,
+        )
+
+        if not properties:
+            raise ValueError(
+                f"Agent could not identify properties for '{song.title}'. Please verify the title/artist or try again."
+            )
+
+        master_service = MasterService(self.db)
+
+        # Resolve genre ID
+        genre_res = master_service.get_genre_by_name(properties.genre.value)
+        song.genre = genre_res[0] if genre_res else None
+
+        # Resolve mood IDs
+        mood_ids = []
+        for m in properties.moods:
+            m_res = master_service.get_mood_by_name(m.value)
+            if m_res:
+                mood_ids.append(m_res[0])
+        song.moods = mood_ids
+
+        # Resolve language ID
+        lang_res = master_service.get_language_by_name(properties.language.value)
+        song.language = lang_res[0] if lang_res else None
+
+        song.updated_at = datetime.now(UTC)
+        self.db.add(song)
+        self.db.commit()
+        self.db.refresh(song)
+
+        song_search.update_song(song)
+        return song

@@ -7,10 +7,9 @@ interface AdminSongInspectorModalProps {
     onClose: () => void;
 }
 
-export const AdminSongInspectorModal: React.FC<AdminSongInspectorModalProps> = ({
-    song,
-    onClose,
-}) => {
+export const AdminSongInspectorModal: React.FC<
+    AdminSongInspectorModalProps
+> = ({ song, onClose }) => {
     if (!song) return null;
 
     return (
@@ -218,8 +217,64 @@ export const AdminSongInspectorModal: React.FC<AdminSongInspectorModalProps> = (
                             >
                                 Bitrate
                             </span>
-                            <span>
-                                {song.source_bitrate_kbps} kbps
+                            <span>{song.source_bitrate_kbps} kbps</span>
+                        </div>
+                    </div>
+
+                    {/* Metadata Tags */}
+                    <div
+                        style={{
+                            background: "rgba(255,255,255,0.03)",
+                            padding: 12,
+                            borderRadius: "var(--radius-sm)",
+                            border: "1px solid rgba(255, 255, 255, 0.05)",
+                        }}
+                    >
+                        <span
+                            style={{
+                                color: "var(--text-muted)",
+                                display: "block",
+                                fontSize: 11,
+                                marginBottom: 6,
+                            }}
+                        >
+                            Tags
+                        </span>
+                        <div
+                            style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: 8,
+                            }}
+                        >
+                            <span
+                                className="app-tag-pill"
+                                style={{ fontSize: 12 }}
+                            >
+                                Genre:{" "}
+                                <strong style={{ color: "var(--app-text)" }}>
+                                    {song.genre || "N/A"}
+                                </strong>
+                            </span>
+                            <span
+                                className="app-tag-pill"
+                                style={{ fontSize: 12 }}
+                            >
+                                Language:{" "}
+                                <strong style={{ color: "var(--app-text)" }}>
+                                    {song.language || "N/A"}
+                                </strong>
+                            </span>
+                            <span
+                                className="app-tag-pill"
+                                style={{ fontSize: 12 }}
+                            >
+                                Moods:{" "}
+                                <strong style={{ color: "var(--app-text)" }}>
+                                    {song.moods?.length
+                                        ? song.moods.join(", ")
+                                        : "N/A"}
+                                </strong>
                             </span>
                         </div>
                     </div>

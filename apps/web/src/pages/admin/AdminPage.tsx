@@ -43,6 +43,9 @@ export const AdminPage: React.FC = () => {
     const [reprocessingSongIds, setReprocessingSongIds] = useState<Set<string>>(
         new Set(),
     );
+    const [resyncingSongIds, setResyncingSongIds] = useState<Set<string>>(
+        new Set(),
+    );
 
     // --- Modals State ---
     const [inspectingSong, setInspectingSong] = useState<SongDetail | null>(
@@ -256,6 +259,33 @@ export const AdminPage: React.FC = () => {
         }
     };
 
+    // Resync Properties (Genre, Moods, Language)
+    const handleSyncProperties = async (song: SongDetail) => {
+        try {
+            setResyncingSongIds((prev) => new Set(prev).add(song.id));
+            const updated = await adminService.syncSongProperties(song.id);
+            setSongs((prev) =>
+                prev.map((s) => (s.id === song.id ? { ...s, ...updated } : s)),
+            );
+            showToast(
+                "Properties Synchronized",
+                "success",
+                `Updated tags for "${song.title}".`,
+            );
+        } catch (err: unknown) {
+            const msg =
+                (err as { response?: { data?: { detail?: string } } })?.response
+                    ?.data?.detail || "Failed to sync song properties";
+            showToast("Sync Failed", "error", msg);
+        } finally {
+            setResyncingSongIds((prev) => {
+                const next = new Set(prev);
+                next.delete(song.id);
+                return next;
+            });
+        }
+    };
+
     // Save Edited Metadata
     const handleSaveMetadata = async (
         songId: string,
@@ -447,6 +477,7 @@ export const AdminPage: React.FC = () => {
                     loadingSongs={loadingSongs}
                     refreshingSongIds={refreshingSongIds}
                     reprocessingSongIds={reprocessingSongIds}
+                    resyncingSongIds={resyncingSongIds}
                     currentPage={currentPage}
                     hasNextPage={hasNextPage}
                     selectedStatus={selectedStatus}
@@ -457,6 +488,7 @@ export const AdminPage: React.FC = () => {
                     onReprocessSong={handleReprocessSong}
                     onRefreshSongStatus={handleRefreshSongStatus}
                     onDeleteSong={handleDeleteSong}
+                    onSyncProperties={handleSyncProperties}
                     onNextPage={handleNextPage}
                     onPrevPage={handlePrevPage}
                     onSwitchToUpload={() => setActiveTab("upload")}

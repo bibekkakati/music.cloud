@@ -1,20 +1,26 @@
-from app.schemas.song import SongDownloadUrlResponsePayload
-from app.models.song import SongProcessingStatus
-from app.services.song_search import song_search
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.dependencies.auth import CurrentUser
 from app.infra.database import DatabaseSession
+from app.models.song import SongProcessingStatus
 from app.schemas.song import (
+    SongDownloadUrlResponsePayload,
     SongPublicResponsePayload,
     StreamTokenResponsePayload,
 )
+from app.services.master import MasterService
 from app.services.song import SongService
-from app.utils.stream_helper import generate_stream_token, get_cover_art_url, get_stream_url
+from app.services.song_search import song_search
+from app.utils.stream_helper import (
+    generate_stream_token,
+    get_cover_art_url,
+    get_stream_url,
+)
 
 router = APIRouter(prefix="/song")
+
 
 @router.get(
     "/search/suggestions",
@@ -30,7 +36,7 @@ def search_song_suggestions(
     clean_q = q.strip()
     if len(clean_q) <= 2:
         return []
-    
+
     results = song_search.search_song(clean_q, limit=limit)
     return [
         SongPublicResponsePayload(
@@ -60,6 +66,7 @@ async def get_stream_token(
         token_type="bearer",
         expires_at=expires_at,
     )
+
 
 @router.get(
     "/{song_id}/download-url",
@@ -100,11 +107,29 @@ def get_song_by_id(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Song not found or not public",
             )
+        master_service = MasterService(db)
+        genre_name = (
+            master_service.get_genre_by_id(song.genre)
+            if song.genre is not None
+            else None
+        )
+        mood_names = [master_service.get_mood_by_id(m) for m in (song.moods or [])]
+        language_name = (
+            master_service.get_language_by_id(song.language)
+            if song.language is not None
+            else None
+        )
+
         return SongPublicResponsePayload(
             id=song.id,
             title=song.title,
             artist=song.artist,
             duration_sec=song.duration_sec,
+            album=song.album,
+            year=song.year,
+            genre=genre_name,
+            moods=[m for m in mood_names if m],
+            language=language_name,
             cover_art_url=get_cover_art_url(song.cover_art_key),
             stream_url=get_stream_url(song.master_aac_key, song.master_mp3_key),
         )
@@ -115,6 +140,3 @@ def get_song_by_id(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Song not found",
         )
-
-
-

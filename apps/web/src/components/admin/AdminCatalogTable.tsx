@@ -1,21 +1,12 @@
 import React from "react";
 import type { SongDetail } from "../../types";
-import { SongCoverArt } from "../SongCoverArt";
+import { AdminSongRow } from "./AdminSongRow";
 import {
     Upload,
-    CheckCircle2,
-    Edit3,
-    Eye,
-    RefreshCw,
-    RotateCw,
-    Loader2,
-    Play,
-    Globe,
-    Lock,
     ChevronLeft,
     ChevronRight,
-    Trash2,
     Filter,
+    Loader2,
 } from "lucide-react";
 
 interface AdminCatalogTableProps {
@@ -23,6 +14,7 @@ interface AdminCatalogTableProps {
     loadingSongs: boolean;
     refreshingSongIds: Set<string>;
     reprocessingSongIds: Set<string>;
+    resyncingSongIds?: Set<string>;
     currentPage: number;
     hasNextPage: boolean;
     selectedStatus: string;
@@ -33,6 +25,7 @@ interface AdminCatalogTableProps {
     onReprocessSong: (song: SongDetail) => void;
     onRefreshSongStatus: (songId: string) => void;
     onDeleteSong?: (song: SongDetail) => void;
+    onSyncProperties: (song: SongDetail) => void;
     onNextPage: () => void;
     onPrevPage: () => void;
     onSwitchToUpload: () => void;
@@ -52,16 +45,17 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
     loadingSongs,
     refreshingSongIds,
     reprocessingSongIds,
+    resyncingSongIds,
     currentPage,
     hasNextPage,
     selectedStatus,
     onStatusChange,
-    onPlaySong,
     onInspectSong,
     onEditSong,
     onReprocessSong,
     onRefreshSongStatus,
     onDeleteSong,
+    onSyncProperties,
     onNextPage,
     onPrevPage,
     onSwitchToUpload,
@@ -248,11 +242,12 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
     return (
         <>
             {renderFilterToolbar()}
-            <div style={{ overflowX: "auto" }}>
+            <div style={{ overflowX: "auto", position: "relative" }}>
                 <table
                     style={{
                         width: "100%",
-                        borderCollapse: "collapse",
+                        borderCollapse: "separate",
+                        borderSpacing: 0,
                         textAlign: "left",
                         fontSize: 13,
                     }}
@@ -260,7 +255,6 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                     <thead>
                         <tr
                             style={{
-                                borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
                                 color: "var(--app-subtext)",
                                 fontSize: 12,
                                 fontWeight: 600,
@@ -268,350 +262,99 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                                 letterSpacing: "0.05em",
                             }}
                         >
-                            <th style={{ padding: "10px 14px" }}>Track</th>
-                            <th style={{ padding: "10px 14px" }}>Duration</th>
-                            <th style={{ padding: "10px 14px" }}>Bitrate</th>
-                            <th style={{ padding: "10px 14px" }}>Keys</th>
-                            <th style={{ padding: "10px 14px" }}>Status</th>
-                            <th style={{ padding: "10px 14px" }}>Visibility</th>
-                            <th style={{ padding: "10px 14px" }}>Created</th>
                             <th
                                 style={{
                                     padding: "10px 14px",
-                                    textAlign: "right",
+                                    width: 48,
+                                    textAlign: "center",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
                                 }}
                             >
-                                Actions
+                                #
                             </th>
+                            <th
+                                style={{
+                                    padding: "10px 14px",
+                                    minWidth: 200,
+                                    maxWidth: 280,
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                                }}
+                            >
+                                Track
+                            </th>
+                            <th
+                                style={{
+                                    padding: "10px 14px",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                                }}
+                            >
+                                Duration
+                            </th>
+                            <th
+                                style={{
+                                    padding: "10px 14px",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                                }}
+                            >
+                                Bitrate
+                            </th>
+                            <th
+                                style={{
+                                    padding: "10px 14px",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                                }}
+                            >
+                                Status
+                            </th>
+                            <th
+                                style={{
+                                    padding: "10px 14px",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                                }}
+                            >
+                                Visibility
+                            </th>
+                            <th
+                                style={{
+                                    padding: "10px 14px",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                                }}
+                            >
+                                Created
+                            </th>
+                            <th
+                                style={{
+                                    padding: "10px 14px",
+                                    textAlign: "center",
+                                    width: 56,
+                                    position: "sticky",
+                                    right: 0,
+                                    background: "var(--app-base, #121212)",
+                                    zIndex: 10,
+                                    boxShadow: "-4px 0 8px rgba(0, 0, 0, 0.35)",
+                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                                }}
+                            ></th>
                         </tr>
                     </thead>
                     <tbody>
-                        {songs.map((song) => {
-                            const isPrivateAndDone =
-                                song.is_public === false &&
-                                song.status?.toLowerCase() === "done";
-                            return (
-                                <tr
-                                    key={song.id}
-                                    style={{
-                                        borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
-                                        transition: "all 0.15s ease",
-                                        opacity: isPrivateAndDone ? 0.5 : 1,
-                                        filter: isPrivateAndDone ? "grayscale(0.35)" : "none",
-                                        background: isPrivateAndDone ? "rgba(0, 0, 0, 0.25)" : "transparent",
-                                    }}
-                                    onMouseEnter={(e) =>
-                                        (e.currentTarget.style.background = isPrivateAndDone
-                                            ? "rgba(255, 255, 255, 0.06)"
-                                            : "rgba(255, 255, 255, 0.03)")
-                                    }
-                                    onMouseLeave={(e) =>
-                                        (e.currentTarget.style.background = isPrivateAndDone
-                                            ? "rgba(0, 0, 0, 0.25)"
-                                            : "transparent")
-                                    }
-                                >
-                                    {/* Track info */}
-                                    <td style={{ padding: "12px 14px" }}>
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 12,
-                                            }}
-                                        >
-                                            <SongCoverArt
-                                                src={song.cover_art_url}
-                                                alt={song.title}
-                                                size={36}
-                                                borderRadius={6}
-                                                iconSize={18}
-                                            />
-                                            <div>
-                                                <div
-                                                    style={{
-                                                        fontWeight: 600,
-                                                        color: "var(--text-main)",
-                                                    }}
-                                                >
-                                                    {song.title}
-                                                </div>
-                                                <div
-                                                    style={{
-                                                        fontSize: 12,
-                                                        color: "var(--text-secondary)",
-                                                    }}
-                                                >
-                                                    {song.artist}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    {/* Duration */}
-                                    <td
-                                        style={{
-                                            padding: "12px 14px",
-                                            color: "var(--text-secondary)",
-                                        }}
-                                    >
-                                        {song.duration_sec
-                                            ? `${Math.floor(song.duration_sec / 60)}:${String(Math.floor(song.duration_sec % 60)).padStart(2, "0")}`
-                                            : "N/A"}
-                                    </td>
-
-                                    {/* Bitrate */}
-                                    <td
-                                        style={{
-                                            padding: "12px 14px",
-                                            color: "var(--text-secondary)",
-                                        }}
-                                    >
-                                        {song.source_bitrate_kbps
-                                            ? `${song.source_bitrate_kbps} kbps`
-                                            : "Auto"}
-                                    </td>
-
-                                    {/* Keys Badge */}
-                                    <td style={{ padding: "12px 14px" }}>
-                                        <span
-                                            style={{
-                                                fontSize: 11,
-                                                padding: "3px 8px",
-                                                borderRadius: 999,
-                                                background: "rgba(99, 102, 241, 0.15)",
-                                                color: "var(--primary)",
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            MP3 / AAC
-                                        </span>
-                                    </td>
-
-                                    {/* Status & Refresh */}
-                                    <td style={{ padding: "12px 14px" }}>
-                                        {song.status?.toUpperCase() === "DONE" ? (
-                                            <span
-                                                style={{
-                                                    fontSize: 11,
-                                                    padding: "3px 8px",
-                                                    borderRadius: 999,
-                                                    background: "rgba(30, 215, 96, 0.15)",
-                                                    color: "#1ed760",
-                                                    fontWeight: 600,
-                                                    display: "inline-flex",
-                                                    alignItems: "center",
-                                                    gap: 4,
-                                                }}
-                                            >
-                                                <CheckCircle2 size={12} />
-                                                DONE
-                                            </span>
-                                        ) : (
-                                            <div
-                                                style={{
-                                                    display: "inline-flex",
-                                                    alignItems: "center",
-                                                    gap: 6,
-                                                }}
-                                            >
-                                                <span
-                                                    style={{
-                                                        fontSize: 11,
-                                                        padding: "3px 8px",
-                                                        borderRadius: 999,
-                                                        background:
-                                                            song.status?.toUpperCase() === "FAILED"
-                                                                ? "rgba(239, 68, 68, 0.15)"
-                                                                : "rgba(234, 179, 8, 0.15)",
-                                                        color:
-                                                            song.status?.toUpperCase() === "FAILED"
-                                                                ? "#ef4444"
-                                                                : "#eab308",
-                                                        fontWeight: 600,
-                                                        textTransform: "uppercase",
-                                                    }}
-                                                >
-                                                    {song.status || "QUEUED"}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => onRefreshSongStatus(song.id)}
-                                                    disabled={refreshingSongIds.has(song.id)}
-                                                    title="Fetch updated status"
-                                                    style={{
-                                                        background: "rgba(255, 255, 255, 0.06)",
-                                                        border: "1px solid rgba(255, 255, 255, 0.1)",
-                                                        borderRadius: "50%",
-                                                        width: 24,
-                                                        height: 24,
-                                                        display: "inline-flex",
-                                                        alignItems: "center",
-                                                        justifyContent: "center",
-                                                        cursor: refreshingSongIds.has(song.id)
-                                                            ? "not-allowed"
-                                                            : "pointer",
-                                                        color: "var(--text-main)",
-                                                        transition: "all 0.2s ease",
-                                                        padding: 0,
-                                                    }}
-                                                    onMouseEnter={(e) =>
-                                                        (e.currentTarget.style.background =
-                                                            "rgba(255, 255, 255, 0.15)")
-                                                    }
-                                                    onMouseLeave={(e) =>
-                                                        (e.currentTarget.style.background =
-                                                            "rgba(255, 255, 255, 0.06)")
-                                                    }
-                                                >
-                                                    <RefreshCw
-                                                        size={12}
-                                                        className={
-                                                            refreshingSongIds.has(song.id)
-                                                                ? "animate-spin"
-                                                                : ""
-                                                        }
-                                                    />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </td>
-
-                                    {/* Visibility */}
-                                    <td style={{ padding: "12px 14px" }}>
-                                        {song.is_public !== false ? (
-                                            <span
-                                                style={{
-                                                    fontSize: 11,
-                                                    padding: "3px 8px",
-                                                    borderRadius: 999,
-                                                    background: "rgba(30, 215, 96, 0.15)",
-                                                    color: "var(--app-green)",
-                                                    fontWeight: 600,
-                                                    display: "inline-flex",
-                                                    alignItems: "center",
-                                                    gap: 4,
-                                                }}
-                                            >
-                                                <Globe size={11} />
-                                                PUBLIC
-                                            </span>
-                                        ) : (
-                                            <span
-                                                style={{
-                                                    fontSize: 11,
-                                                    padding: "3px 8px",
-                                                    borderRadius: 999,
-                                                    background: "rgba(245, 158, 11, 0.15)",
-                                                    color: "#f59e0b",
-                                                    fontWeight: 600,
-                                                    display: "inline-flex",
-                                                    alignItems: "center",
-                                                    gap: 4,
-                                                }}
-                                            >
-                                                <Lock size={11} />
-                                                PRIVATE
-                                            </span>
-                                        )}
-                                    </td>
-
-                                    {/* Created */}
-                                    <td
-                                        style={{
-                                            padding: "12px 14px",
-                                            color: "var(--text-muted)",
-                                            fontSize: 12,
-                                        }}
-                                    >
-                                        {new Date(song.created_at).toLocaleDateString()}
-                                    </td>
-
-                                    {/* Actions */}
-                                    <td
-                                        style={{
-                                            padding: "12px 14px",
-                                            textAlign: "right",
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                display: "inline-flex",
-                                                alignItems: "center",
-                                                gap: 6,
-                                            }}
-                                        >
-                                            <button
-                                                onClick={() => onPlaySong(song, songs)}
-                                                className="btn-ghost"
-                                                title="Play Preview"
-                                                style={{ padding: 6 }}
-                                            >
-                                                <Play
-                                                    size={15}
-                                                    color="var(--accent-cyan)"
-                                                />
-                                            </button>
-
-                                            <button
-                                                onClick={() => onInspectSong(song)}
-                                                className="btn-ghost"
-                                                title="Inspect Object Keys"
-                                                style={{ padding: 6 }}
-                                            >
-                                                <Eye size={15} />
-                                            </button>
-
-                                            <button
-                                                onClick={() => onEditSong(song)}
-                                                className="btn-ghost"
-                                                title="Edit Metadata"
-                                                style={{
-                                                    padding: 6,
-                                                    color: "var(--app-subtext)",
-                                                }}
-                                            >
-                                                <Edit3 size={15} />
-                                            </button>
-
-                                            <button
-                                                onClick={() => onReprocessSong(song)}
-                                                disabled={reprocessingSongIds.has(song.id)}
-                                                className="btn-ghost"
-                                                title="Reprocess Audio (Transcode & Segment)"
-                                                style={{
-                                                    padding: 6,
-                                                    color: "var(--primary)",
-                                                }}
-                                            >
-                                                {reprocessingSongIds.has(song.id) ? (
-                                                    <Loader2
-                                                        size={15}
-                                                        className="animate-spin"
-                                                    />
-                                                ) : (
-                                                    <RotateCw size={15} />
-                                                )}
-                                            </button>
-
-                                            {onDeleteSong && (
-                                                <button
-                                                    onClick={() => onDeleteSong(song)}
-                                                    className="btn-ghost"
-                                                    title="Delete Track"
-                                                    style={{
-                                                        padding: 6,
-                                                        color: "#ef4444",
-                                                    }}
-                                                >
-                                                    <Trash2 size={15} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
+                        {songs.map((song, idx) => (
+                            <AdminSongRow
+                                key={song.id}
+                                song={song}
+                                index={(currentPage - 1) * 20 + idx}
+                                allSongs={songs}
+                                isRefreshing={refreshingSongIds.has(song.id)}
+                                isReprocessing={reprocessingSongIds.has(song.id)}
+                                isSyncingProperties={resyncingSongIds?.has(song.id)}
+                                onEditSong={onEditSong}
+                                onInspectSong={onInspectSong}
+                                onReprocessSong={onReprocessSong}
+                                onRefreshSongStatus={() => onRefreshSongStatus(song.id)}
+                                onDeleteSong={onDeleteSong}
+                                onSyncProperties={onSyncProperties}
+                            />
+                        ))}
                     </tbody>
                 </table>
             </div>
