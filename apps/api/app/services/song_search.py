@@ -3,13 +3,15 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
+
 from rapidfuzz import fuzz
 
+from app.core.config import settings
 from app.models.song import Song, SongProcessingStatus
 from app.services.song import SongService
-from app.core.config import settings
 
 logger = logging.getLogger("uvicorn.error")
+
 
 @dataclass
 class SongSearchPayload:
@@ -208,7 +210,9 @@ class SongSearchService:
         safe_limit = max(1, limit)
         start = (max(1, page) - 1) * safe_limit
         page_ids = ids[start : start + safe_limit]
-        return [self.songs_by_id[sid] for sid in page_ids if sid in self.songs_by_id], len(ids)
+        return [
+            self.songs_by_id[sid] for sid in page_ids if sid in self.songs_by_id
+        ], len(ids)
 
     def get_songs_by_category(
         self,
@@ -243,10 +247,7 @@ class SongSearchService:
         if len(q) <= 2:
             return []
 
-        tokens = [
-            t.strip("()[]\"'.,-!?:;~/\\|`#@*&^%$<>{}").strip()
-            for t in q.split()
-        ]
+        tokens = [t.strip("()[]\"'.,-!?:;~/\\|`#@*&^%$<>{}").strip() for t in q.split()]
         tokens = [t for t in tokens if t]
         if not tokens:
             return []
@@ -261,9 +262,7 @@ class SongSearchService:
                 candidate_ids.update(self.songs_by_char[ch])
 
         candidates = [
-            self.songs_by_id[sid]
-            for sid in candidate_ids
-            if sid in self.songs_by_id
+            self.songs_by_id[sid] for sid in candidate_ids if sid in self.songs_by_id
         ]
 
         scored_matches: list[tuple[float, SongSearchPayload]] = []

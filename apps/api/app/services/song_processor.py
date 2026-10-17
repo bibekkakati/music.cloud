@@ -1,13 +1,14 @@
 import asyncio
+import logging
+import shutil
 from contextlib import nullcontext
 from dataclasses import dataclass
-from datetime import datetime, timezone
-import logging
+from datetime import UTC, datetime
 from pathlib import Path
-import shutil
 
 from sqlmodel import Session
 
+from app.core.config import settings
 from app.infra.database import engine
 from app.models.song import Song, SongProcessingStatus
 from app.services.song import SongService
@@ -17,8 +18,6 @@ from app.utils.audio_processor import AudioProcessor, AudioProcessorResult
 
 logger = logging.getLogger("uvicorn.error")
 
-
-from app.core.config import settings
 
 @dataclass
 class StorageUpload:
@@ -313,7 +312,7 @@ class SongProcessor:
             song.artist = song.artist.replace("/", ", ")
             # cleanup of dashes in artist names
             song.artist = song.artist.replace("-", " ")
-            
+
             song.year = metadata.year or None
             song.album = metadata.album or None
 
@@ -325,7 +324,7 @@ class SongProcessor:
 
             song.source_bitrate_kbps = metadata.bitrate_kbps
             song.status = SongProcessingStatus.DONE
-            song.updated_at = datetime.now(timezone.utc)
+            song.updated_at = datetime.now(UTC)
 
             db.add(song)
             db.commit()
@@ -362,7 +361,10 @@ class SongProcessor:
             )
 
     async def start_processing_pipeline(
-        self, song_id: str, trim_start_sec: float, song_service: SongService | None = None
+        self,
+        song_id: str,
+        trim_start_sec: float,
+        song_service: SongService | None = None,
     ) -> None:
         """
         Start song processing pipeline
@@ -376,7 +378,9 @@ class SongProcessor:
             original_key = song.original_key
 
         try:
-            original_file, output_dir = await self._prepare_workspace(song_id, original_key)
+            original_file, output_dir = await self._prepare_workspace(
+                song_id, original_key
+            )
 
             self._mark_processing(song_id)
 

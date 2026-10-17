@@ -1,6 +1,6 @@
 import logging
-import os
 import sys
+
 from pydantic import BaseModel, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     REDIS_URL: str | None = None
     CORS_ORIGINS: str
 
+    GEMINI_API_KEY: str
+
     S3_REGION: str = "auto"
     S3_TOKEN: str | None = None
     S3_KEY: str = ""
@@ -78,7 +80,9 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         if not self.CORS_ORIGINS:
             return []
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        return [
+            origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()
+        ]
 
 
 try:
@@ -94,7 +98,9 @@ except ValidationError as exc:
             other_errors.append(f"{field_name}: {err.get('msg', 'invalid value')}")
 
     print("\n" + "=" * 64, file=sys.stderr)
-    print("❌ CONFIGURATION ERROR: Failed to load application settings!", file=sys.stderr)
+    print(
+        "❌ CONFIGURATION ERROR: Failed to load application settings!", file=sys.stderr
+    )
     if missing_fields:
         print("\nMissing required environment variable(s) in .env:", file=sys.stderr)
         for field in missing_fields:

@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field, SQLModel
+
 
 class SongGenre(str, Enum):
     POP = "Pop"
@@ -13,6 +14,7 @@ class SongGenre(str, Enum):
     FOLK = "Folk"
     FUSION = "Fusion"
 
+
 class SongMood(str, Enum):
     HAPPY = "Happy"
     RELAX = "Relax"
@@ -22,6 +24,7 @@ class SongMood(str, Enum):
     ROMANTIC = "Romantic"
     DANCE = "Dance"
     SAD = "Sad"
+
 
 class SongLanguage(str, Enum):
     ENGLISH = "English"
@@ -35,50 +38,53 @@ class SongLanguage(str, Enum):
     MALAYALAM = "Malayalam"
     PUNJABI = "Punjabi"
 
+
 class SongGenreMaster(SQLModel, table=True):
     __tablename__ = "song_genre_master"
-    
+
     id: int | None = Field(default=None, primary_key=True)
     genre: SongGenre = Field(nullable=False, unique=True)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
-        schema_extra={"sa_type": "TIMESTAMPTZ"} 
+        schema_extra={"sa_type": "TIMESTAMPTZ"},
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
-        schema_extra={"sa_type": "TIMESTAMPTZ"}
+        schema_extra={"sa_type": "TIMESTAMPTZ"},
     )
+
 
 class SongMoodMaster(SQLModel, table=True):
     __tablename__ = "song_mood_master"
-    
+
     id: int | None = Field(default=None, primary_key=True)
     mood: SongMood = Field(nullable=False, unique=True)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
-        schema_extra={"sa_type": "TIMESTAMPTZ"} 
+        schema_extra={"sa_type": "TIMESTAMPTZ"},
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
-        schema_extra={"sa_type": "TIMESTAMPTZ"}
+        schema_extra={"sa_type": "TIMESTAMPTZ"},
     )
+
 
 class SongLanguageMaster(SQLModel, table=True):
     __tablename__ = "song_language_master"
-    
+
     id: int | None = Field(default=None, primary_key=True)
     language: SongLanguage = Field(nullable=False, unique=True)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
-        schema_extra={"sa_type": "TIMESTAMPTZ"} 
+        schema_extra={"sa_type": "TIMESTAMPTZ"},
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
-        schema_extra={"sa_type": "TIMESTAMPTZ"}
+        schema_extra={"sa_type": "TIMESTAMPTZ"},
     )

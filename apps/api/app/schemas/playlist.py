@@ -1,31 +1,38 @@
-from app.schemas.song import SongPublicResponsePayload
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.schemas.song import SongPublicResponsePayload
+
+
 # Create playlist
 class CreatePlaylistRequestPayload(BaseModel):
     label: str
-    
+
+
 class CreatePlaylistResponsePayload(BaseModel):
     id: UUID | str
     label: str
     is_deletable: bool
 
+
 # Update playlist
 class UpdatePlaylistRequestPayload(BaseModel):
     id: UUID | str
     label: str
-    
+
+
 class UpdatePlaylistResponsePayload(BaseModel):
     id: UUID | str
     label: str
     is_deletable: bool
 
+
 # Remove playlist
 class RemovePlaylistRequestPayload(BaseModel):
     id: UUID | str
+
 
 # Get all playlist by user
 class GetPlaylistsByUserResponsePayload(BaseModel):
@@ -37,10 +44,12 @@ class GetPlaylistsByUserResponsePayload(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
 # Add playlist song
 class AddPlaylistSongRequestPayload(BaseModel):
     playlist_id: UUID | str
     song_id: UUID | str
+
 
 class AddPlaylistSongResponsePayload(BaseModel):
     id: UUID | str
@@ -49,16 +58,19 @@ class AddPlaylistSongResponsePayload(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
 # Remove playlist song
 class RemovePlaylistSongBySongIdRequestPayload(BaseModel):
     playlist_id: UUID | str
     song_id: UUID | str
 
+
 # Get playlist songs
 class PlaylistSongResponse(SongPublicResponsePayload):
     playlist_song_id: UUID | str
     created_at: datetime
-    
+
+
 class GetPlaylistSongsResponsePayload(BaseModel):
     id: UUID | str
     label: str
@@ -68,6 +80,7 @@ class GetPlaylistSongsResponsePayload(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
 class GetCategorySongsResponsePayload(BaseModel):
     id: UUID | str
     label: str
@@ -75,22 +88,27 @@ class GetCategorySongsResponsePayload(BaseModel):
     next_page: int | None = None
     songs: list[SongPublicResponsePayload]
 
+
 # Toggle like song
 class ToggleLikeSongRequestPayload(BaseModel):
     song_id: UUID | str
+
 
 class ToggleLikeSongResponsePayload(BaseModel):
     liked: bool
     playlist_id: UUID | str
     song_id: UUID | str
 
+
 class SongLikedStatusResponsePayload(BaseModel):
     liked: bool
+
 
 # Master/Category details
 class MasterItem(BaseModel):
     id: int | str
     label: str
+
 
 class CategoryResponsePayload(BaseModel):
     static: list[MasterItem]

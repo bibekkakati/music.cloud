@@ -1,7 +1,8 @@
-from uuid import uuid7, UUID
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from uuid import UUID, uuid7
 
 from sqlmodel import Field, SQLModel
+
 
 class Playlist(SQLModel, table=True):
     __tablename__ = "playlists"
@@ -12,15 +13,16 @@ class Playlist(SQLModel, table=True):
     owner_id: UUID = Field(nullable=False, foreign_key="users.id", index=True)
     is_deletable: bool = Field(default=True, nullable=False)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
-        schema_extra={"sa_type": "TIMESTAMPTZ"} 
+        schema_extra={"sa_type": "TIMESTAMPTZ"},
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
-        schema_extra={"sa_type": "TIMESTAMPTZ"}
+        schema_extra={"sa_type": "TIMESTAMPTZ"},
     )
+
 
 class PlaylistSong(SQLModel, table=True):
     __tablename__ = "playlist_songs"
@@ -28,13 +30,12 @@ class PlaylistSong(SQLModel, table=True):
     playlist_id: UUID = Field(nullable=False, foreign_key="playlists.id", index=True)
     song_id: UUID = Field(nullable=False, foreign_key="songs.id", index=True)
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
-        schema_extra={"sa_type": "TIMESTAMPTZ"} 
+        schema_extra={"sa_type": "TIMESTAMPTZ"},
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         nullable=False,
-        schema_extra={"sa_type": "TIMESTAMPTZ"}
+        schema_extra={"sa_type": "TIMESTAMPTZ"},
     )
-    
