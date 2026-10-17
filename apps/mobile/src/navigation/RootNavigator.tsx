@@ -7,14 +7,15 @@ import { HomeScreen } from "../screens/HomeScreen";
 import { SearchScreen } from "../screens/SearchScreen";
 import { LibraryScreen } from "../screens/LibraryScreen";
 import { SongCollectionView } from "../screens/SongCollectionView";
+import { SettingsScreen } from "../screens/SettingsScreen";
 import { appConfig } from "../config";
-
 import { useNetwork } from "../context/NetworkContext";
+import { useAuth } from "../context/AuthContext";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Screen wrapper for Offline Downloads Tab
+// Screen wrapper for Offline / Guest Downloads Tab
 function OfflineDownloadsTabScreen() {
     return (
         <SongCollectionView />
@@ -24,6 +25,10 @@ function OfflineDownloadsTabScreen() {
 function MainTabNavigator() {
     const insets = useSafeAreaInsets();
     const { isOffline } = useNetwork();
+    const { isAuthenticated } = useAuth();
+
+    // Guest users (online but unauthenticated) get the same tabs as offline users (Home + Downloads)
+    const showOfflineOrGuestTabs = isOffline || !isAuthenticated;
 
     return (
         <Tab.Navigator
@@ -69,8 +74,8 @@ function MainTabNavigator() {
                 }}
             />
 
-            {isOffline ? (
-                /* Offline Bottom Bar: Downloads Tab */
+            {showOfflineOrGuestTabs ? (
+                /* Offline / Guest Bottom Bar: Downloads Tab */
                 <Tab.Screen
                     name="DownloadsTab"
                     component={OfflineDownloadsTabScreen}
@@ -98,7 +103,7 @@ function MainTabNavigator() {
                     }}
                 />
             ) : (
-                /* Online Bottom Bar: Search & Library Tabs */
+                /* Online Authenticated Bottom Bar: Search & Library Tabs */
                 <>
                     <Tab.Screen
                         name="SearchTab"
@@ -177,6 +182,7 @@ export function RootNavigator() {
             }}
         >
             <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
         </Stack.Navigator>
     );
 }

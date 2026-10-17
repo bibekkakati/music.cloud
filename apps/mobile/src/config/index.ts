@@ -26,6 +26,7 @@ export const appConfig = {
     },
     storageKeys: {
         authToken: "music_cloud_token",
+        userProfile: "music_cloud_user_profile",
         streamToken: "mc_stream_token",
         playerState: "music_cloud_player_state",
         apiBaseUrl: "music_cloud_api_base_url",

@@ -20,6 +20,7 @@ import { isLikedPlaylist } from "@music-cloud/utils";
 import type { PlaylistSummary } from "@music-cloud/types";
 import { useAuth } from "../context/AuthContext";
 import { useUI } from "../context/UIContext";
+import { useNetwork } from "../context/NetworkContext";
 import { AppLogo } from "./AppLogo";
 import { appConfig } from "../config";
 
@@ -29,7 +30,8 @@ const DRAWER_WIDTH = Math.min(width * 0.82, 320);
 export const AppDrawer: React.FC = () => {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
-    const { user, isAuthenticated, openAuthModal, logout } = useAuth();
+    const { user, isAuthenticated, openAuthModal } = useAuth();
+    const { isOffline } = useNetwork();
     const {
         isDrawerOpen,
         closeDrawer,
@@ -75,19 +77,6 @@ export const AppDrawer: React.FC = () => {
         });
     };
 
-    const handleLogout = () => {
-        Alert.alert("Log out", "Are you sure you want to log out?", [
-            { text: "Cancel", style: "cancel" },
-            {
-                text: "Log out",
-                style: "destructive",
-                onPress: async () => {
-                    await logout();
-                    closeDrawer();
-                },
-            },
-        ]);
-    };
 
     const username = user?.email?.split("@")[0] || "user";
     const initial = (user?.email?.[0] || "U").toUpperCase();
@@ -158,19 +147,35 @@ export const AppDrawer: React.FC = () => {
                                 <Text style={styles.navText}>Home</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity
-                                style={styles.navItem}
-                                onPress={() => handleNav("SearchTab")}
-                            >
-                                <Ionicons
-                                    name="search-outline"
-                                    size={22}
-                                    color={appConfig.colors.subText}
-                                />
-                                <Text style={styles.navTextInactive}>
-                                    Search
-                                </Text>
-                            </TouchableOpacity>
+                            {isOffline || !isAuthenticated ? (
+                                <TouchableOpacity
+                                    style={styles.navItem}
+                                    onPress={() => handleNav("DownloadsTab")}
+                                >
+                                    <Ionicons
+                                        name="arrow-down-circle-outline"
+                                        size={22}
+                                        color={appConfig.colors.subText}
+                                    />
+                                    <Text style={styles.navTextInactive}>
+                                        Downloads
+                                    </Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity
+                                    style={styles.navItem}
+                                    onPress={() => handleNav("SearchTab")}
+                                >
+                                    <Ionicons
+                                        name="search-outline"
+                                        size={22}
+                                        color={appConfig.colors.subText}
+                                    />
+                                    <Text style={styles.navTextInactive}>
+                                        Search
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     </View>
 
@@ -335,9 +340,9 @@ export const AppDrawer: React.FC = () => {
                         )}
                     </View>
 
-                    {/* Bottom Profile Row (Authenticated) */}
-                    {isAuthenticated && (
-                        <View style={styles.userFooter}>
+                    {/* Bottom Profile / Settings Row */}
+                    <View style={styles.userFooter}>
+                        {isAuthenticated ? (
                             <View style={styles.userProfile}>
                                 <View style={styles.userAvatar}>
                                     <Text style={styles.userAvatarText}>
@@ -348,25 +353,39 @@ export const AppDrawer: React.FC = () => {
                                     {username}
                                 </Text>
                             </View>
-
-                            <TouchableOpacity
-                                onPress={handleLogout}
-                                style={styles.logoutBtn}
-                                hitSlop={{
-                                    top: 8,
-                                    bottom: 8,
-                                    left: 8,
-                                    right: 8,
-                                }}
-                            >
+                        ) : (
+                            <View style={styles.userProfile}>
                                 <Ionicons
-                                    name="log-out-outline"
-                                    size={20}
+                                    name="person-circle-outline"
+                                    size={24}
                                     color={appConfig.colors.subText}
                                 />
-                            </TouchableOpacity>
-                        </View>
-                    )}
+                                <Text style={styles.guestUserName}>
+                                    Guest
+                                </Text>
+                            </View>
+                        )}
+
+                        <TouchableOpacity
+                            onPress={() => {
+                                closeDrawer();
+                                navigation.navigate("Settings");
+                            }}
+                            style={styles.settingsBtn}
+                            hitSlop={{
+                                top: 8,
+                                bottom: 8,
+                                left: 8,
+                                right: 8,
+                            }}
+                        >
+                            <Ionicons
+                                name="settings-outline"
+                                size={22}
+                                color={appConfig.colors.subText}
+                            />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
         </Modal>
@@ -576,7 +595,12 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         flex: 1,
     },
-    logoutBtn: {
+    guestUserName: {
+        color: appConfig.colors.subText,
+        fontSize: 13,
+        fontWeight: "600",
+    },
+    settingsBtn: {
         padding: 4,
     },
 });

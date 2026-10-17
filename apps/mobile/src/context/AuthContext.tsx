@@ -1,8 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { LoginPayload, User } from '@music-cloud/types';
 import { authService, userService } from '@music-cloud/services';
 import { setUnauthorizedHandler } from '../api/client';
 import { streamService } from '../services/streamService';
+import { useNetwork } from './NetworkContext';
+import { appConfig } from '../config';
 
 interface AuthContextValue {
   user: User | null;
@@ -12,6 +15,7 @@ interface AuthContextValue {
   isAuthModalVisible: boolean;
   login: (payload: LoginPayload) => Promise<void>;
   logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
   openAuthModal: () => void;
   closeAuthModal: () => void;
 }
@@ -19,58 +23,148 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isOffline } = useNetwork();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isAuthModalVisible, setIsAuthModalVisible] = useState<boolean>(false);
 
+  // Keep a ref to token to avoid circular dependencies in callbacks
+  const tokenRef = useRef<string | null>(token);
+  tokenRef.current = token;
+
   const openAuthModal = useCallback(() => setIsAuthModalVisible(true), []);
   const closeAuthModal = useCallback(() => setIsAuthModalVisible(false), []);
+
+  const logout = useCallback(async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // Ignore network failures on logout
+    } finally {
+      await AsyncStorage.multiRemove([
+        appConfig.storageKeys.authToken,
+        appConfig.storageKeys.userProfile,
+        appConfig.storageKeys.streamToken,
+        appConfig.storageKeys.playerState,
+      ]).catch(() => {});
+      await streamService.clearToken();
+      setToken(null);
+      setUser(null);
+    }
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    const currentToken = tokenRef.current || (await authService.getTokenAsync());
+    if (!currentToken) return;
+
+    try {
+      const currentUser = await userService.getCurrentProfile();
+      setUser(currentUser);
+      await AsyncStorage.setItem(
+        appConfig.storageKeys.userProfile,
+        JSON.stringify(currentUser),
+      ).catch(() => {});
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      // ONLY log out if backend explicitly rejected credentials with 401 Unauthorized.
+      // Do NOT log out on network disconnects, timeouts, or server cold-starts.
+      if (status === 401) {
+        await logout();
+      } else {
+        console.warn('Could not refresh profile due to network or server error:', err);
+      }
+    }
+  }, [logout]);
 
   const loadInitialAuth = useCallback(async () => {
     setIsLoading(true);
     try {
-      const storedToken = await authService.getTokenAsync();
+      const [storedToken, storedProfileRaw] = await Promise.all([
+        authService.getTokenAsync(),
+        AsyncStorage.getItem(appConfig.storageKeys.userProfile).catch(() => null),
+      ]);
+
       if (storedToken) {
         setToken(storedToken);
-        const currentUser = await userService.getCurrentProfile();
-        setUser(currentUser);
+
+        if (storedProfileRaw) {
+          try {
+            const parsedUser: User = JSON.parse(storedProfileRaw);
+            setUser(parsedUser);
+          } catch {
+            // Ignore corrupted cached json
+          }
+        }
+
+        // Hydration done, release initial loading state immediately
+        setIsLoading(false);
+
+        // Concurrently attempt to verify/update profile from backend
+        try {
+          const currentUser = await userService.getCurrentProfile();
+          setUser(currentUser);
+          await AsyncStorage.setItem(
+            appConfig.storageKeys.userProfile,
+            JSON.stringify(currentUser),
+          ).catch(() => {});
+        } catch (err: unknown) {
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status === 401) {
+            await logout();
+          } else {
+            console.warn('Could not refresh user profile on launch (offline or network error):', err);
+          }
+        }
       } else {
         setToken(null);
         setUser(null);
+        setIsLoading(false);
       }
-    } catch {
-      setToken(null);
-      setUser(null);
-    } finally {
+    } catch (err) {
+      console.warn('Error loading initial auth:', err);
       setIsLoading(false);
     }
-  }, []);
+  }, [logout]);
 
   useEffect(() => {
     loadInitialAuth();
 
-    // Hook into 401 unauthorized
-    setUnauthorizedHandler(() => {
+    // Hook into 401 unauthorized from API client interceptor
+    setUnauthorizedHandler(async () => {
+      await AsyncStorage.multiRemove([
+        appConfig.storageKeys.authToken,
+        appConfig.storageKeys.userProfile,
+        appConfig.storageKeys.streamToken,
+        appConfig.storageKeys.playerState,
+      ]).catch(() => {});
       setToken(null);
       setUser(null);
       streamService.clearToken();
     });
   }, [loadInitialAuth]);
 
+  // When network reconnects (offline -> online), refresh profile in background if logged in
+  useEffect(() => {
+    if (!isOffline && token) {
+      refreshProfile();
+    }
+  }, [isOffline, token, refreshProfile]);
+
   const login = async (payload: LoginPayload) => {
     const session = await authService.login(payload);
     setToken(session.access_token);
-    const currentUser = await userService.getCurrentProfile();
-    setUser(currentUser);
+    try {
+      const currentUser = await userService.getCurrentProfile();
+      setUser(currentUser);
+      await AsyncStorage.setItem(
+        appConfig.storageKeys.userProfile,
+        JSON.stringify(currentUser),
+      ).catch(() => {});
+    } catch (err) {
+      console.warn('Could not fetch user profile after login:', err);
+    }
     closeAuthModal();
-  };
-
-  const logout = async () => {
-    await authService.logout();
-    await streamService.clearToken();
-    setToken(null);
-    setUser(null);
   };
 
   return (
@@ -83,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthModalVisible,
         login,
         logout,
+        refreshProfile,
         openAuthModal,
         closeAuthModal,
       }}

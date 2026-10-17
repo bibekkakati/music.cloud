@@ -31,6 +31,7 @@ export const mobileStorageAdapter: AuthStorageAdapter = {
         try {
             await AsyncStorage.multiRemove([
                 appConfig.storageKeys.authToken,
+                appConfig.storageKeys.userProfile,
                 appConfig.storageKeys.streamToken,
                 appConfig.storageKeys.playerState,
             ]);
@@ -52,11 +53,45 @@ export const initMobileApi = (baseUrl: string = appConfig.api.baseUrl) => {
         },
     });
     apiClient.defaults.timeout = 15000;
+
+    // Hydrate persisted baseURL from AsyncStorage if available
+    AsyncStorage.getItem(appConfig.storageKeys.apiBaseUrl)
+        .then((storedUrl) => {
+            if (storedUrl && storedUrl.trim()) {
+                apiClient.defaults.baseURL = storedUrl.trim();
+            }
+        })
+        .catch(() => {});
 };
 
-// Dynamic update of API baseURL (e.g., from dev settings in AuthModal)
-export const updateApiBaseUrl = (newUrl: string) => {
-    apiClient.defaults.baseURL = newUrl;
+// Retrieve active API baseURL (from storage or env default)
+export const getActiveApiBaseUrl = async (): Promise<string> => {
+    try {
+        const stored = await AsyncStorage.getItem(appConfig.storageKeys.apiBaseUrl);
+        if (stored && stored.trim()) {
+            return stored.trim();
+        }
+    } catch {}
+    return appConfig.api.baseUrl || "";
+};
+
+// Dynamic update and persistence of API baseURL
+export const updateApiBaseUrl = async (newUrl: string): Promise<string> => {
+    let normalized = newUrl.trim();
+    if (normalized.endsWith("/")) {
+        normalized = normalized.slice(0, -1);
+    }
+    apiClient.defaults.baseURL = normalized;
+    try {
+        if (normalized && normalized !== appConfig.api.baseUrl) {
+            await AsyncStorage.setItem(appConfig.storageKeys.apiBaseUrl, normalized);
+        } else {
+            await AsyncStorage.removeItem(appConfig.storageKeys.apiBaseUrl);
+        }
+    } catch (e) {
+        console.warn("Failed to persist apiBaseUrl:", e);
+    }
+    return normalized;
 };
 
 // Initialize mobile API on startup

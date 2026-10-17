@@ -22,6 +22,7 @@ import { downloadService } from "../services/downloadService";
 import { playlistService } from "@music-cloud/services";
 import { registerRemoteHandlers } from "../services/playbackService";
 import { useAuth } from "./AuthContext";
+import { useNetwork } from "./NetworkContext";
 import { appConfig } from "../config";
 
 export type PlayableSong = SongMetadata | SongDetail;
@@ -81,6 +82,7 @@ interface PlayerContextValue {
     toggleShuffle: () => void;
     toggleLike: () => Promise<void>;
     addToQueue: (song: PlayableSong) => void;
+    clearPlayer: () => Promise<void>;
     openNowPlaying: () => void;
     closeNowPlaying: () => void;
     openPlaylistModal: (song: SongMetadata) => void;
@@ -138,6 +140,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
     const { isAuthenticated, openAuthModal } = useAuth();
+    const { isOffline } = useNetwork();
 
     const [currentSong, setCurrentSong] = useState<PlayableSong | null>(null);
     const [queue, setQueue] = useState<PlayableSong[]>([]);
@@ -246,6 +249,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 if (raw) {
                     const parsed: SavedPlayerState = JSON.parse(raw);
                     if (parsed?.currentSong) {
+                        const downloaded = await downloadService.isSongDownloaded(
+                            parsed.currentSong.id,
+                        );
+                        // If offline and song is not in downloads, do not restore as active track
+                        if (isOffline && !downloaded) {
+                            return;
+                        }
+
                         setCurrentSong(parsed.currentSong);
                         setQueue(parsed.queue || [parsed.currentSong]);
                         setVolumeState(
@@ -259,7 +270,47 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 console.error("Failed to restore player state:", err);
             }
         })();
+    }, [isOffline]);
+
+    // Clear player completely (resets track, audio engine, queue, and stored state)
+    const clearPlayer = useCallback(async () => {
+        try {
+            await TrackPlayer.reset().catch(() => {});
+        } finally {
+            setCurrentSong(null);
+            currentSongRef.current = null;
+            setQueue([]);
+            queueRef.current = [];
+            AsyncStorage.removeItem(appConfig.storageKeys.playerState).catch(
+                () => {},
+            );
+        }
     }, []);
+
+    // Detect logout transition (authenticated -> unauthenticated) and clear player
+    const wasAuthenticatedRef = useRef(isAuthenticated);
+    useEffect(() => {
+        if (wasAuthenticatedRef.current && !isAuthenticated) {
+            clearPlayer();
+        }
+        wasAuthenticatedRef.current = isAuthenticated;
+    }, [isAuthenticated, clearPlayer]);
+
+    // If offline and current song is not downloaded, clear the track from player
+    useEffect(() => {
+        if (!isOffline || !currentSong) return;
+
+        let active = true;
+        downloadService.isSongDownloaded(currentSong.id).then((downloaded) => {
+            if (active && !downloaded) {
+                clearPlayer();
+            }
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [isOffline, currentSong, clearPlayer]);
 
     // Fetch liked status when current song changes
     useEffect(() => {
@@ -742,6 +793,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 toggleShuffle,
                 toggleLike,
                 addToQueue,
+                clearPlayer,
                 openNowPlaying: () => {
                     setIsNowPlayingOpen(true);
                 },

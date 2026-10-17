@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { songService } from '@music-cloud/services';
 import type { SongMetadata } from '@music-cloud/types';
 import { useAuth } from '../context/AuthContext';
+import { useNetwork } from '../context/NetworkContext';
 import { usePlayer } from '../context/PlayerContext';
 import { useUI } from '../context/UIContext';
 import { AppLogo } from './AppLogo';
@@ -27,6 +28,7 @@ interface AppHeaderProps {
 export const AppHeader: React.FC<AppHeaderProps> = ({ onSearchPress }) => {
   const navigation = useNavigation<any>();
   const { user, isAuthenticated, openAuthModal } = useAuth();
+  const { isOffline } = useNetwork();
   const { playSong } = usePlayer();
   const { openDrawer } = useUI();
 
@@ -38,6 +40,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onSearchPress }) => {
 
   // Debounced search (200ms) matching web Navbar
   useEffect(() => {
+    if (isOffline) {
+      setSuggestions([]);
+      setIsOpen(false);
+      return;
+    }
     const trimmed = query.trim();
     if (trimmed.length < 2) {
       setSuggestions([]);
@@ -59,7 +66,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onSearchPress }) => {
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, isOffline]);
 
   const handleSelectSong = (song: SongMetadata) => {
     if (!isAuthenticated) {
@@ -106,13 +113,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onSearchPress }) => {
             style={styles.input}
             value={query}
             onChangeText={setQuery}
-            placeholder="What do you want to play?"
+            editable={!isOffline}
+            placeholder={isOffline ? "Search unavailable offline" : "What do you want to play?"}
             placeholderTextColor={appConfig.colors.subText}
             returnKeyType="search"
             autoCapitalize="none"
             autoCorrect={false}
             onFocus={() => {
-              if (suggestions.length > 0) setIsOpen(true);
+              if (!isOffline && suggestions.length > 0) setIsOpen(true);
             }}
           />
           {isSearching ? (

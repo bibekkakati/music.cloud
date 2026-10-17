@@ -13,31 +13,61 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { playlistService } from "@music-cloud/services";
 import { getGreeting } from "@music-cloud/utils";
 import { usePlayer } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { useNetwork } from "../context/NetworkContext";
+import { downloadService } from "../services/downloadService";
 import { AppHeader } from "../components/AppHeader";
 import { SongCard } from "../components/SongCard";
 import { appConfig } from "../config";
 import type { SongMetadata } from "@music-cloud/types";
 
 export const HomeScreen: React.FC = () => {
+    const navigation = useNavigation<any>();
     const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
     const { isOffline, refreshConnection } = useNetwork();
     const {
+        user,
         isAuthenticated,
         isLoading: isAuthLoading,
         openAuthModal,
     } = useAuth();
 
     const [songs, setSongs] = useState<SongMetadata[]>([]);
+    const [offlineSongs, setOfflineSongs] = useState<SongMetadata[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
     const [page, setPage] = useState<number>(1);
     const [hasMore, setHasMore] = useState<boolean>(false);
+
+    const loadOfflineSongs = useCallback(async () => {
+        try {
+            const downloaded = await downloadService.getAllDownloadedSongs();
+            const mapped: SongMetadata[] = downloaded.map((d) => ({
+                id: d.id,
+                title: d.title,
+                artist: d.artist,
+                duration_sec: d.duration_sec,
+                album: d.album ?? undefined,
+                year: d.year ?? undefined,
+                cover_art_url: d.local_cover_path || d.cover_art_url,
+                stream_url: d.local_audio_path,
+            }));
+            setOfflineSongs(mapped);
+        } catch (e) {
+            console.warn("Failed to load offline downloaded songs on Home:", e);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (isOffline && isAuthenticated) {
+            loadOfflineSongs();
+        }
+    }, [isOffline, isAuthenticated, loadOfflineSongs]);
 
     const fetchSongs = useCallback(
         async (pageNum = 1, append = false) => {
@@ -115,8 +145,15 @@ export const HomeScreen: React.FC = () => {
                 {/* Top Navbar Header */}
                 <AppHeader />
 
-                {(!isAuthenticated || isOffline) && !isAuthLoading ? (
-                    /* Unauthenticated / Offline Landing Experience */
+                {isAuthLoading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator
+                            size="large"
+                            color={appConfig.colors.accentGreen}
+                        />
+                    </View>
+                ) : !isAuthenticated ? (
+                    /* Guest Landing Experience */
                     <ScrollView
                         style={styles.landingScroll}
                         contentContainerStyle={styles.landingContent}
@@ -150,10 +187,16 @@ export const HomeScreen: React.FC = () => {
                                 <Ionicons
                                     name={isOffline ? "cloud-offline" : "radio"}
                                     size={13}
-                                    color={isOffline ? "#ef4444" : appConfig.colors.accentGreen}
+                                    color={
+                                        isOffline
+                                            ? "#ef4444"
+                                            : appConfig.colors.accentGreen
+                                    }
                                 />
                                 <Text style={styles.heroBadgeText}>
-                                    {isOffline ? "OFFLINE MODE" : "PRIVATE AUDIO CLOUD"}
+                                    {isOffline
+                                        ? "OFFLINE MODE"
+                                        : "PRIVATE AUDIO CLOUD"}
                                 </Text>
                             </View>
 
@@ -185,12 +228,18 @@ export const HomeScreen: React.FC = () => {
                                 activeOpacity={0.8}
                             >
                                 <Ionicons
-                                    name={isOffline ? "cloud-offline-outline" : "log-in-outline"}
+                                    name={
+                                        isOffline
+                                            ? "cloud-offline-outline"
+                                            : "log-in-outline"
+                                    }
                                     size={18}
                                     color="#000000"
                                 />
                                 <Text style={styles.heroCtaText}>
-                                    {isOffline ? "Offline Mode" : "Log in to Start Listening"}
+                                    {isOffline
+                                        ? "Offline Mode"
+                                        : "Log in to Start Listening"}
                                 </Text>
                             </TouchableOpacity>
                         </LinearGradient>
@@ -199,7 +248,6 @@ export const HomeScreen: React.FC = () => {
                         <View style={styles.featuresSection}>
                             <Text style={styles.featuresHeading}>Features</Text>
 
-                            {/* Feature 1 */}
                             <View style={styles.featureCard}>
                                 <Ionicons
                                     name="sparkles"
@@ -216,7 +264,6 @@ export const HomeScreen: React.FC = () => {
                                 </Text>
                             </View>
 
-                            {/* Feature 2 */}
                             <View style={styles.featureCard}>
                                 <Ionicons
                                     name="musical-notes"
@@ -233,7 +280,6 @@ export const HomeScreen: React.FC = () => {
                                 </Text>
                             </View>
 
-                            {/* Feature 3: Private & Secure */}
                             <View style={styles.featureCard}>
                                 <Ionicons
                                     name="shield-checkmark"
@@ -251,6 +297,181 @@ export const HomeScreen: React.FC = () => {
                             </View>
                         </View>
                     </ScrollView>
+                ) : isOffline ? (
+                    /* Authenticated Logged-In Offline Experience */
+                    <ScrollView
+                        style={styles.landingScroll}
+                        contentContainerStyle={styles.landingContent}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={async () => {
+                                    setIsRefreshing(true);
+                                    await refreshConnection();
+                                    await loadOfflineSongs();
+                                    setIsRefreshing(false);
+                                }}
+                                tintColor={appConfig.colors.accentGreen}
+                            />
+                        }
+                    >
+                        {/* Offline Card */}
+                        <LinearGradient
+                            colors={["#331414", "#1f1414", "#121212"]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.heroCard}
+                        >
+                            <View style={styles.heroBadge}>
+                                <Ionicons
+                                    name="cloud-offline"
+                                    size={13}
+                                    color="#ef4444"
+                                />
+                                <Text style={styles.heroBadgeText}>
+                                    OFFLINE MODE
+                                </Text>
+                            </View>
+
+                            <Text style={styles.heroHeadline}>
+                                You're currently offline
+                            </Text>
+
+                            <Text style={styles.heroDesc}>
+                                You can listen to your downloaded tracks anytime
+                                without an internet connection.
+                            </Text>
+
+                            <View
+                                style={{
+                                    flexDirection: "row",
+                                    gap: 10,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                <TouchableOpacity
+                                    style={styles.heroCtaBtn}
+                                    onPress={() =>
+                                        navigation.navigate("DownloadsTab")
+                                    }
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons
+                                        name="arrow-down-circle"
+                                        size={18}
+                                        color="#000000"
+                                    />
+                                    <Text style={styles.heroCtaText}>
+                                        View Downloads ({offlineSongs.length})
+                                    </Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.heroCtaBtn,
+                                        {
+                                            backgroundColor:
+                                                "rgba(255, 255, 255, 0.12)",
+                                        },
+                                    ]}
+                                    onPress={async () => {
+                                        setIsRefreshing(true);
+                                        await refreshConnection();
+                                        await loadOfflineSongs();
+                                        setIsRefreshing(false);
+                                    }}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons
+                                        name="refresh-outline"
+                                        size={18}
+                                        color="#ffffff"
+                                    />
+                                    <Text
+                                        style={[
+                                            styles.heroCtaText,
+                                            { color: "#ffffff" },
+                                        ]}
+                                    >
+                                        Retry Connection
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </LinearGradient>
+
+                        {/* Downloaded Songs Shelf if any */}
+                        {offlineSongs.length > 0 ? (
+                            <View style={{ marginTop: 8 }}>
+                                <View style={styles.shelfTitleRow}>
+                                    <Text style={styles.shelfTitle}>
+                                        Available Offline
+                                    </Text>
+                                    <Text style={styles.shelfSubtitle}>
+                                        Downloaded songs ready to play offline
+                                    </Text>
+                                </View>
+
+                                <View
+                                    style={{
+                                        flexDirection: "row",
+                                        flexWrap: "wrap",
+                                        marginHorizontal: -4,
+                                        marginTop: 12,
+                                    }}
+                                >
+                                    {offlineSongs.map((song) => (
+                                        <View
+                                            key={song.id}
+                                            style={{
+                                                width: "33.33%",
+                                                padding: 4,
+                                            }}
+                                        >
+                                            <SongCard
+                                                song={song}
+                                                isCurrent={
+                                                    currentSong?.id === song.id
+                                                }
+                                                isPlaying={
+                                                    isPlaying &&
+                                                    currentSong?.id === song.id
+                                                }
+                                                onPress={() => {
+                                                    if (
+                                                        currentSong?.id ===
+                                                        song.id
+                                                    ) {
+                                                        togglePlay();
+                                                    } else {
+                                                        playSong(
+                                                            song,
+                                                            offlineSongs,
+                                                        );
+                                                    }
+                                                }}
+                                            />
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={styles.emptyContainer}>
+                                <Ionicons
+                                    name="arrow-down-circle-outline"
+                                    size={44}
+                                    color={appConfig.colors.subText}
+                                />
+                                <Text style={styles.emptyText}>
+                                    No downloaded songs
+                                </Text>
+                                <Text style={styles.emptySubtext}>
+                                    Download tracks while online to listen
+                                    offline.
+                                </Text>
+                            </View>
+                        )}
+                    </ScrollView>
                 ) : isLoading ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator
@@ -259,7 +480,7 @@ export const HomeScreen: React.FC = () => {
                         />
                     </View>
                 ) : (
-                    /* Authenticated Song Catalog */
+                    /* Authenticated Online Song Catalog */
                     <FlatList
                         data={songs}
                         keyExtractor={(item) => item.id}
