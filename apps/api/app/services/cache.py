@@ -132,7 +132,7 @@ class CacheService:
         self.adapter: BaseCacheAdapter = self._initialize_adapter()
 
     def _initialize_adapter(self) -> BaseCacheAdapter:
-        if settings.REDIS_URL and settings.REDIS_URL.strip():
+        if settings.REDIS_URL:
             try:
                 adapter = RedisCacheAdapter()
                 logger.info("CacheService initialized with RedisCacheAdapter.")
