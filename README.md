@@ -51,7 +51,7 @@
 - **Fast Asynchronous Architecture**: FastAPI application powered by SQLModel, PostgreSQL, and connection pooling.
 - **Redis & BullMQ Pipeline**: Offloads intensive audio analysis, transcoding, and artwork extraction jobs to asynchronous background workers.
 - **Typo-Tolerant Catalog Search**: In-memory search indexing via RapidFuzz providing instant, typo-tolerant query resolution without external search engines.
-- **Secure Session Management**: SHA-256 hashed bearer tokens stored in database with an in-memory cache and sliding-window rate limiting.
+- **Secure Session Management & Rate Limiting**: SHA-256 hashed bearer tokens stored in database with a tiered cache layer (Redis / in-memory fallback) and cache-backed sliding-window rate limiting.
 
 ### 🤖 AI-Powered Metadata Extraction (Google Gemini)
 - **Automated Property Identification**: Automatic detection and classification of genre, moods, and language based on song title, artist, and album.

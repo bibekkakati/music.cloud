@@ -39,7 +39,7 @@ CategoryType = Literal["genre", "mood", "lang"]
 
 class SongSearchService:
     """
-    In-memory song search and category service.
+    Song search and category service.
     - Stores songs in a dict: {song_id: SongSearchPayload}
     - Maintains a category index: {prefix_category_id: list[song_id]}
     - Maintains a prefix character index by word initials of title and artist: {char: set[song_id]}

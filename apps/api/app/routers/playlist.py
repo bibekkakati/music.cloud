@@ -288,7 +288,7 @@ def get_category_songs(
     limit: int = 20,
 ) -> dict[str, Any]:
     """
-    Retrieve songs for a category using the in-memory song_search index.
+    Retrieve songs for a category using the song_search index.
     Client sends the category label as shown in UI plus the raw master id.
     """
     # Enforce safe bounds: min 1, max 40

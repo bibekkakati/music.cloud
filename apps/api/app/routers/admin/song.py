@@ -240,7 +240,7 @@ def update_song_metadata(
             payload.is_public,
             payload.cover_art_key,
         )
-        cover_art_url = get_cover_art_url(song.cover_art_key)
+
         if song.is_public:
             song_search.update_song(song)
         else:
@@ -248,6 +248,24 @@ def update_song_metadata(
         return to_admin_song_payload(song, MasterService(db))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+
+
+@router.post(
+    "/search/rebuild",
+    summary="Rebuild the song search and category index",
+    status_code=status.HTTP_200_OK,
+)
+def rebuild_search_index(
+    user: AdminUser,
+    db: DatabaseSession,
+):
+    song_service = SongService(db)
+    song_search.set_songs(song_service)
+    total_indexed = len(song_search.songs_by_id)
+    return {
+        "message": "Song search index rebuilt successfully",
+        "total_indexed": total_indexed,
+    }
 
 
 @router.get(
@@ -309,7 +327,7 @@ def update_song_cover_art(
     song_service = SongService(db)
     try:
         song = song_service.update_song_cover_art(song_id, payload.cover_art_key)
-        cover_art_url = get_cover_art_url(song.cover_art_key)
+
         if song.is_public:
             song_search.update_song(song)
         return to_admin_song_payload(song, MasterService(db))

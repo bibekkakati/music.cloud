@@ -4,7 +4,7 @@ import type { SongDetail } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { usePlayer } from "../../context/PlayerContext";
-import { Radio, RefreshCw, Upload, Layers, Loader2 } from "lucide-react";
+import { Radio, RefreshCw, Upload, Layers, Loader2, Database } from "lucide-react";
 
 import { AdminAccessDenied } from "../../components/admin/AdminAccessDenied";
 import { AdminUploadPanel } from "../../components/admin/AdminUploadPanel";
@@ -46,6 +46,7 @@ export const AdminPage: React.FC = () => {
     const [resyncingSongIds, setResyncingSongIds] = useState<Set<string>>(
         new Set(),
     );
+    const [isRebuildingIndex, setIsRebuildingIndex] = useState(false);
 
     // --- Modals State ---
     const [inspectingSong, setInspectingSong] = useState<SongDetail | null>(
@@ -329,6 +330,25 @@ export const AdminPage: React.FC = () => {
         }
     };
 
+    const handleRebuildSearchIndex = async () => {
+        try {
+            setIsRebuildingIndex(true);
+            const res = await adminService.rebuildSearchIndex();
+            showToast(
+                "Search Index Rebuilt",
+                "success",
+                `Indexed ${res.total_indexed} songs into search memory.`,
+            );
+        } catch (err: unknown) {
+            const msg =
+                (err as { response?: { data?: { detail?: string } } })?.response
+                    ?.data?.detail || "Failed to rebuild search index";
+            showToast("Rebuild Index Failed", "error", msg);
+        } finally {
+            setIsRebuildingIndex(false);
+        }
+    };
+
     if (isLoading) {
         return (
             <div
@@ -391,6 +411,43 @@ export const AdminPage: React.FC = () => {
 
                 {/* Tab Switcher & Actions */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <button
+                        type="button"
+                        onClick={handleRebuildSearchIndex}
+                        disabled={isRebuildingIndex}
+                        className="app-tag-pill"
+                        style={{
+                            padding: "8px 16px",
+                            fontSize: 13,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            background: isRebuildingIndex
+                                ? "rgba(255, 255, 255, 0.05)"
+                                : "rgba(255, 255, 255, 0.08)",
+                            color: "var(--app-text)",
+                            cursor: isRebuildingIndex ? "not-allowed" : "pointer",
+                            border: "1px solid rgba(255, 255, 255, 0.12)",
+                            transition: "all 0.2s ease",
+                        }}
+                        title="Rebuild the in-memory song search index and categories from the database"
+                    >
+                        {isRebuildingIndex ? (
+                            <Loader2
+                                size={14}
+                                className="animate-spin"
+                                color="var(--app-green)"
+                            />
+                        ) : (
+                            <Database size={14} />
+                        )}
+                        <span>
+                            {isRebuildingIndex
+                                ? "Rebuilding Index..."
+                                : "Rebuild Index"}
+                        </span>
+                    </button>
+
                     {activeTab === "catalog" && (
                         <button
                             type="button"

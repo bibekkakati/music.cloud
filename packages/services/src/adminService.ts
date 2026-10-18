@@ -249,5 +249,12 @@ export const adminService = {
         );
         return response.data;
     },
+
+    rebuildSearchIndex: async (): Promise<{ message: string; total_indexed: number }> => {
+        const response = await apiClient.post<{ message: string; total_indexed: number }>(
+            "/api/v1/admin/song/search/rebuild",
+        );
+        return response.data;
+    },
 };
 
