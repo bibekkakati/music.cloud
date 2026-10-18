@@ -58,7 +58,6 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str
 
     S3_REGION: str = "auto"
-    S3_TOKEN: str | None = None
     S3_KEY: str = ""
     S3_SECRET: str = ""
     S3_ENDPOINT: str = ""
