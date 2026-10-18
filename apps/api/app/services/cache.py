@@ -1,4 +1,4 @@
-from __future__ import annotations
+from app.infra.redis import get_redis_client
 
 import json
 import logging
@@ -84,14 +84,11 @@ class InMemoryCacheAdapter(BaseCacheAdapter):
 
 class RedisCacheAdapter(BaseCacheAdapter):
     """
-    Redis cache adapter using redis-py client.
     Connects to Redis server and stores keys with native TTL.
     """
 
-    def __init__(self, redis_url: str) -> None:
-        import redis
-
-        self._client = redis.Redis.from_url(redis_url, decode_responses=True)
+    def __init__(self) -> None:
+        self._client = get_redis_client()
         # Test connection immediately
         self._client.ping()
 
@@ -131,19 +128,18 @@ class CacheService:
     otherwise gracefully falls back to InMemoryCacheAdapter.
     """
 
-    def __init__(self, redis_url: str | None = None) -> None:
-        target_url = redis_url if redis_url is not None else settings.REDIS_URL
-        self.adapter: BaseCacheAdapter = self._initialize_adapter(target_url)
+    def __init__(self) -> None:
+        self.adapter: BaseCacheAdapter = self._initialize_adapter()
 
-    def _initialize_adapter(self, redis_url: str | None) -> BaseCacheAdapter:
-        if redis_url and redis_url.strip():
+    def _initialize_adapter(self) -> BaseCacheAdapter:
+        if settings.REDIS_URL and settings.REDIS_URL.strip():
             try:
-                adapter = RedisCacheAdapter(redis_url.strip())
+                adapter = RedisCacheAdapter()
                 logger.info("CacheService initialized with RedisCacheAdapter.")
                 return adapter
             except Exception as exc:
                 logger.warning(
-                    f"Failed to connect to Redis at {redis_url}: {exc}. "
+                    f"Failed to connect to Redis at {settings.REDIS_URL}: {exc}. "
                     "Falling back to InMemoryCacheAdapter."
                 )
         else:
