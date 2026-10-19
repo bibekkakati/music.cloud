@@ -8,10 +8,11 @@ import {
     Animated,
     PanResponder,
     BackHandler,
+    Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { formatTime } from "@music-cloud/utils";
 import type { SongMetadata } from "@music-cloud/types";
 import { playlistService } from "@music-cloud/services";
@@ -19,6 +20,7 @@ import { usePlayer, type PlayableSong } from "../context/PlayerContext";
 import { useAuth } from "../context/AuthContext";
 import { SongCoverArt } from "./SongCoverArt";
 import { SongActionSheet } from "./SongActionSheet";
+import { QueueBottomSheet } from "./QueueBottomSheet";
 import { appConfig } from "../config";
 
 const { width, height } = Dimensions.get("window");
@@ -35,6 +37,7 @@ export const NowPlayingModal: React.FC = () => {
         currentTime,
         duration,
         isLoop,
+        repeatMode,
         isShuffle,
         isLiked,
         isNowPlayingOpen,
@@ -48,6 +51,7 @@ export const NowPlayingModal: React.FC = () => {
         toggleLike,
         closeNowPlaying,
         openPlaylistModal,
+        addToQueue,
     } = usePlayer();
 
     // Fallback queue if queue from player has only 1 song or is empty
@@ -134,6 +138,7 @@ export const NowPlayingModal: React.FC = () => {
     const [isSliding, setIsSliding] = useState(false);
     const [slidingValue, setSlidingValue] = useState(0);
     const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
+    const [isQueueSheetOpen, setIsQueueSheetOpen] = useState(false);
 
     // Stable Scrubber measurements (prevents coordinate jumping and flickering)
     const scrubberRef = useRef<View>(null);
@@ -876,12 +881,12 @@ export const NowPlayingModal: React.FC = () => {
                                         name="repeat"
                                         size={24}
                                         color={
-                                            isLoop
+                                            repeatMode !== "off"
                                                 ? appConfig.colors.accentGreen
                                                 : appConfig.colors.subText
                                         }
                                     />
-                                    {isLoop && (
+                                    {repeatMode !== "off" && (
                                         <View style={styles.activeDot} />
                                     )}
                                 </TouchableOpacity>
@@ -901,13 +906,7 @@ export const NowPlayingModal: React.FC = () => {
                                 </View>
 
                                 <TouchableOpacity
-                                    onPress={() => {
-                                        if (!isAuthenticated) {
-                                            openAuthModal();
-                                            return;
-                                        }
-                                        openPlaylistModal(song);
-                                    }}
+                                    onPress={() => setIsQueueSheetOpen(true)}
                                     style={styles.bottomUtilBtn}
                                     hitSlop={{
                                         top: 10,
@@ -916,9 +915,9 @@ export const NowPlayingModal: React.FC = () => {
                                         right: 10,
                                     }}
                                 >
-                                    <Ionicons
-                                        name="list"
-                                        size={22}
+                                    <MaterialIcons
+                                        name="queue-music"
+                                        size={24}
                                         color={appConfig.colors.subText}
                                     />
                                 </TouchableOpacity>
@@ -933,6 +932,12 @@ export const NowPlayingModal: React.FC = () => {
                 visible={isActionSheetOpen}
                 song={song}
                 onClose={() => setIsActionSheetOpen(false)}
+            />
+
+            {/* Playback Queue Bottom Sheet */}
+            <QueueBottomSheet
+                visible={isQueueSheetOpen}
+                onClose={() => setIsQueueSheetOpen(false)}
             />
         </>
     );

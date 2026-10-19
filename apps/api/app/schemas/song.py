@@ -19,6 +19,10 @@ class SongPublicResponsePayload(BaseModel):
     language: str | None = None
 
 
+class SongBatchRequestPayload(BaseModel):
+    song_ids: list[str]
+
+
 # --- Admin Only Schemas ---
 class AdminSongResponsePayload(BaseModel):
     id: UUID | str

@@ -5,6 +5,7 @@ import type { SongMetadata } from "../types";
 import { SongCard } from "../components/SongCard";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { usePlayer } from "../context/PlayerContext";
 import { Music, Loader2, Sparkles, LogIn, Radio } from "lucide-react";
 import { getGreeting } from "@music-cloud/utils";
 import { appConfig } from "../config";
@@ -25,6 +26,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
     const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
     const { showToast } = useToast();
+    const { syncCollectionQueue } = usePlayer();
 
     const fetchSongs = async (pageNum = 1, append = false) => {
         // Only attempt to fetch if there is an active session token
@@ -42,13 +44,14 @@ export const HomePage: React.FC<HomePageProps> = ({
             );
             const songList = data?.songs || [];
             if (append) {
-                setSongs((prev) => {
-                    const existingIds = new Set(prev.map((s) => s.id));
-                    const uniqueNew = songList.filter(
-                        (s) => !existingIds.has(s.id),
-                    );
-                    return [...prev, ...uniqueNew];
-                });
+                const existingIds = new Set(songs.map((s) => s.id));
+                const uniqueNew = songList.filter(
+                    (s) => !existingIds.has(s.id),
+                );
+                setSongs((prev) => [...prev, ...uniqueNew]);
+                if (uniqueNew.length > 0) {
+                    syncCollectionQueue("made-for-you", uniqueNew);
+                }
             } else {
                 setSongs(songList);
             }
@@ -391,6 +394,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                                         key={song.id}
                                         song={song}
                                         allSongs={songs}
+                                        collectionId="made-for-you"
                                         onAddToPlaylist={onAddToPlaylist}
                                     />
                                 ))}

@@ -108,7 +108,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
 
     const handleSelectSong = (song: SongMetadata) => {
-        playSong(song, suggestions);
+        playSong(song);
         setIsOpen(false);
         setQuery("");
     };

@@ -43,7 +43,14 @@ export const SongCollectionView: React.FC = () => {
         !isDownloadsMode &&
         (Boolean(categoryLabel) || Boolean(categoryId) || !playlistId);
 
-    const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+    const {
+        currentSong,
+        isPlaying,
+        playSong,
+        togglePlay,
+        syncCollectionQueue,
+        removeFromQueue,
+    } = usePlayer();
     const { triggerPlaylistRefresh } = useUI();
 
     const [collection, setCollection] = useState<PlaylistDetail | null>(null);
@@ -110,18 +117,26 @@ export const SongCollectionView: React.FC = () => {
                         }),
                     );
 
-                    if (append && collection) {
+                    if (append) {
+                        const currentSongs = collection?.songs || [];
                         const existingIds = new Set(
-                            collection.songs.map((x) => x.id),
+                            currentSongs.map((x) => x.id),
                         );
                         const uniqueNew = newSongs.filter(
                             (x) => !existingIds.has(x.id),
                         );
-                        setCollection({
-                            ...collection,
-                            songs: [...collection.songs, ...uniqueNew],
-                            songs_count: data.songs_count,
-                        });
+                        setCollection((prev) =>
+                            prev
+                                ? {
+                                      ...prev,
+                                      songs: [...prev.songs, ...uniqueNew],
+                                      songs_count: data.songs_count,
+                                  }
+                                : null,
+                        );
+                        if (uniqueNew.length > 0) {
+                            syncCollectionQueue(String(data.id), uniqueNew);
+                        }
                     } else {
                         setCollection({
                             id: String(data.id),
@@ -191,9 +206,15 @@ export const SongCollectionView: React.FC = () => {
         }),
     );
 
+    const collectionIdKey = collection?.id
+        ? String(collection.id)
+        : playlistId
+          ? String(playlistId)
+          : undefined;
+
     const handlePlayAll = () => {
         if (collectionSongs.length > 0) {
-            playSong(collectionSongs[0], collectionSongs);
+            playSong(collectionSongs[0], collectionSongs, 0, collectionIdKey);
         }
     };
 
@@ -208,6 +229,7 @@ export const SongCollectionView: React.FC = () => {
                     text: "Remove",
                     style: "destructive",
                     onPress: async () => {
+                        removeFromQueue(song.id);
                         // OPTIMISTIC: remove song from list immediately
                         const previousCollection = collection;
                         setCollection((prev: PlaylistDetail | null) =>
@@ -411,7 +433,12 @@ export const SongCollectionView: React.FC = () => {
                                     if (currentSong?.id === item.id) {
                                         togglePlay();
                                     } else {
-                                        playSong(item, collectionSongs);
+                                        playSong(
+                                            item,
+                                            collectionSongs,
+                                            0,
+                                            collectionIdKey,
+                                        );
                                     }
                                 }}
                                 onMorePress={() => {

@@ -16,7 +16,7 @@ from app.schemas.song import (
 )
 from app.services.ai_agent import aiagent
 from app.services.master import MasterService
-from app.services.song_search import song_search
+from app.services.song_search import SongSearchPayload, song_search
 from app.services.storage import storage
 
 logger = logging.getLogger("uvicorn.error")
@@ -37,6 +37,56 @@ class SongService:
             raise ValueError("Song not found")
 
         return song
+
+    def get_songs_by_ids(
+        self, song_ids: list[str | UUID]
+    ) -> list[Song | SongSearchPayload]:
+        """
+        Fetch raw song entities for a list of song IDs.
+        Priority:
+        1. In-memory song_search index.
+        2. Database query for any missing IDs.
+        Preserves requested order.
+        """
+        if not song_ids:
+            return []
+
+        # Deduplicate while preserving order
+        ordered_ids: list[str] = list(
+            dict.fromkeys(str(sid).strip() for sid in song_ids if sid and str(sid).strip())
+        )
+        found_map: dict[str, Song | SongSearchPayload] = {}
+
+        # 1. First priority: Check in song_search index
+        for sid in ordered_ids:
+            cached_payload = song_search.songs_by_id.get(sid)
+            if cached_payload:
+                found_map[sid] = cached_payload
+
+        # 2. Fetch missing IDs from database
+        missing_ids = [sid for sid in ordered_ids if sid not in found_map]
+        if missing_ids:
+            missing_uuids: list[UUID] = []
+            for sid in missing_ids:
+                try:
+                    missing_uuids.append(UUID(sid))
+                except (ValueError, TypeError):
+                    pass
+
+            if missing_uuids:
+                db_songs = self.db.exec(
+                    select(Song).where(
+                        Song.id.in_(missing_uuids),
+                        Song.is_public == True,
+                        Song.status == SongProcessingStatus.DONE,
+                    )
+                ).all()
+
+                for song in db_songs:
+                    found_map[str(song.id)] = song
+
+        # Return raw song entities ordered according to requested list
+        return [found_map[sid] for sid in ordered_ids if sid in found_map]
 
     def mark_processing(self, song_id: str | UUID) -> None:
         """Mark song status as PROCESSING."""

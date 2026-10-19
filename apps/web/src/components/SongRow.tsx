@@ -24,7 +24,7 @@ export const SongRow: React.FC<SongRowProps> = ({
     onAddToPlaylist,
     allSongs,
 }) => {
-    const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+    const { currentSong, isPlaying, playSong, togglePlay, addToQueue } = usePlayer();
     const [isHovered, setIsHovered] = useState(false);
     const [contextMenuPos, setContextMenuPos] = useState<{
         x: number;
@@ -40,7 +40,7 @@ export const SongRow: React.FC<SongRowProps> = ({
         if (isCurrentTrack) {
             togglePlay();
         } else {
-            playSong(song, allSongs);
+            playSong(song, allSongs, 0, playlistId);
         }
     };
 
@@ -267,6 +267,8 @@ export const SongRow: React.FC<SongRowProps> = ({
                     isThisPlaying={isThisPlaying}
                     onClose={() => setContextMenuPos(null)}
                     onPlay={handleRowClick}
+                    onPlayNext={() => addToQueue(song, "next")}
+                    onAddToQueue={() => addToQueue(song, "end")}
                     onAddToPlaylist={() => onAddToPlaylist?.(song)}
                     onRemoveFromPlaylist={
                         playlistId && onRemoveFromPlaylist

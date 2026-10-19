@@ -16,7 +16,16 @@ import TrackPlayer, {
     type Track,
 } from "react-native-track-player";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { SongMetadata, SongDetail } from "@music-cloud/types";
+import type { SongMetadata, SongDetail, PlayableSong, RepeatMode, QueuePriority } from "@music-cloud/types";
+import {
+    MAX_QUEUE_SIZE,
+    createQueueWindow,
+    appendWithLimit,
+    addTrackWithPriority,
+    getNextQueueIndex,
+    getPrevQueueIndex,
+    removeTrackFromQueue,
+} from "@music-cloud/utils";
 import { streamService } from "../services/streamService";
 import { downloadService } from "../services/downloadService";
 import { playlistService } from "@music-cloud/services";
@@ -25,7 +34,7 @@ import { useAuth } from "./AuthContext";
 import { useNetwork } from "./NetworkContext";
 import { appConfig } from "../config";
 
-export type PlayableSong = SongMetadata | SongDetail;
+export type { PlayableSong };
 
 interface SavedPlayerState {
     currentSong: PlayableSong;
@@ -35,6 +44,8 @@ interface SavedPlayerState {
     volume: number;
     isShuffle: boolean;
     isLoop: boolean;
+    repeatMode?: RepeatMode;
+    currentCollectionId?: string | null;
 }
 
 function attachTokenToStreamUrl(rawUrl: string, token: string | null): string {
@@ -62,7 +73,9 @@ interface PlayerContextValue {
     volume: number;
     isMuted: boolean;
     isLoop: boolean;
+    repeatMode: RepeatMode;
     isShuffle: boolean;
+    currentCollectionId: string | null;
     isLiked: boolean;
     isLikeLoading: boolean;
     isNowPlayingOpen: boolean;
@@ -71,6 +84,7 @@ interface PlayerContextValue {
         song: PlayableSong,
         queueList?: PlayableSong[],
         initialSeekTime?: number,
+        collectionId?: string,
     ) => Promise<void>;
     togglePlay: () => Promise<void>;
     nextTrack: () => Promise<void>;
@@ -79,9 +93,12 @@ interface PlayerContextValue {
     setVolume: (vol: number) => Promise<void>;
     toggleMute: () => Promise<void>;
     toggleLoop: () => void;
+    toggleRepeatMode: () => void;
     toggleShuffle: () => void;
     toggleLike: () => Promise<void>;
-    addToQueue: (song: PlayableSong) => void;
+    addToQueue: (song: PlayableSong, position?: QueuePriority) => void;
+    removeFromQueue: (songId: string) => void;
+    syncCollectionQueue: (collectionId: string, newSongs: PlayableSong[]) => void;
     clearPlayer: () => Promise<void>;
     openNowPlaying: () => void;
     closeNowPlaying: () => void;
@@ -148,8 +165,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         appConfig.player.default_volume,
     );
     const [isMuted, setIsMuted] = useState<boolean>(false);
+    const [repeatMode, setRepeatMode] = useState<RepeatMode>("all");
     const [isLoop, setIsLoop] = useState<boolean>(false);
     const [isShuffle, setIsShuffle] = useState<boolean>(false);
+    const [currentCollectionId, setCurrentCollectionId] = useState<string | null>(null);
     const [isLiked, setIsLiked] = useState<boolean>(false);
     const [isLikeLoading, setIsLikeLoading] = useState<boolean>(false);
 
@@ -169,7 +188,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const currentSongRef = useRef<PlayableSong | null>(null);
     const queueRef = useRef<PlayableSong[]>(queue);
     const isLoopRef = useRef<boolean>(isLoop);
+    const repeatModeRef = useRef<RepeatMode>(repeatMode);
     const isShuffleRef = useRef<boolean>(isShuffle);
+    const currentCollectionIdRef = useRef<string | null>(currentCollectionId);
+    const shuffleHistoryRef = useRef<string[]>([]);
     const volumeRef = useRef<number>(volume);
     const isMutedRef = useRef<boolean>(isMuted);
     const playRequestIdRef = useRef<number>(0);
@@ -178,6 +200,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
               song: PlayableSong,
               queueList?: PlayableSong[],
               initialSeekTime?: number,
+              collectionId?: string,
           ) => Promise<void>)
         | null
     >(null);
@@ -199,8 +222,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         isLoopRef.current = isLoop;
     }, [isLoop]);
     useEffect(() => {
+        repeatModeRef.current = repeatMode;
+    }, [repeatMode]);
+    useEffect(() => {
         isShuffleRef.current = isShuffle;
     }, [isShuffle]);
+    useEffect(() => {
+        currentCollectionIdRef.current = currentCollectionId;
+    }, [currentCollectionId]);
     useEffect(() => {
         volumeRef.current = volume;
     }, [volume]);
@@ -227,6 +256,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     volume: overrides?.volume ?? volumeRef.current,
                     isShuffle: overrides?.isShuffle ?? isShuffleRef.current,
                     isLoop: overrides?.isLoop ?? isLoopRef.current,
+                    repeatMode: overrides?.repeatMode || repeatModeRef.current,
+                    currentCollectionId:
+                        overrides?.currentCollectionId !== undefined
+                            ? overrides.currentCollectionId
+                            : currentCollectionIdRef.current,
                 };
                 await AsyncStorage.setItem(
                     appConfig.storageKeys.playerState,
@@ -257,13 +291,28 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                             return;
                         }
 
+                        const rawQueue = parsed.queue || [parsed.currentSong];
+                        const { queue: boundedQ } = createQueueWindow<PlayableSong>(
+                            rawQueue,
+                            parsed.currentSong.id,
+                        );
+                        const rMode: RepeatMode =
+                            parsed.repeatMode || (parsed.isLoop ? "one" : "all");
+
                         setCurrentSong(parsed.currentSong);
-                        setQueue(parsed.queue || [parsed.currentSong]);
+                        setQueue(boundedQ);
                         setVolumeState(
                             parsed.volume ?? appConfig.player.default_volume,
                         );
-                        setIsLoop(Boolean(parsed.isLoop));
+                        setRepeatMode(rMode);
+                        repeatModeRef.current = rMode;
+                        setIsLoop(rMode === "one");
                         setIsShuffle(Boolean(parsed.isShuffle));
+                        if (parsed.currentCollectionId) {
+                            setCurrentCollectionId(parsed.currentCollectionId);
+                            currentCollectionIdRef.current =
+                                parsed.currentCollectionId;
+                        }
                     }
                 }
             } catch (err) {
@@ -388,7 +437,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         const subQueueEnded = TrackPlayer.addEventListener(
             Event.PlaybackQueueEnded,
             async () => {
-                if (isLoopRef.current) {
+                if (repeatModeRef.current === "one") {
                     await TrackPlayer.seekTo(0);
                     await TrackPlayer.play();
                 } else {
@@ -425,36 +474,27 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const handleNextTrack = useCallback(async () => {
         let q = queueRef.current;
-        if (q.length <= 1) {
-            try {
-                const res = await playlistService.getCategorySongs(
-                    "Made for you",
-                    1,
-                    appConfig.songs_limit,
-                );
-                const all = res?.songs;
-                if (Array.isArray(all) && all.length > 0) {
-                    q = all;
-                    queueRef.current = all;
-                    setQueue(all);
-                }
-            } catch {}
-        }
         if (q.length === 0) return;
 
-        const currentIdx = q.findIndex(
-            (s) => s.id === currentSongRef.current?.id,
-        );
-        let nextIdx = 0;
+        const currentId = currentSongRef.current?.id;
+        const nextIdx = getNextQueueIndex(q, currentId, {
+            isShuffle: isShuffleRef.current,
+            repeatMode: repeatModeRef.current,
+            playedShuffleIds: shuffleHistoryRef.current,
+        });
 
-        if (isShuffleRef.current && q.length > 1) {
-            let attempts = 0;
-            do {
-                nextIdx = Math.floor(Math.random() * q.length);
-                attempts++;
-            } while (nextIdx === currentIdx && attempts < 10);
-        } else {
-            nextIdx = (currentIdx + 1) % q.length;
+        if (nextIdx === null) {
+            // Repeat mode is off and reached end of queue -> stop playback
+            await TrackPlayer.pause().catch(() => {});
+            await TrackPlayer.seekTo(0).catch(() => {});
+            return;
+        }
+
+        if (isShuffleRef.current) {
+            shuffleHistoryRef.current.push(q[nextIdx].id);
+            if (shuffleHistoryRef.current.length > q.length) {
+                shuffleHistoryRef.current.shift();
+            }
         }
 
         const nextSong = q[nextIdx];
@@ -467,21 +507,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const handlePrevTrack = useCallback(async () => {
         let q = queueRef.current;
-        if (q.length <= 1) {
-            try {
-                const res = await playlistService.getCategorySongs(
-                    "Made for you",
-                    1,
-                    appConfig.songs_limit,
-                );
-                const all = res?.songs;
-                if (Array.isArray(all) && all.length > 0) {
-                    q = all;
-                    queueRef.current = all;
-                    setQueue(all);
-                }
-            } catch {}
-        }
         if (q.length === 0) return;
 
         const currentPos = await TrackPlayer.getProgress()
@@ -492,19 +517,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             return;
         }
 
-        const currentIdx = q.findIndex(
-            (s) => s.id === currentSongRef.current?.id,
-        );
-        let prevIdx = 0;
-        if (isShuffleRef.current && q.length > 1) {
-            let attempts = 0;
-            do {
-                prevIdx = Math.floor(Math.random() * q.length);
-                attempts++;
-            } while (prevIdx === currentIdx && attempts < 10);
-        } else {
-            prevIdx = (currentIdx - 1 + q.length) % q.length;
-        }
+        const currentId = currentSongRef.current?.id;
+        const prevIdx = getPrevQueueIndex(q, currentId, {
+            isShuffle: isShuffleRef.current,
+            repeatMode: repeatModeRef.current,
+        });
+
         const prevSong = q[prevIdx];
         if (prevSong) {
             if (playSongRef.current) {
@@ -517,6 +535,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         song: PlayableSong,
         queueList?: PlayableSong[],
         initialSeekTime = 0,
+        collectionId?: string,
     ) => {
         // 1. Check if song is downloaded offline
         const localDownloaded = await downloadService.getDownloadedSong(song.id);
@@ -526,18 +545,27 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             return;
         }
 
+        if (collectionId !== undefined) {
+            setCurrentCollectionId(collectionId);
+            currentCollectionIdRef.current = collectionId;
+        }
+
         await setupTrackPlayerIfNeeded();
 
         const currentRequestId = ++playRequestIdRef.current;
 
         try {
-            // Update queue
+            // Update queue with bounded window (max 100)
             let updatedQueue = queueRef.current;
             if (queueList && queueList.length > 0) {
-                updatedQueue = queueList;
-                setQueue(queueList);
+                const { queue: boundedQ } = createQueueWindow<PlayableSong>(
+                    queueList,
+                    song.id,
+                );
+                updatedQueue = boundedQ;
+                setQueue(boundedQ);
             } else if (!queueRef.current.some((s) => s.id === song.id)) {
-                updatedQueue = [song, ...queueRef.current];
+                updatedQueue = [song, ...queueRef.current.slice(0, MAX_QUEUE_SIZE - 1)];
                 setQueue(updatedQueue);
             }
 
@@ -724,17 +752,32 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         );
     };
 
-    const toggleLoop = () => {
-        const nextLoop = !isLoop;
+    const toggleRepeatMode = () => {
+        const nextMode: RepeatMode =
+            repeatMode === "off"
+                ? "all"
+                : repeatMode === "all"
+                  ? "one"
+                  : "off";
+        setRepeatMode(nextMode);
+        repeatModeRef.current = nextMode;
+        const nextLoop = nextMode === "one";
         setIsLoop(nextLoop);
         isLoopRef.current = nextLoop;
-        saveState({ isLoop: nextLoop });
+        saveState({ repeatMode: nextMode, isLoop: nextLoop });
+    };
+
+    const toggleLoop = () => {
+        toggleRepeatMode();
     };
 
     const toggleShuffle = () => {
         const nextShuffle = !isShuffle;
         setIsShuffle(nextShuffle);
         isShuffleRef.current = nextShuffle;
+        if (!nextShuffle) {
+            shuffleHistoryRef.current = [];
+        }
         saveState({ isShuffle: nextShuffle });
     };
 
@@ -760,10 +803,52 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         }
     };
 
-    const addToQueue = (song: PlayableSong) => {
-        setQueue((prev) =>
-            prev.some((s) => s.id === song.id) ? prev : [...prev, song],
+    const addToQueue = (song: PlayableSong, position: QueuePriority = "end") => {
+        const nextQ = addTrackWithPriority(
+            queueRef.current,
+            song,
+            currentSongRef.current?.id,
+            position,
+            MAX_QUEUE_SIZE,
         );
+        queueRef.current = nextQ;
+        setQueue(nextQ);
+        saveState({ queue: nextQ });
+    };
+
+    const removeFromQueue = (songId: string) => {
+        const nextQ = removeTrackFromQueue(queueRef.current, songId);
+        queueRef.current = nextQ;
+        setQueue(nextQ);
+        saveState({ queue: nextQ });
+    };
+
+    const syncCollectionQueue = (
+        collectionId: string,
+        newSongs: PlayableSong[],
+    ) => {
+        const currentId = currentCollectionIdRef.current;
+        if (!currentId || !collectionId || !newSongs || newSongs.length === 0) {
+            return;
+        }
+        const normalize = (id: string) => id.toLowerCase().replace(/[\s_]+/g, "-");
+        const isMatch =
+            currentId === collectionId ||
+            currentId.toLowerCase() === collectionId.toLowerCase() ||
+            normalize(currentId) === normalize(collectionId);
+
+        if (!isMatch) {
+            return;
+        }
+        const nextQ = appendWithLimit(
+            queueRef.current,
+            newSongs,
+            currentSongRef.current?.id,
+            MAX_QUEUE_SIZE,
+        );
+        queueRef.current = nextQ;
+        setQueue(nextQ);
+        saveState({ queue: nextQ });
     };
 
     return (
@@ -777,7 +862,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 volume,
                 isMuted,
                 isLoop,
+                repeatMode,
                 isShuffle,
+                currentCollectionId,
                 isLiked,
                 isLikeLoading,
                 isNowPlayingOpen,
@@ -790,9 +877,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 setVolume,
                 toggleMute,
                 toggleLoop,
+                toggleRepeatMode,
                 toggleShuffle,
                 toggleLike,
                 addToQueue,
+                removeFromQueue,
+                syncCollectionQueue,
                 clearPlayer,
                 openNowPlaying: () => {
                     setIsNowPlayingOpen(true);

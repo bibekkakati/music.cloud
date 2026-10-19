@@ -959,23 +959,32 @@ body {
         gap: 12px;
     }
 
-    /* iPad Footer Player: Hide volume controls and expand center scrubber */
+    /* iPad Footer Mini Player: Show volume controls, add to queue button, and balanced player sections */
     .desktop-volume-controls {
-        display: none !important;
+        display: flex !important;
+        gap: 6px;
     }
 
-    .player-right-section {
-        display: none !important;
+    .player-volume-bar {
+        width: 65px !important;
     }
 
     .player-left-section {
-        width: 35% !important;
-        min-width: 0 !important;
+        width: 30% !important;
+        min-width: 140px !important;
     }
 
     .player-center-section {
-        width: 65% !important;
+        width: 45% !important;
+        flex: 1;
         max-width: none !important;
+    }
+
+    .player-right-section {
+        display: flex !important;
+        width: 25% !important;
+        min-width: 140px !important;
+        justify-content: flex-end;
     }
 }
 

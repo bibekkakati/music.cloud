@@ -9,7 +9,7 @@ import {
     Share,
     Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { SongCoverArt } from "./SongCoverArt";
 import { playlistService } from "@music-cloud/services";
 import { usePlayer } from "../context/PlayerContext";
@@ -37,8 +37,14 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
     onClose,
     onRemoveFromPlaylist,
 }) => {
-    const { currentSong, isPlaying, playSong, togglePlay, openPlaylistModal } =
-        usePlayer();
+    const {
+        currentSong,
+        isPlaying,
+        playSong,
+        togglePlay,
+        addToQueue,
+        openPlaylistModal,
+    } = usePlayer();
     const { isAuthenticated, openAuthModal } = useAuth();
     const { isDownloaded, isDownloading, downloadSong, deleteDownloadedSong } =
         useDownload();
@@ -136,6 +142,18 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
         } else {
             playSong(song, [song]);
         }
+    };
+
+    const handlePlayNext = () => {
+        if (!song) return;
+        addToQueue(song, "next");
+        onClose();
+    };
+
+    const handleAddToQueue = () => {
+        if (!song) return;
+        addToQueue(song, "end");
+        onClose();
     };
 
     const handleToggleLike = async () => {
@@ -268,6 +286,38 @@ export const SongActionSheet: React.FC<SongActionSheetProps> = ({
                                     ]}
                                 >
                                     {isThisPlaying ? "Pause" : "Play"}
+                                </Text>
+                            </TouchableOpacity>
+
+                            {/* Action 1.5: Play next */}
+                            <TouchableOpacity
+                                style={styles.actionItem}
+                                onPress={handlePlayNext}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons
+                                    name="return-down-forward-outline"
+                                    size={22}
+                                    color="#ffffff"
+                                />
+                                <Text style={styles.actionLabel}>
+                                    Play next
+                                </Text>
+                            </TouchableOpacity>
+
+                            {/* Action 1.6: Add to queue */}
+                            <TouchableOpacity
+                                style={styles.actionItem}
+                                onPress={handleAddToQueue}
+                                activeOpacity={0.7}
+                            >
+                                <MaterialIcons
+                                    name="queue-music"
+                                    size={24}
+                                    color="#ffffff"
+                                />
+                                <Text style={styles.actionLabel}>
+                                    Add to queue
                                 </Text>
                             </TouchableOpacity>
 

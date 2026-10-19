@@ -45,4 +45,13 @@ export const songService = {
         );
         return response.data;
     },
+
+    getSongsBatch: async (songIds: string[]): Promise<SongMetadata[]> => {
+        if (!songIds || songIds.length === 0) return [];
+        const response = await apiClient.post<SongMetadata[]>(
+            "/api/v1/song/batch",
+            { song_ids: songIds },
+        );
+        return response.data;
+    },
 };

@@ -6,6 +6,7 @@ from app.dependencies.auth import CurrentUser
 from app.infra.database import DatabaseSession
 from app.models.song import SongProcessingStatus
 from app.schemas.song import (
+    SongBatchRequestPayload,
     SongDownloadUrlResponsePayload,
     SongPublicResponsePayload,
     StreamTokenResponsePayload,
@@ -20,6 +21,51 @@ from app.utils.stream_helper import (
 )
 
 router = APIRouter(prefix="/song")
+
+
+@router.post(
+    "/batch",
+    response_model=list[SongPublicResponsePayload],
+    summary="Get song details for provided list of song IDs",
+    status_code=status.HTTP_200_OK,
+)
+def get_songs_batch(
+    payload: SongBatchRequestPayload,
+    db: DatabaseSession,
+) -> list[SongPublicResponsePayload]:
+    song_service = SongService(db)
+    raw_songs = song_service.get_songs_by_ids(payload.song_ids)
+
+    master_service = MasterService(db)
+    results: list[SongPublicResponsePayload] = []
+    for s in raw_songs:
+        genre_name = (
+            master_service.get_genre_by_id(s.genre)
+            if s.genre is not None
+            else None
+        )
+        mood_names = [master_service.get_mood_by_id(m) for m in (s.moods or [])]
+        language_name = (
+            master_service.get_language_by_id(s.language)
+            if s.language is not None
+            else None
+        )
+        results.append(
+            SongPublicResponsePayload(
+                id=s.id,
+                title=s.title,
+                artist=s.artist,
+                duration_sec=s.duration_sec,
+                album=s.album,
+                year=s.year,
+                genre=genre_name,
+                moods=[m for m in mood_names if m],
+                language=language_name,
+                cover_art_url=get_cover_art_url(s.cover_art_key),
+                stream_url=get_stream_url(s.master_aac_key, s.master_mp3_key),
+            )
+        )
+    return results
 
 
 @router.get(

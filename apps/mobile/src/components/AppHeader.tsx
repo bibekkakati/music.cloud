@@ -73,7 +73,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ onSearchPress }) => {
       openAuthModal();
       return;
     }
-    playSong(song, suggestions);
+    playSong(song);
     setIsOpen(false);
     setQuery('');
     Keyboard.dismiss();

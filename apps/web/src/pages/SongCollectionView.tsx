@@ -50,7 +50,7 @@ export const SongCollectionView: React.FC<SongCollectionViewProps> = ({
     const [hasMore, setHasMore] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
-    const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+    const { currentSong, isPlaying, playSong, togglePlay, syncCollectionQueue, removeFromQueue } = usePlayer();
     const { showToast } = useToast();
 
     const loadData = useCallback(async (pageNum = 1, append = false) => {
@@ -66,23 +66,29 @@ export const SongCollectionView: React.FC<SongCollectionViewProps> = ({
                 const data =
                     await playlistService.getCategorySongs(categoryLabel, pageNum, 20);
                 
-                // Adapt to collection format
-                setCollection((prev) => {
-                    const newSongs = data.songs.map((s) => ({
-                        ...s,
-                        playlist_song_id: s.id,
-                        created_at: s.created_at || "",
-                    }));
-                    if (append && prev) {
-                        const existingIds = new Set(prev.songs.map((item) => item.id));
-                        const uniqueNew = newSongs.filter((item) => !existingIds.has(item.id));
+                const newSongs = data.songs.map((s) => ({
+                    ...s,
+                    playlist_song_id: s.id,
+                    created_at: s.created_at || "",
+                }));
+
+                if (append) {
+                    const currentSongs = collection?.songs || [];
+                    const existingIds = new Set(currentSongs.map((item) => item.id));
+                    const uniqueNew = newSongs.filter((item) => !existingIds.has(item.id));
+                    setCollection((prev) => {
+                        if (!prev) return prev;
                         return {
                             ...prev,
                             songs: [...prev.songs, ...uniqueNew],
                             songs_count: data.songs_count,
                         };
+                    });
+                    if (uniqueNew.length > 0) {
+                        syncCollectionQueue(String(data.id), uniqueNew);
                     }
-                    return {
+                } else {
+                    setCollection({
                         id: String(data.id),
                         label: data.label,
                         is_deletable: false,
@@ -90,8 +96,8 @@ export const SongCollectionView: React.FC<SongCollectionViewProps> = ({
                         created_at: "",
                         updated_at: "",
                         songs: newSongs,
-                    };
-                });
+                    });
+                }
 
                 const nextPage = data.next_page;
                 setHasMore(typeof nextPage === "number" && nextPage > 0);
@@ -240,11 +246,17 @@ export const SongCollectionView: React.FC<SongCollectionViewProps> = ({
         if (isCollectionPlaying) {
             togglePlay();
         } else {
-            playSong(playableTracks[0], playableTracks);
+            playSong(
+                playableTracks[0],
+                playableTracks,
+                0,
+                collection?.id ? String(collection.id) : undefined,
+            );
         }
     };
 
     const handleRemoveSong = async (playlistId: string, songId: string) => {
+        removeFromQueue(songId);
         setCollection((prev) => {
             if (!prev) return prev;
             return {

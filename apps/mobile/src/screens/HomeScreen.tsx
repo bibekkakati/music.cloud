@@ -27,7 +27,8 @@ import type { SongMetadata } from "@music-cloud/types";
 
 export const HomeScreen: React.FC = () => {
     const navigation = useNavigation<any>();
-    const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+    const { currentSong, isPlaying, playSong, togglePlay, syncCollectionQueue } =
+        usePlayer();
     const { isOffline, refreshConnection } = useNetwork();
     const {
         user,
@@ -96,13 +97,14 @@ export const HomeScreen: React.FC = () => {
                 const songList = data?.songs || [];
 
                 if (append) {
-                    setSongs((prev) => {
-                        const existingIds = new Set(prev.map((s) => s.id));
-                        const uniqueNew = songList.filter(
-                            (s) => !existingIds.has(s.id),
-                        );
-                        return [...prev, ...uniqueNew];
-                    });
+                    const existingIds = new Set(songs.map((s) => s.id));
+                    const uniqueNew = songList.filter(
+                        (s) => !existingIds.has(s.id),
+                    );
+                    setSongs((prev) => [...prev, ...uniqueNew]);
+                    if (uniqueNew.length > 0) {
+                        syncCollectionQueue("made-for-you", uniqueNew);
+                    }
                 } else {
                     setSongs(songList);
                 }
@@ -569,7 +571,12 @@ export const HomeScreen: React.FC = () => {
                                     if (currentSong?.id === item.id) {
                                         togglePlay();
                                     } else {
-                                        playSong(item, songs);
+                                        playSong(
+                                            item,
+                                            songs,
+                                            0,
+                                            "made-for-you",
+                                        );
                                     }
                                 }}
                             />

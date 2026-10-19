@@ -10,6 +10,7 @@ interface SongCardProps {
     song: SongMetadata | SongDetail;
     onAddToPlaylist?: (song: SongMetadata) => void;
     allSongs?: (SongMetadata | SongDetail)[];
+    collectionId?: string;
 }
 
 export const getSongGradient = (_id?: string): string => {
@@ -20,8 +21,9 @@ export const SongCard: React.FC<SongCardProps> = ({
     song,
     onAddToPlaylist,
     allSongs,
+    collectionId,
 }) => {
-    const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+    const { currentSong, isPlaying, playSong, togglePlay, addToQueue } = usePlayer();
     const isThisPlaying = currentSong?.id === song.id && isPlaying;
     const isCurrentTrack = currentSong?.id === song.id;
 
@@ -35,7 +37,7 @@ export const SongCard: React.FC<SongCardProps> = ({
         if (isCurrentTrack) {
             togglePlay();
         } else {
-            playSong(song, allSongs);
+            playSong(song, allSongs, 0, collectionId);
         }
     };
 
@@ -44,7 +46,7 @@ export const SongCard: React.FC<SongCardProps> = ({
         if (isCurrentTrack) {
             togglePlay();
         } else {
-            playSong(song, allSongs);
+            playSong(song, allSongs, 0, collectionId);
         }
     };
 
@@ -164,6 +166,8 @@ export const SongCard: React.FC<SongCardProps> = ({
                     isThisPlaying={isThisPlaying}
                     onClose={() => setContextMenuPos(null)}
                     onPlay={handleCardClick}
+                    onPlayNext={() => addToQueue(song, "next")}
+                    onAddToQueue={() => addToQueue(song, "end")}
                     onAddToPlaylist={() => onAddToPlaylist?.(song)}
                     onShare={() => setIsShareModalOpen(true)}
                 />

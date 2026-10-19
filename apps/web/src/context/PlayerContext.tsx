@@ -7,14 +7,23 @@ import React, {
     useCallback,
 } from "react";
 import Hls from "hls.js";
-import type { SongMetadata, SongDetail } from "../types";
+import type { SongDetail, PlayableSong, RepeatMode, QueuePriority } from "@music-cloud/types";
+import {
+    MAX_QUEUE_SIZE,
+    createQueueWindow,
+    appendWithLimit,
+    addTrackWithPriority,
+    getNextQueueIndex,
+    getPrevQueueIndex,
+    removeTrackFromQueue,
+} from "@music-cloud/utils";
 import { streamService } from "../services/streamService";
 import { playlistService } from "../services/playlistService";
 import { useAuth } from "./AuthContext";
 import { useToast } from "./ToastContext";
 import { appConfig } from "../config";
 
-export type PlayableSong = SongMetadata | SongDetail;
+export type { PlayableSong };
 
 const PLAYER_STORAGE_KEY = appConfig.ui.localStorage_keys.player_state;
 
@@ -26,6 +35,8 @@ interface SavedPlayerState {
     volume: number;
     isShuffle: boolean;
     isLoop: boolean;
+    repeatMode?: RepeatMode;
+    currentCollectionId?: string | null;
 }
 
 const loadSavedPlayerState = (): SavedPlayerState | null => {
@@ -46,11 +57,19 @@ const loadSavedPlayerState = (): SavedPlayerState | null => {
             typeof parsed.currentSong === "object" &&
             typeof parsed.currentSong.id === "string"
         ) {
+            const rawQueue: PlayableSong[] = Array.isArray(parsed.queue)
+                ? (parsed.queue as PlayableSong[])
+                : [parsed.currentSong as PlayableSong];
+            const { queue: boundedQueue } = createQueueWindow<PlayableSong>(
+                rawQueue,
+                parsed.currentSong.id,
+            );
+            const repeatMode: RepeatMode =
+                parsed.repeatMode || (parsed.isLoop ? "one" : "all");
+
             return {
                 currentSong: parsed.currentSong,
-                queue: Array.isArray(parsed.queue)
-                    ? parsed.queue
-                    : [parsed.currentSong],
+                queue: boundedQueue,
                 currentTime:
                     typeof parsed.currentTime === "number" &&
                     !isNaN(parsed.currentTime) &&
@@ -71,7 +90,9 @@ const loadSavedPlayerState = (): SavedPlayerState | null => {
                         ? parsed.volume
                         : 1.0,
                 isShuffle: Boolean(parsed.isShuffle),
-                isLoop: Boolean(parsed.isLoop),
+                isLoop: repeatMode === "one",
+                repeatMode,
+                currentCollectionId: parsed.currentCollectionId || null,
             };
         }
     } catch (e) {
@@ -157,7 +178,9 @@ interface PlayerContextValue {
     volume: number;
     isMuted: boolean;
     isLoop: boolean;
+    repeatMode: RepeatMode;
     isShuffle: boolean;
+    currentCollectionId: string | null;
     streamToken: string | null;
     isLiked: boolean;
     isLikeLoading: boolean;
@@ -167,6 +190,7 @@ interface PlayerContextValue {
         song: PlayableSong,
         queueList?: PlayableSong[],
         initialSeekTime?: number,
+        collectionId?: string,
     ) => Promise<void>;
     togglePlay: () => void;
     nextTrack: () => void;
@@ -175,8 +199,11 @@ interface PlayerContextValue {
     setVolume: (vol: number) => void;
     toggleMute: () => void;
     toggleLoop: () => void;
+    toggleRepeatMode: () => void;
     toggleShuffle: () => void;
-    addToQueue: (song: PlayableSong) => void;
+    addToQueue: (song: PlayableSong, position?: QueuePriority) => void;
+    removeFromQueue: (songId: string) => void;
+    syncCollectionQueue: (collectionId: string, newSongs: PlayableSong[]) => void;
     resetAndStopPlayer: () => void;
 }
 
@@ -209,11 +236,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             : appConfig.player.default_volume,
     );
     const [isMuted, setIsMuted] = useState<boolean>(false);
+    const [repeatMode, setRepeatMode] = useState<RepeatMode>(() =>
+        savedState.current?.repeatMode || (savedState.current?.isLoop ? "one" : "all"),
+    );
     const [isLoop, setIsLoop] = useState<boolean>(() =>
-        Boolean(savedState.current?.isLoop),
+        savedState.current?.repeatMode === "one" || Boolean(savedState.current?.isLoop),
     );
     const [isShuffle, setIsShuffle] = useState<boolean>(() =>
         Boolean(savedState.current?.isShuffle),
+    );
+    const [currentCollectionId, setCurrentCollectionId] = useState<string | null>(
+        () => savedState.current?.currentCollectionId || null,
     );
     const [streamToken, setStreamToken] = useState<string | null>(null);
 
@@ -233,6 +266,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     const volumeRef = useRef<number>(volume);
     const isShuffleRef = useRef<boolean>(isShuffle);
     const isLoopRef = useRef<boolean>(isLoop);
+    const repeatModeRef = useRef<RepeatMode>(repeatMode);
+    const currentCollectionIdRef = useRef<string | null>(currentCollectionId);
+    const shuffleHistoryRef = useRef<string[]>([]);
     const lastSaveTimeRef = useRef<number>(0);
 
     // Synchronize refs
@@ -263,6 +299,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     useEffect(() => {
         isLoopRef.current = isLoop;
     }, [isLoop]);
+
+    useEffect(() => {
+        repeatModeRef.current = repeatMode;
+    }, [repeatMode]);
+
+    useEffect(() => {
+        currentCollectionIdRef.current = currentCollectionId;
+    }, [currentCollectionId]);
 
     // Stop playback, destroy streams, reset state, and clear storage
     const resetAndStopPlayer = useCallback(() => {
@@ -379,6 +423,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                         overrides?.isLoop !== undefined
                             ? overrides.isLoop
                             : isLoopRef.current,
+                    repeatMode:
+                        overrides?.repeatMode !== undefined
+                            ? overrides.repeatMode
+                            : repeatModeRef.current,
+                    currentCollectionId:
+                        overrides?.currentCollectionId !== undefined
+                            ? overrides.currentCollectionId
+                            : currentCollectionIdRef.current,
                 };
                 localStorage.setItem(
                     PLAYER_STORAGE_KEY,
@@ -410,13 +462,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             window.removeEventListener("beforeunload", handleBeforeUnload);
     }, [isAuthenticated, savePlayerState]);
 
-    // Save on config changes (volume, shuffle, loop, queue, duration)
+    // Save on config changes (volume, shuffle, loop, queue, duration, repeatMode)
     useEffect(() => {
         if (isAuthenticated && currentSong) {
             savePlayerState({
                 volume,
                 isShuffle,
                 isLoop,
+                repeatMode,
+                currentCollectionId,
                 queue,
                 duration,
             });
@@ -426,6 +480,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         volume,
         isShuffle,
         isLoop,
+        repeatMode,
+        currentCollectionId,
         queue,
         duration,
         currentSong,
@@ -563,8 +619,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const handleEnded = () => {
             setIsPlaying(false);
-            if (isLoopRef.current) {
-                // If repeat is active, replay current song directly from local buffer
+            if (repeatModeRef.current === "one") {
+                // If repeat one is active, replay current song directly from local buffer
                 audio.currentTime = 0;
                 setCurrentTime(0);
                 savePlayerState({ currentTime: 0 });
@@ -624,6 +680,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
             song: PlayableSong,
             queueList?: PlayableSong[],
             initialSeekTime?: number,
+            collectionId?: string,
         ) => {
             if (!isAuthenticated) {
                 showToast(
@@ -633,6 +690,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 );
                 window.dispatchEvent(new CustomEvent("auth:required"));
                 return;
+            }
+
+            if (collectionId !== undefined) {
+                setCurrentCollectionId(collectionId);
+                currentCollectionIdRef.current = collectionId;
             }
 
             const audio = audioRef.current;
@@ -652,8 +714,23 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                     ? initialSeekTime
                     : 0;
 
-            // REQUIREMENT 3: If same song is getting played in repeat, do not fetch segments repeatedly if available in local
+            // If same song is getting played, reuse audio buffer but update queue if a new playlist was selected
             if (isSameSong && hasActiveSource && audio) {
+                if (queueList && queueList.length > 0) {
+                    const { queue: boundedQ } = createQueueWindow(
+                        queueList,
+                        song.id,
+                    );
+                    setQueue(boundedQ);
+                    queueRef.current = boundedQ;
+                    savePlayerState({
+                        queue: boundedQ,
+                        currentCollectionId:
+                            collectionId !== undefined
+                                ? collectionId
+                                : currentCollectionIdRef.current,
+                    });
+                }
                 if (seekTarget > 0) {
                     audio.currentTime = seekTarget;
                     setCurrentTime(seekTarget);
@@ -674,15 +751,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 return;
             }
 
-            // Update queue
+            // Update queue with bounded window (max 100)
             let updatedQueue: PlayableSong[];
             if (queueList && queueList.length > 0) {
-                updatedQueue = queueList;
-                setQueue(queueList);
+                const { queue: boundedQ } = createQueueWindow(
+                    queueList,
+                    song.id,
+                );
+                updatedQueue = boundedQ;
+                setQueue(boundedQ);
             } else {
                 updatedQueue = queueRef.current.some((s) => s.id === song.id)
                     ? queueRef.current
-                    : [song, ...queueRef.current];
+                    : [song, ...queueRef.current.slice(0, MAX_QUEUE_SIZE - 1)];
                 setQueue(updatedQueue);
             }
 
@@ -712,6 +793,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 queue: updatedQueue,
                 currentTime: seekTarget,
                 duration: targetDuration,
+                currentCollectionId:
+                    collectionId !== undefined
+                        ? collectionId
+                        : currentCollectionIdRef.current,
             });
 
             try {
@@ -938,29 +1023,32 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         if (!isAuthenticated || !queue.length || !currentSongRef.current)
             return;
         const currentId = currentSongRef.current.id;
-        const currentIndex = queue.findIndex((s) => s.id === currentId);
-        if (currentIndex === -1) {
-            playSong(queue[0]);
+        const nextIndex = getNextQueueIndex(queue, currentId, {
+            isShuffle,
+            repeatMode,
+            playedShuffleIds: shuffleHistoryRef.current,
+        });
+
+        if (nextIndex === null) {
+            // End of queue reached with repeat off -> stop playback gracefully
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+            setIsPlaying(false);
+            setCurrentTime(0);
             return;
         }
 
-        let nextIndex: number;
         if (isShuffle) {
-            if (queue.length > 1) {
-                let randomIndex = currentIndex;
-                while (randomIndex === currentIndex) {
-                    randomIndex = Math.floor(Math.random() * queue.length);
-                }
-                nextIndex = randomIndex;
-            } else {
-                nextIndex = 0;
+            shuffleHistoryRef.current.push(queue[nextIndex].id);
+            if (shuffleHistoryRef.current.length > queue.length) {
+                shuffleHistoryRef.current.shift();
             }
-        } else {
-            nextIndex = (currentIndex + 1) % queue.length;
         }
 
         playSong(queue[nextIndex]);
-    }, [isAuthenticated, queue, isShuffle, playSong]);
+    }, [isAuthenticated, queue, isShuffle, repeatMode, playSong]);
 
     const handlePrev = useCallback(() => {
         if (!isAuthenticated || !queue.length || !currentSongRef.current)
@@ -978,13 +1066,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         const currentId = currentSongRef.current.id;
-        const currentIndex = queue.findIndex((s) => s.id === currentId);
-        if (currentIndex <= 0) {
-            playSong(queue[queue.length - 1]);
-        } else {
-            playSong(queue[currentIndex - 1]);
-        }
-    }, [isAuthenticated, queue, playSong]);
+        const prevIndex = getPrevQueueIndex(queue, currentId, {
+            isShuffle,
+            repeatMode,
+        });
+
+        playSong(queue[prevIndex]);
+    }, [isAuthenticated, queue, isShuffle, repeatMode, playSong]);
 
     const seek = useCallback(
         (seconds: number) => {
@@ -1025,16 +1113,37 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         });
     }, []);
 
+    const toggleRepeatMode = useCallback(() => {
+        setRepeatMode((prev) => {
+            const nextMode: RepeatMode =
+                prev === "off" ? "all" : prev === "all" ? "one" : "off";
+            repeatModeRef.current = nextMode;
+            setIsLoop(nextMode === "one");
+            isLoopRef.current = nextMode === "one";
+            savePlayerState({
+                repeatMode: nextMode,
+                isLoop: nextMode === "one",
+            });
+            return nextMode;
+        });
+    }, [savePlayerState]);
+
     const toggleLoop = useCallback(() => {
-        setIsLoop((prev) => !prev);
-    }, []);
+        toggleRepeatMode();
+    }, [toggleRepeatMode]);
 
     const toggleShuffle = useCallback(() => {
-        setIsShuffle((prev) => !prev);
+        setIsShuffle((prev) => {
+            const next = !prev;
+            if (!next) {
+                shuffleHistoryRef.current = [];
+            }
+            return next;
+        });
     }, []);
 
     const addToQueue = useCallback(
-        (song: PlayableSong) => {
+        (song: PlayableSong, position: QueuePriority = "end") => {
             if (!isAuthenticated) {
                 showToast(
                     "Sign In Required",
@@ -1045,11 +1154,66 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 return;
             }
             setQueue((prev) => {
-                if (prev.some((s) => s.id === song.id)) return prev;
-                return [...prev, song];
+                const updated = addTrackWithPriority(
+                    prev,
+                    song,
+                    currentSongRef.current?.id,
+                    position,
+                    MAX_QUEUE_SIZE,
+                );
+                queueRef.current = updated;
+                savePlayerState({ queue: updated });
+                return updated;
+            });
+            showToast(
+                position === "next" ? "Playing Next" : "Added to Queue",
+                "success",
+                `"${song.title}" added to playback queue`,
+            );
+        },
+        [isAuthenticated, showToast, savePlayerState],
+    );
+
+    const removeFromQueue = useCallback(
+        (songId: string) => {
+            setQueue((prev) => {
+                const updated = removeTrackFromQueue(prev, songId);
+                queueRef.current = updated;
+                savePlayerState({ queue: updated });
+                return updated;
             });
         },
-        [isAuthenticated, showToast],
+        [savePlayerState],
+    );
+
+    const syncCollectionQueue = useCallback(
+        (collectionId: string, newSongs: PlayableSong[]) => {
+            const currentId = currentCollectionIdRef.current;
+            if (!currentId || !collectionId || !newSongs || newSongs.length === 0) {
+                return;
+            }
+            const normalize = (id: string) => id.toLowerCase().replace(/[\s_]+/g, "-");
+            const isMatch =
+                currentId === collectionId ||
+                currentId.toLowerCase() === collectionId.toLowerCase() ||
+                normalize(currentId) === normalize(collectionId);
+
+            if (!isMatch) {
+                return;
+            }
+            setQueue((prev) => {
+                const updated = appendWithLimit(
+                    prev,
+                    newSongs,
+                    currentSongRef.current?.id,
+                    MAX_QUEUE_SIZE,
+                );
+                queueRef.current = updated;
+                savePlayerState({ queue: updated });
+                return updated;
+            });
+        },
+        [savePlayerState],
     );
 
     // =========================================================================
@@ -1294,7 +1458,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 volume,
                 isMuted,
                 isLoop,
+                repeatMode,
                 isShuffle,
+                currentCollectionId,
                 streamToken,
                 isLiked,
                 isLikeLoading,
@@ -1308,8 +1474,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
                 setVolume,
                 toggleMute,
                 toggleLoop,
+                toggleRepeatMode,
                 toggleShuffle,
                 addToQueue,
+                removeFromQueue,
+                syncCollectionQueue,
                 resetAndStopPlayer,
             }}
         >

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import type { SongMetadata } from "../types";
 import { playlistService } from "../services/playlistService";
 import { useToast } from "../context/ToastContext";
-import { Play, Pause, Plus, Heart, Share2, Loader2, Trash2 } from "lucide-react";
+import { Play, Pause, Plus, Heart, Share2, Loader2, Trash2, ListPlus, ListMusic } from "lucide-react";
 
 interface SongContextMenuProps {
     isOpen: boolean;
@@ -12,6 +12,8 @@ interface SongContextMenuProps {
     isThisPlaying: boolean;
     onClose: () => void;
     onPlay: () => void;
+    onPlayNext?: () => void;
+    onAddToQueue?: () => void;
     onAddToPlaylist: () => void;
     onRemoveFromPlaylist?: () => void;
     onShare: () => void;
@@ -24,6 +26,8 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
     isThisPlaying,
     onClose,
     onPlay,
+    onPlayNext,
+    onAddToQueue,
     onAddToPlaylist,
     onRemoveFromPlaylist,
     onShare,
@@ -198,6 +202,38 @@ export const SongContextMenu: React.FC<SongContextMenuProps> = ({
                 )}
                 <span>{isThisPlaying ? "Pause" : "Play"}</span>
             </div>
+
+            {/* Play Next item */}
+            {onPlayNext && (
+                <div
+                    onClick={() => {
+                        onPlayNext();
+                        onClose();
+                    }}
+                    style={itemStyle}
+                    onMouseEnter={handleItemEnter}
+                    onMouseLeave={handleItemLeave}
+                >
+                    <ListPlus size={16} color="#ffffff" />
+                    <span>Play next</span>
+                </div>
+            )}
+
+            {/* Add to Queue item */}
+            {onAddToQueue && (
+                <div
+                    onClick={() => {
+                        onAddToQueue();
+                        onClose();
+                    }}
+                    style={itemStyle}
+                    onMouseEnter={handleItemEnter}
+                    onMouseLeave={handleItemLeave}
+                >
+                    <ListMusic size={16} color="#ffffff" />
+                    <span>Add to queue</span>
+                </div>
+            )}
 
             {/* Like / Unlike item */}
             <div

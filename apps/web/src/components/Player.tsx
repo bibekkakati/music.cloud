@@ -9,6 +9,7 @@ import {
     SkipBack,
     SkipForward,
     Repeat,
+    Repeat1,
     Shuffle,
     Volume2,
     VolumeX,
@@ -16,7 +17,10 @@ import {
     Plus,
     ChevronDown,
     Music,
+    ListMusic,
+    List,
 } from "lucide-react";
+import { QueueModal } from "./QueueModal";
 
 interface PlayerProps {
     onOpenPlaylistModal?: (song: SongMetadata) => void;
@@ -37,7 +41,7 @@ export const Player: React.FC<PlayerProps> = ({
         duration,
         volume,
         isMuted,
-        isLoop,
+        repeatMode,
         isShuffle,
         togglePlay,
         nextTrack,
@@ -49,6 +53,8 @@ export const Player: React.FC<PlayerProps> = ({
         toggleShuffle,
         isLiked,
         toggleLike,
+        addToQueue,
+        queue,
     } = usePlayer();
 
     const isPlayerDisabled = !isAuthenticated || !currentSong;
@@ -64,6 +70,7 @@ export const Player: React.FC<PlayerProps> = ({
     const [isTimelineHovered, setIsTimelineHovered] = useState(false);
     const [isVolumeHovered, setIsVolumeHovered] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [isQueueOpen, setIsQueueOpen] = useState(false);
 
     // Automatically dismiss full-screen modal when current song is cleared (e.g. on logout)
     React.useEffect(() => {
@@ -338,12 +345,18 @@ export const Player: React.FC<PlayerProps> = ({
                             onClick={toggleLoop}
                             className="app-btn-ghost"
                             style={{
-                                color: isLoop
-                                    ? "var(--app-green)"
-                                    : "var(--app-subtext)",
+                                color:
+                                    repeatMode !== "off"
+                                        ? "var(--app-green)"
+                                        : "var(--app-subtext)",
                             }}
+                            title={`Repeat: ${repeatMode}`}
                         >
-                            <Repeat size={22} />
+                            {repeatMode === "one" ? (
+                                <Repeat1 size={22} />
+                            ) : (
+                                <Repeat size={22} />
+                            )}
                         </button>
                     </div>
 
@@ -759,7 +772,7 @@ export const Player: React.FC<PlayerProps> = ({
                                 className="app-btn-ghost"
                                 style={{
                                     color:
-                                        isLoop && currentSong && isAuthenticated
+                                        repeatMode !== "off" && currentSong && isAuthenticated
                                             ? "var(--app-green)"
                                             : "var(--app-subtext)",
                                     position: "relative",
@@ -768,12 +781,16 @@ export const Player: React.FC<PlayerProps> = ({
                                     !isAuthenticated
                                         ? "Sign in required"
                                         : currentSong
-                                          ? "Enable repeat"
+                                          ? `Repeat: ${repeatMode}`
                                           : ""
                                 }
                             >
-                                <Repeat size={18} />
-                                {isLoop && currentSong && isAuthenticated && (
+                                {repeatMode === "one" ? (
+                                    <Repeat1 size={18} />
+                                ) : (
+                                    <Repeat size={18} />
+                                )}
+                                {repeatMode !== "off" && currentSong && isAuthenticated && (
                                     <span
                                         style={{
                                             position: "absolute",
@@ -1002,11 +1019,74 @@ export const Player: React.FC<PlayerProps> = ({
                                         }}
                                     />
                                 </div>
+
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!isAuthenticated) {
+                                            handleAuthAction();
+                                            return;
+                                        }
+                                        if (currentSong) {
+                                            addToQueue(currentSong, "end");
+                                        }
+                                    }}
+                                    disabled={isPlayerDisabled}
+                                    className="app-btn-ghost"
+                                    title={
+                                        !isAuthenticated
+                                            ? "Sign in required"
+                                            : currentSong
+                                              ? "Add to queue"
+                                              : ""
+                                    }
+                                    style={{
+                                        color: "var(--app-subtext)",
+                                        marginLeft: 6,
+                                        padding: 4,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                    }}
+                                >
+                                    <ListMusic size={18} />
+                                </button>
+
+                                <button
+                                    onClick={() => setIsQueueOpen((prev) => !prev)}
+                                    disabled={!isAuthenticated || queue.length === 0}
+                                    className="app-btn-ghost"
+                                    title={
+                                        !isAuthenticated
+                                            ? "Sign in required"
+                                            : queue.length === 0
+                                              ? "Queue is empty"
+                                              : "View queue"
+                                    }
+                                    style={{
+                                        color: isQueueOpen
+                                            ? "var(--app-green)"
+                                            : "var(--app-subtext)",
+                                        marginLeft: 4,
+                                        padding: 4,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                    }}
+                                >
+                                    <List size={18} />
+                                </button>
                             </div>
                         </div>
                     </div>
                 </footer>
             )}
+
+            {/* Queue Modal */}
+            <QueueModal
+                isOpen={isQueueOpen}
+                onClose={() => setIsQueueOpen(false)}
+            />
         </>
     );
 };

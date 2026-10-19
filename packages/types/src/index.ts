@@ -198,3 +198,19 @@ export interface SongDownloadUrlResponse {
     url: string;
     key: string;
 }
+
+// Queue & Playback
+export type PlayableSong = SongMetadata | SongDetail;
+export type RepeatMode = "off" | "all" | "one";
+export type QueuePriority = "next" | "end";
+
+export interface QueueNavigationOptions {
+    isShuffle?: boolean;
+    repeatMode: RepeatMode;
+    playedShuffleIds?: string[];
+}
+
+export interface QueueWindowOptions {
+    maxSize?: number;
+    maxHistory?: number;
+}
