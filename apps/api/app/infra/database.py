@@ -19,7 +19,6 @@ engine = create_engine(
 
 
 def init_db() -> None:
-    """Create database tables if they do not exist."""
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
 

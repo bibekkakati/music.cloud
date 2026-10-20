@@ -15,6 +15,7 @@ import { SongRoutePage } from "./pages/SongRoutePage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { AdminCatalogPage } from "./pages/admin/AdminCatalogPage";
 import { AdminUploadPage } from "./pages/admin/AdminUploadPage";
+import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 
 import type { SongMetadata, PlaylistSummary } from "./types";
 
@@ -183,6 +184,7 @@ const AppContent: React.FC = () => {
                     />
                     <Route path="catalog" element={<AdminCatalogPage />} />
                     <Route path="upload" element={<AdminUploadPage />} />
+                    <Route path="users" element={<AdminUsersPage />} />
                 </Route>
 
                 {/* Wildcard Fallback */}

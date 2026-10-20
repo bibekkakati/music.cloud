@@ -1841,6 +1841,32 @@ body {
     gap: 6px;
     cursor: pointer;
     font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.admin-filter-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.admin-filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--app-subtext);
+    margin-left: 2px;
+}
+
+.admin-filter-pill.active .admin-filter-count {
+    background: rgba(0, 0, 0, 0.15);
+    color: #000000;
 }
 
 .admin-filter-dot {
@@ -1884,6 +1910,28 @@ body {
 
 .admin-table-th.center {
     text-align: center;
+}
+
+.admin-table-th.right {
+    text-align: right;
+}
+
+.admin-table-td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: middle;
+}
+
+.admin-table-td.right {
+    text-align: right;
+}
+
+.admin-table-row {
+    transition: background-color 0.15s ease;
+}
+
+.admin-table-row:hover {
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .admin-table-th.sticky-actions {
@@ -2040,6 +2088,482 @@ body {
 .user-layout-main {
     flex: 1;
     min-height: 0;
+}
+
+/* ==========================================================================
+   Admin User Management & Modal System
+   ========================================================================== */
+
+/* Search bar & role filter pills */
+.admin-search-box {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.admin-search-icon {
+    position: absolute;
+    left: 12px;
+    color: var(--app-subtext);
+    pointer-events: none;
+}
+
+.admin-search-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-pill);
+    color: var(--app-text);
+    font-size: 13px;
+    padding: 7px 32px 7px 36px;
+    width: 240px;
+    outline: none;
+    transition: all 0.15s ease;
+}
+
+.admin-search-input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.25);
+    width: 280px;
+}
+
+.admin-search-clear-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    color: var(--app-subtext);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 4px;
+}
+
+.admin-search-clear-btn:hover {
+    color: var(--app-text);
+}
+
+.admin-role-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-add-user-btn {
+    background: var(--app-green) !important;
+    color: #000000 !important;
+    border-color: var(--app-green) !important;
+    font-weight: 600;
+}
+
+.admin-add-user-btn:hover {
+    filter: brightness(1.08);
+    background: var(--app-green) !important;
+}
+
+/* User table cells */
+.admin-user-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--app-subtext);
+    font-weight: 700;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-user-avatar.admin-avatar {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border-color: rgba(168, 85, 247, 0.3);
+}
+
+.admin-user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-user-email {
+    font-weight: 500;
+    color: var(--app-text);
+    font-size: 13px;
+}
+
+/* Role badges */
+.admin-role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    letter-spacing: 0.02em;
+}
+
+.admin-role-badge.admin {
+    background: rgba(168, 85, 247, 0.12);
+    border: 1px solid rgba(168, 85, 247, 0.25);
+    color: #c084fc;
+}
+
+.admin-role-badge.standard {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--app-subtext);
+}
+
+/* Sessions cell */
+.admin-session-cell {
+    display: flex;
+    align-items: center;
+}
+
+.admin-session-active {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--app-green);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.admin-active-dot-icon {
+    animation: pulse 2s infinite;
+}
+
+.admin-session-none {
+    color: var(--app-subtext);
+    font-size: 12px;
+    opacity: 0.6;
+}
+
+/* Last active timestamp */
+.admin-last-active {
+    font-size: 12px;
+}
+
+.admin-last-active.active {
+    color: var(--app-text);
+}
+
+.admin-last-active.never {
+    color: var(--app-subtext);
+    opacity: 0.5;
+}
+
+.admin-created-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--app-subtext);
+}
+
+.admin-row-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--app-text);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+
+.admin-row-action-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+
+.admin-row-action-btn:active {
+    transform: scale(0.98);
+}
+
+/* ==========================================================================
+   Admin Modals (Pure CSS)
+   ========================================================================== */
+.admin-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.78);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.admin-modal-card {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    background: #181818;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius-card);
+    padding: 32px 28px;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.85);
+}
+
+.admin-modal-close {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    color: var(--app-subtext);
+}
+
+.admin-modal-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.admin-modal-icon-badge {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: rgba(30, 215, 96, 0.1);
+    border: 1px solid rgba(30, 215, 96, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.admin-modal-icon-badge.success {
+    background: rgba(30, 215, 96, 0.15);
+    border-color: rgba(30, 215, 96, 0.3);
+}
+
+.admin-modal-icon-badge.danger {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.admin-modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--app-text);
+    margin: 0;
+}
+
+.admin-modal-subtitle {
+    font-size: 13px;
+    color: var(--app-subtext);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.admin-modal-error {
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.admin-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.admin-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--app-subtext);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.admin-form-input {
+    width: 100%;
+    padding: 12px 14px;
+    background: #121212;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: var(--radius-sm);
+    color: var(--app-text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.admin-form-input:focus {
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.admin-role-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.admin-role-option-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background: #121212;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    color: var(--app-subtext);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.admin-role-option-btn.selected {
+    background: rgba(30, 215, 96, 0.08);
+    border-color: var(--app-green);
+    color: var(--app-text);
+}
+
+.admin-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.admin-modal-btn {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+}
+
+.admin-modal-btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--app-text);
+}
+
+.admin-modal-btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-modal-btn-primary {
+    background: var(--app-green);
+    border: 1px solid var(--app-green);
+    color: #000000;
+}
+
+.admin-modal-btn-primary:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.admin-modal-btn-danger {
+    background: #ef4444;
+    border: 1px solid #ef4444;
+    color: #ffffff;
+}
+
+.admin-modal-btn-danger:hover:not(:disabled) {
+    background: #dc2626;
+}
+
+/* One-time Warning Banner & Credential Display */
+.admin-onetime-warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: rgba(30, 215, 96, 0.08);
+    border: 1px solid rgba(30, 215, 96, 0.25);
+    border-radius: var(--radius-sm);
+    color: #d1fae5;
+    font-size: 13px;
+    margin-bottom: 20px;
+    line-height: 1.45;
+}
+
+.admin-onetime-warning-banner.danger {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #fef3c7;
+}
+
+.admin-warning-icon {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: #f59e0b;
+}
+
+.admin-credential-display-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #0d0d0d;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    margin-bottom: 12px;
+}
+
+.admin-credential-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--app-green);
+    user-select: all;
+}
+
+.admin-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: var(--radius-pill);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.admin-copy-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.28);
 }
 
 /* Mobile Bottom Nav (< 768px default definition) */

@@ -15,7 +15,7 @@ from sqlmodel import Session
 from app.infra.database import check_db_health, engine, init_db
 from app.infra.mq import JOB_CONFIG, JOB_PROCESSING_QUEUE, queue
 from app.routers import auth, user, song, playlist
-from app.routers.admin import song as admin_song
+from app.routers.admin import song as admin_song, user as admin_user
 from app.services.session import SessionService
 from app.utils.queue_worker import process_job
 
@@ -85,6 +85,7 @@ app.add_middleware(
 
 # Mount API routers
 app.include_router(admin_song.router, prefix="/api/v1/admin", tags=["Admin"])
+app.include_router(admin_user.router, prefix="/api/v1/admin", tags=["Admin Users"])
 app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 app.include_router(user.router, prefix="/api/v1", tags=["User"])
 app.include_router(song.router, prefix="/api/v1", tags=["Song"])

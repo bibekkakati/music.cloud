@@ -25,3 +25,10 @@ class SessionExpiredOrInvalidError(AppException):
 
     def __init__(self, message: str = "Session has expired or is invalid") -> None:
         super().__init__(message)
+
+
+class UserAlreadyExistsError(AppException):
+    """Raised when trying to create a user that already exists."""
+
+    def __init__(self, message: str = "User with this email already exists") -> None:
+        super().__init__(message)

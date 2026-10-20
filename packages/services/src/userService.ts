@@ -6,4 +6,12 @@ export const userService = {
         const response = await apiClient.get<User>("/api/v1/users/me");
         return response.data;
     },
+
+    heartbeat: async (): Promise<void> => {
+        try {
+            await apiClient.post("/api/v1/users/heartbeat");
+        } catch {
+            // Silently discard errors, don't interrupt client flow
+        }
+    },
 };

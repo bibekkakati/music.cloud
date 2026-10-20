@@ -7,6 +7,10 @@ import type {
     SongProcessPayload,
     SongMetadataUpdatePayload,
     CoverArtUploadResponse,
+    AdminUserItem,
+    AdminCreateUserPayload,
+    AdminCreateUserResponse,
+    AdminResetPasswordResponse,
 } from "@music-cloud/types";
 
 export interface GetUploadUrlParams {
@@ -253,6 +257,23 @@ export const adminService = {
     rebuildSearchIndex: async (): Promise<{ message: string; total_indexed: number }> => {
         const response = await apiClient.post<{ message: string; total_indexed: number }>(
             "/api/v1/admin/song/search/rebuild",
+        );
+        return response.data;
+    },
+
+    getUsers: async (): Promise<AdminUserItem[]> => {
+        const response = await apiClient.get<AdminUserItem[]>("/api/v1/admin/users");
+        return response.data;
+    },
+
+    createUser: async (payload: AdminCreateUserPayload): Promise<AdminCreateUserResponse> => {
+        const response = await apiClient.post<AdminCreateUserResponse>("/api/v1/admin/users", payload);
+        return response.data;
+    },
+
+    resetUserPassword: async (userId: string): Promise<AdminResetPasswordResponse> => {
+        const response = await apiClient.post<AdminResetPasswordResponse>(
+            `/api/v1/admin/users/${userId}/reset-password`,
         );
         return response.data;
     },

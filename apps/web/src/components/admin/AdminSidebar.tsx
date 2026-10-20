@@ -6,6 +6,7 @@ import { adminService } from "../../services/adminService";
 import {
     Layers,
     Upload,
+    Users,
     Database,
     Loader2,
     X,
@@ -134,6 +135,29 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                                         }
                                     />
                                     <span>Upload & Ingestion</span>
+                                </>
+                            )}
+                        </NavLink>
+
+                        <NavLink
+                            to="/admin/users"
+                            onClick={handleNavClick}
+                            className={({ isActive }) =>
+                                `admin-nav-item ${isActive ? "active" : ""}`
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <Users
+                                        size={18}
+                                        strokeWidth={isActive ? 2.5 : 1.8}
+                                        color={
+                                            isActive
+                                                ? "var(--app-green)"
+                                                : "currentColor"
+                                        }
+                                    />
+                                    <span>Users</span>
                                 </>
                             )}
                         </NavLink>

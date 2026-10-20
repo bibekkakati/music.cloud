@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { LoginPayload, User } from '@music-cloud/types';
 import { authService, userService } from '@music-cloud/services';
@@ -150,6 +151,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       refreshProfile();
     }
   }, [isOffline, token, refreshProfile]);
+
+  // Periodic session heartbeat (every 30s) while authenticated, online, and app is active in foreground
+  useEffect(() => {
+    if (!token || isOffline) return;
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startHeartbeat = () => {
+      if (intervalId) clearInterval(intervalId);
+      userService.heartbeat();
+      intervalId = setInterval(() => {
+        userService.heartbeat();
+      }, 30000);
+    };
+
+    const stopHeartbeat = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    if (AppState.currentState === 'active') {
+      startHeartbeat();
+    }
+
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        startHeartbeat();
+      } else {
+        stopHeartbeat();
+      }
+    });
+
+    return () => {
+      stopHeartbeat();
+      subscription.remove();
+    };
+  }, [token, isOffline]);
 
   const login = async (payload: LoginPayload) => {
     const session = await authService.login(payload);

@@ -10,6 +10,8 @@ import {
     RefreshCw,
 } from "lucide-react";
 
+import { AdminFilterTabs, type FilterTabOption } from "./AdminFilterTabs";
+
 interface AdminCatalogTableProps {
     songs: SongDetail[];
     loadingSongs: boolean;
@@ -34,7 +36,7 @@ interface AdminCatalogTableProps {
     isRefreshing?: boolean;
 }
 
-const STATUS_OPTIONS: { label: string; value: string; color?: string }[] = [
+const STATUS_OPTIONS: FilterTabOption[] = [
     { label: "All", value: "ALL" },
     { label: "Done", value: "DONE", color: "#1ed760" },
     { label: "Processing", value: "PROCESSING", color: "#eab308" },
@@ -69,31 +71,13 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
 
     const renderFilterToolbar = () => (
         <div className="admin-filter-toolbar">
-            <div className="admin-filter-group">
-                <div className="admin-filter-label">
-                    <Filter size={14} />
-                    <span>Status:</span>
-                </div>
-                {STATUS_OPTIONS.map((opt) => {
-                    const isActive = selectedStatus.toUpperCase() === opt.value;
-                    return (
-                        <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => onStatusChange(opt.value)}
-                            className={`app-tag-pill admin-filter-pill ${isActive ? "active" : ""}`}
-                        >
-                            {opt.color && (
-                                <span
-                                    className="admin-filter-dot"
-                                    style={{ backgroundColor: opt.color }}
-                                />
-                            )}
-                            <span>{opt.label}</span>
-                        </button>
-                    );
-                })}
-            </div>
+            <AdminFilterTabs
+                label="Status:"
+                icon={<Filter size={14} />}
+                options={STATUS_OPTIONS}
+                value={selectedStatus}
+                onChange={onStatusChange}
+            />
 
             <div className="admin-filter-meta">
                 {loadingSongs && (

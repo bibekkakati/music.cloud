@@ -11,6 +11,19 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
 }) => {
     const location = useLocation();
     const isUpload = location.pathname.startsWith("/admin/upload");
+    const isUsers = location.pathname.startsWith("/admin/users");
+
+    const title = isUsers
+        ? "User Management"
+        : isUpload
+          ? "Upload & Ingestion"
+          : "Song Catalog";
+
+    const subtitle = isUsers
+        ? "Manage system accounts and security credentials"
+        : isUpload
+          ? "Ingest lossless audio sources, set trimming, and monitor HLS workers"
+          : "Browse, inspect, edit metadata, and reprocess catalog assets";
 
     return (
         <header className="admin-navbar">
@@ -27,14 +40,8 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
                 </button>
 
                 <div>
-                    <h1 className="admin-page-title">
-                        {isUpload ? "Upload & Ingestion" : "Song Catalog"}
-                    </h1>
-                    <p className="admin-page-subtitle">
-                        {isUpload
-                            ? "Ingest lossless audio sources, set trimming, and monitor HLS workers"
-                            : "Browse, inspect, edit metadata, and reprocess catalog assets"}
-                    </p>
+                    <h1 className="admin-page-title">{title}</h1>
+                    <p className="admin-page-subtitle">{subtitle}</p>
                 </div>
             </div>
 

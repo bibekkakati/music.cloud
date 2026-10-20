@@ -69,6 +69,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
+  // Periodic session heartbeat (every 30s) while authenticated
+  useEffect(() => {
+    if (!token || !user) return;
+
+    // Immediate ping on authentication
+    userService.heartbeat();
+
+    const intervalId = setInterval(() => {
+      userService.heartbeat();
+    }, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [token, user]);
+
   const login = async (payload: LoginPayload) => {
     try {
       setIsLoading(true);

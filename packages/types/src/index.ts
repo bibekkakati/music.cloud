@@ -4,7 +4,33 @@ export interface User {
     email: string;
     created_at: string;
     updated_at: string;
+    last_active_at?: string | null;
     is_admin?: boolean;
+}
+
+export interface AdminUserItem {
+    id: string;
+    email: string;
+    is_admin: boolean;
+    created_at: string;
+    updated_at: string;
+    last_active_at: string | null;
+}
+
+export interface AdminCreateUserPayload {
+    email: string;
+    is_admin: boolean;
+}
+
+export interface AdminCreateUserResponse {
+    user: AdminUserItem;
+    generated_password: string;
+}
+
+export interface AdminResetPasswordResponse {
+    user_id: string;
+    generated_password: string;
+    message: string;
 }
 
 export interface SessionResponse {

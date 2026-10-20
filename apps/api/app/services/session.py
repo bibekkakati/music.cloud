@@ -142,6 +142,17 @@ class SessionService:
         self.db.commit()
         return True
 
+    def delete_all_user_sessions(self, user_id: UUID) -> int:
+        """Revoke all sessions for a specific user from database and cache."""
+        statement = select(UserSession).where(UserSession.user_id == user_id)
+        sessions = self.db.exec(statement).all()
+        count = len(sessions)
+        for s in sessions:
+            self.cache.delete(self._cache_key(s.token))
+            self.db.delete(s)
+        self.db.commit()
+        return count
+
     def count_active_sessions(self) -> int:
         cutoff = datetime.now(timezone.utc) - timedelta(
             minutes=self.auth_config.session_grace_period_minutes
