@@ -1,22 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider } from "./context/AuthContext";
 import { PlayerProvider } from "./context/PlayerContext";
 import { ToastContainer } from "./components/ToastContainer";
-import { Sidebar } from "./components/Sidebar";
-import { Navbar } from "./components/Navbar";
-import { Player } from "./components/Player";
-import { BottomNav } from "./components/BottomNav";
-import { AuthModal } from "./components/AuthModal";
-import { PlaylistModal } from "./components/PlaylistModal";
+
+import { UserLayout } from "./layouts/UserLayout";
+import { AdminLayout } from "./layouts/AdminLayout";
 
 import { HomePage } from "./pages/HomePage";
 import { SearchPage } from "./pages/SearchPage";
 import { SongCollectionView } from "./pages/SongCollectionView";
-import { AdminPage } from "./pages/admin/AdminPage";
 import { SongRoutePage } from "./pages/SongRoutePage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { AdminCatalogPage } from "./pages/admin/AdminCatalogPage";
+import { AdminUploadPage } from "./pages/admin/AdminUploadPage";
+
 import type { SongMetadata, PlaylistSummary } from "./types";
 
 const AppContent: React.FC = () => {
@@ -98,118 +97,98 @@ const AppContent: React.FC = () => {
     };
 
     return (
-        <div className="app-layout">
-            {/* Toast Alerts */}
+        <>
+            {/* Global Toast Alerts */}
             <ToastContainer />
 
-            {/* Left Navigation Sidebar (Desktop & Mobile Drawer) */}
-            <Sidebar
-                isOpen={mobileLibraryOpen}
-                onClose={() => setMobileLibraryOpen(false)}
-                onOpenAuthModal={() => setAuthModalOpen(true)}
-                onOpenCreatePlaylistModal={handleOpenCreatePlaylist}
-                playlistRefreshTrigger={playlistRefreshTrigger}
-            />
-
-            {/* Main Content Island */}
-            <div className="panel main-content-island">
-                <Navbar
-                    onOpenAuthModal={() => setAuthModalOpen(true)}
-                    onToggleSidebar={() =>
-                        setMobileLibraryOpen(!mobileLibraryOpen)
+            <Routes>
+                {/* Consumer Music App Layout & Routes */}
+                <Route
+                    element={
+                        <UserLayout
+                            mobileLibraryOpen={mobileLibraryOpen}
+                            setMobileLibraryOpen={setMobileLibraryOpen}
+                            authModalOpen={authModalOpen}
+                            setAuthModalOpen={setAuthModalOpen}
+                            playlistModalOpen={playlistModalOpen}
+                            setPlaylistModalOpen={setPlaylistModalOpen}
+                            playlistModalMode={playlistModalMode}
+                            songToAdd={songToAdd}
+                            playlistToEdit={playlistToEdit}
+                            playlistRefreshTrigger={playlistRefreshTrigger}
+                            handleOpenCreatePlaylist={handleOpenCreatePlaylist}
+                            handleAddToPlaylist={handleAddToPlaylist}
+                            handlePlaylistMutationSuccess={
+                                handlePlaylistMutationSuccess
+                            }
+                        />
                     }
-                />
+                >
+                    <Route
+                        path="/"
+                        element={
+                            <HomePage
+                                onAddToPlaylist={handleAddToPlaylist}
+                                onOpenAuthModal={() => setAuthModalOpen(true)}
+                            />
+                        }
+                    />
+                    <Route path="/search" element={<SearchPage />} />
+                    <Route
+                        path="/search/:categoryLabel"
+                        element={
+                            <SongCollectionView
+                                mode="category"
+                                onAddToPlaylist={handleAddToPlaylist}
+                            />
+                        }
+                    />
+                    <Route
+                        path="/song/:id"
+                        element={
+                            <SongRoutePage
+                                onAddToPlaylist={handleAddToPlaylist}
+                                onOpenAuthModal={() => setAuthModalOpen(true)}
+                            />
+                        }
+                    />
+                    <Route
+                        path="/playlist/:id"
+                        element={
+                            <SongCollectionView
+                                mode="playlist"
+                                onAddToPlaylist={handleAddToPlaylist}
+                                onEditPlaylist={handleEditPlaylist}
+                                onPlaylistDeleted={
+                                    handlePlaylistMutationSuccess
+                                }
+                            />
+                        }
+                    />
+                    <Route
+                        path="/settings"
+                        element={
+                            <SettingsPage
+                                onOpenAuthModal={() => setAuthModalOpen(true)}
+                            />
+                        }
+                    />
+                </Route>
 
-                <main style={{ flex: 1, minHeight: 0 }}>
-                    <Routes>
-                        <Route
-                            path="/"
-                            element={
-                                <HomePage
-                                    onAddToPlaylist={handleAddToPlaylist}
-                                    onOpenAuthModal={() =>
-                                        setAuthModalOpen(true)
-                                    }
-                                />
-                            }
-                        />
-                        <Route path="/search" element={<SearchPage />} />
-                        <Route
-                            path="/search/:categoryLabel"
-                            element={
-                                <SongCollectionView
-                                    mode="category"
-                                    onAddToPlaylist={handleAddToPlaylist}
-                                />
-                            }
-                        />
-                        <Route
-                            path="/song/:id"
-                            element={
-                                <SongRoutePage
-                                    onAddToPlaylist={handleAddToPlaylist}
-                                    onOpenAuthModal={() =>
-                                        setAuthModalOpen(true)
-                                    }
-                                />
-                            }
-                        />
-                        <Route
-                            path="/playlist/:id"
-                            element={
-                                <SongCollectionView
-                                    mode="playlist"
-                                    onAddToPlaylist={handleAddToPlaylist}
-                                    onEditPlaylist={handleEditPlaylist}
-                                    onPlaylistDeleted={
-                                        handlePlaylistMutationSuccess
-                                    }
-                                />
-                            }
-                        />
-                        {/* Manual Protected Admin Route */}
-                        <Route path="/admin" element={<AdminPage />} />
-                        {/* Settings Route */}
-                        <Route
-                            path="/settings"
-                            element={
-                                <SettingsPage
-                                    onOpenAuthModal={() =>
-                                        setAuthModalOpen(true)
-                                    }
-                                />
-                            }
-                        />
-                    </Routes>
-                </main>
-            </div>
+                {/* Dedicated Admin Portal Layout & Routes */}
+                <Route path="/admin" element={<AdminLayout />}>
+                    <Route
+                        index
+                        element={<Navigate to="/admin/catalog" replace />}
+                    />
+                    <Route path="catalog" element={<AdminCatalogPage />} />
+                    <Route path="upload" element={<AdminUploadPage />} />
+                </Route>
 
-            {/* Fixed Bottom Player */}
-            <Player
-                onOpenPlaylistModal={handleAddToPlaylist}
-                onOpenAuthModal={() => setAuthModalOpen(true)}
-            />
-
-            {/* Mobile Bottom Navigation Bar (< 768px) */}
-            <BottomNav
-                onToggleLibrary={() => setMobileLibraryOpen(!mobileLibraryOpen)}
-                isLibraryOpen={mobileLibraryOpen}
-            />
-
-            {/* Modals */}
-            <AuthModal
-                isOpen={authModalOpen}
-                onClose={() => setAuthModalOpen(false)}
-            />
-            <PlaylistModal
-                isOpen={playlistModalOpen}
-                onClose={() => setPlaylistModalOpen(false)}
-                mode={playlistModalMode}
-                songToAdd={songToAdd}
-                playlistToEdit={playlistToEdit}
-                onSuccess={handlePlaylistMutationSuccess}
-            />
-        </div>
+                {/* Wildcard Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </>
     );
 };
 

@@ -7,6 +7,7 @@ import {
     ChevronRight,
     Filter,
     Loader2,
+    RefreshCw,
 } from "lucide-react";
 
 interface AdminCatalogTableProps {
@@ -29,6 +30,8 @@ interface AdminCatalogTableProps {
     onNextPage: () => void;
     onPrevPage: () => void;
     onSwitchToUpload: () => void;
+    onRefresh?: () => void;
+    isRefreshing?: boolean;
 }
 
 const STATUS_OPTIONS: { label: string; value: string; color?: string }[] = [
@@ -59,41 +62,15 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
     onNextPage,
     onPrevPage,
     onSwitchToUpload,
+    onRefresh,
+    isRefreshing = false,
 }) => {
     const isFiltered = selectedStatus.toUpperCase() !== "ALL";
 
     const renderFilterToolbar = () => (
-        <div
-            style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: 12,
-                marginBottom: 20,
-                paddingBottom: 16,
-                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-            }}
-        >
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    flexWrap: "wrap",
-                }}
-            >
-                <div
-                    style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--app-subtext)",
-                        marginRight: 4,
-                    }}
-                >
+        <div className="admin-filter-toolbar">
+            <div className="admin-filter-group">
+                <div className="admin-filter-label">
                     <Filter size={14} />
                     <span>Status:</span>
                 </div>
@@ -104,25 +81,12 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                             key={opt.value}
                             type="button"
                             onClick={() => onStatusChange(opt.value)}
-                            className={`app-tag-pill ${isActive ? "active" : ""}`}
-                            style={{
-                                padding: "6px 14px",
-                                fontSize: 12,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                                cursor: "pointer",
-                            }}
+                            className={`app-tag-pill admin-filter-pill ${isActive ? "active" : ""}`}
                         >
                             {opt.color && (
                                 <span
-                                    style={{
-                                        width: 7,
-                                        height: 7,
-                                        borderRadius: "50%",
-                                        backgroundColor: opt.color,
-                                        display: "inline-block",
-                                    }}
+                                    className="admin-filter-dot"
+                                    style={{ backgroundColor: opt.color }}
                                 />
                             )}
                             <span>{opt.label}</span>
@@ -131,24 +95,9 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                 })}
             </div>
 
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    fontSize: 12,
-                    color: "var(--app-subtext)",
-                }}
-            >
+            <div className="admin-filter-meta">
                 {loadingSongs && (
-                    <span
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                            color: "var(--app-green)",
-                        }}
-                    >
+                    <span className="admin-filter-loading">
                         <Loader2 size={13} className="animate-spin" />
                         Loading...
                     </span>
@@ -158,6 +107,25 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                         {songs.length} track{songs.length === 1 ? "" : "s"} on page {currentPage}
                     </span>
                 )}
+                {onRefresh && (
+                    <button
+                        type="button"
+                        onClick={onRefresh}
+                        disabled={isRefreshing || loadingSongs}
+                        className="admin-toolbar-btn admin-table-refresh-btn"
+                        title="Refresh current catalog page"
+                    >
+                        <RefreshCw
+                            size={13}
+                            className={
+                                isRefreshing || loadingSongs
+                                    ? "animate-spin"
+                                    : ""
+                            }
+                        />
+                        <span>Refresh</span>
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -166,19 +134,13 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
         return (
             <div>
                 {renderFilterToolbar()}
-                <div style={{ padding: "80px 0", textAlign: "center" }}>
+                <div className="admin-empty-state">
                     <Loader2
                         size={36}
-                        className="animate-spin"
+                        className="animate-spin admin-empty-state-icon"
                         color="var(--app-green)"
-                        style={{ margin: "0 auto 12px" }}
                     />
-                    <span
-                        style={{
-                            fontSize: 14,
-                            color: "var(--app-subtext)",
-                        }}
-                    >
+                    <span className="admin-pagination-info">
                         Loading catalog tracks...
                     </span>
                 </div>
@@ -190,26 +152,13 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
         return (
             <div>
                 {renderFilterToolbar()}
-                <div
-                    style={{
-                        padding: "80px 0",
-                        textAlign: "center",
-                        color: "var(--app-subtext)",
-                    }}
-                >
-                    <p
-                        style={{
-                            fontSize: 18,
-                            fontWeight: 700,
-                            color: "var(--app-text)",
-                            marginBottom: 6,
-                        }}
-                    >
+                <div className="admin-empty-state">
+                    <p className="admin-empty-state-title">
                         {isFiltered
                             ? `No tracks found with status "${selectedStatus.toLowerCase()}"`
                             : "No songs in the catalog"}
                     </p>
-                    <p style={{ fontSize: 14, marginBottom: 20 }}>
+                    <p className="admin-empty-state-desc">
                         {isFiltered
                             ? "Try choosing a different status filter or reset to view all tracks."
                             : "Upload your first track to get started."}
@@ -219,7 +168,6 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                             type="button"
                             onClick={() => onStatusChange("ALL")}
                             className="app-tag-pill active"
-                            style={{ padding: "10px 24px", fontSize: 13 }}
                         >
                             Reset Filter to All
                         </button>
@@ -228,7 +176,6 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                             type="button"
                             onClick={onSwitchToUpload}
                             className="app-btn-green"
-                            style={{ padding: "12px 28px", fontSize: 14 }}
                         >
                             <Upload size={16} />
                             <span>Upload Track</span>
@@ -242,99 +189,18 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
     return (
         <>
             {renderFilterToolbar()}
-            <div style={{ overflowX: "auto", position: "relative" }}>
-                <table
-                    style={{
-                        width: "100%",
-                        borderCollapse: "separate",
-                        borderSpacing: 0,
-                        textAlign: "left",
-                        fontSize: 13,
-                    }}
-                >
+            <div className="admin-table-container">
+                <table className="admin-table">
                     <thead>
-                        <tr
-                            style={{
-                                color: "var(--app-subtext)",
-                                fontSize: 12,
-                                fontWeight: 600,
-                                textTransform: "uppercase",
-                                letterSpacing: "0.05em",
-                            }}
-                        >
-                            <th
-                                style={{
-                                    padding: "10px 14px",
-                                    width: 48,
-                                    textAlign: "center",
-                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                                }}
-                            >
-                                #
-                            </th>
-                            <th
-                                style={{
-                                    padding: "10px 14px",
-                                    minWidth: 200,
-                                    maxWidth: 280,
-                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                                }}
-                            >
-                                Track
-                            </th>
-                            <th
-                                style={{
-                                    padding: "10px 14px",
-                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                                }}
-                            >
-                                Duration
-                            </th>
-                            <th
-                                style={{
-                                    padding: "10px 14px",
-                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                                }}
-                            >
-                                Bitrate
-                            </th>
-                            <th
-                                style={{
-                                    padding: "10px 14px",
-                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                                }}
-                            >
-                                Status
-                            </th>
-                            <th
-                                style={{
-                                    padding: "10px 14px",
-                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                                }}
-                            >
-                                Visibility
-                            </th>
-                            <th
-                                style={{
-                                    padding: "10px 14px",
-                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                                }}
-                            >
-                                Created
-                            </th>
-                            <th
-                                style={{
-                                    padding: "10px 14px",
-                                    textAlign: "center",
-                                    width: 56,
-                                    position: "sticky",
-                                    right: 0,
-                                    background: "var(--app-base, #121212)",
-                                    zIndex: 10,
-                                    boxShadow: "-4px 0 8px rgba(0, 0, 0, 0.35)",
-                                    borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                                }}
-                            ></th>
+                        <tr>
+                            <th className="admin-table-th center">#</th>
+                            <th className="admin-table-th">Track</th>
+                            <th className="admin-table-th">Duration</th>
+                            <th className="admin-table-th">Bitrate</th>
+                            <th className="admin-table-th">Status</th>
+                            <th className="admin-table-th">Visibility</th>
+                            <th className="admin-table-th">Created</th>
+                            <th className="admin-table-th sticky-actions"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -360,28 +226,9 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
             </div>
 
             {/* Bounded Cursor Pagination Controls */}
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginTop: 20,
-                    padding: "12px 18px",
-                    background: "var(--app-card-bg)",
-                    borderRadius: "var(--radius-md)",
-                    border: "1px solid rgba(255, 255, 255, 0.08)",
-                }}
-            >
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        fontSize: 13,
-                        color: "var(--app-subtext)",
-                    }}
-                >
-                    <span style={{ fontWeight: 600, color: "var(--app-text)" }}>
+            <div className="admin-pagination-container">
+                <div className="admin-pagination-info">
+                    <span className="admin-pagination-page-bold">
                         Page {currentPage}
                     </span>
                     <span>•</span>
@@ -397,32 +244,12 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                     )}
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div className="admin-pagination-actions">
                     <button
                         type="button"
                         onClick={onPrevPage}
                         disabled={currentPage <= 1 || loadingSongs}
-                        className="app-tag-pill"
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                            padding: "8px 16px",
-                            fontSize: 13,
-                            background:
-                                currentPage <= 1
-                                    ? "rgba(255, 255, 255, 0.03)"
-                                    : "rgba(255, 255, 255, 0.08)",
-                            color:
-                                currentPage <= 1
-                                    ? "rgba(255, 255, 255, 0.25)"
-                                    : "var(--app-text)",
-                            cursor:
-                                currentPage <= 1 || loadingSongs
-                                    ? "not-allowed"
-                                    : "pointer",
-                            border: "none",
-                        }}
+                        className="admin-toolbar-btn"
                     >
                         <ChevronLeft size={16} />
                         <span>Previous</span>
@@ -432,27 +259,7 @@ export const AdminCatalogTable: React.FC<AdminCatalogTableProps> = ({
                         type="button"
                         onClick={onNextPage}
                         disabled={!hasNextPage || loadingSongs}
-                        className="app-tag-pill"
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                            padding: "8px 16px",
-                            fontSize: 13,
-                            background:
-                                !hasNextPage
-                                    ? "rgba(255, 255, 255, 0.03)"
-                                    : "rgba(255, 255, 255, 0.08)",
-                            color:
-                                !hasNextPage
-                                    ? "rgba(255, 255, 255, 0.25)"
-                                    : "var(--app-text)",
-                            cursor:
-                                !hasNextPage || loadingSongs
-                                    ? "not-allowed"
-                                    : "pointer",
-                            border: "none",
-                        }}
+                        className="admin-toolbar-btn"
                     >
                         <span>Next</span>
                         <ChevronRight size={16} />

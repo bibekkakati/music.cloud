@@ -20,14 +20,7 @@ export const Logo: React.FC<LogoProps> = ({
   return (
     <div
       className={`music-cloud-logo-container ${className}`}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 10,
-        textDecoration: 'none',
-        flexShrink: 0,
-        ...style,
-      }}
+      style={style}
     >
       {/* High-Resolution Vector Badge: Cloud wearing Headset */}
       <svg
@@ -96,12 +89,10 @@ export const Logo: React.FC<LogoProps> = ({
 
       {showText && (
         <span
+          className="music-cloud-logo-text"
           style={{
             fontSize: textSize,
-            fontWeight: 800,
-            letterSpacing: '-0.02em',
             color: textColor,
-            whiteSpace: 'nowrap',
           }}
         >
           Music Cloud

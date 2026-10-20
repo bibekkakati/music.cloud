@@ -12,7 +12,7 @@ import {
     ChevronRight,
     Settings,
     LogOut,
-    ShieldCheck,
+    Shield,
 } from "lucide-react";
 import { SongCoverArt } from "./SongCoverArt";
 import { Logo } from "./Logo";
@@ -145,15 +145,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {/* Mobile Brand / Library Toggle Button */}
                 {onToggleSidebar && (
                     <button
+                        type="button"
                         onClick={onToggleSidebar}
-                        className="app-btn-ghost mobile-only-btn"
+                        className="app-btn-ghost mobile-only-btn navbar-mobile-brand-btn"
                         title="Open Library"
-                        style={{
-                            padding: 0,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
                     >
                         <Logo size={32} />
                     </button>
@@ -162,40 +157,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {/* Navigation History Arrows (Hidden on mobile) */}
                 <div className="navbar-history-arrows">
                     <button
+                        type="button"
                         onClick={() => navigate(-1)}
-                        style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: "50%",
-                            background: "rgba(0, 0, 0, 0.7)",
-                            border: "none",
-                            color: "#ffffff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            transition: "background-color 0.15s",
-                        }}
+                        className="navbar-history-btn"
                         title="Go back"
                     >
                         <ChevronLeft size={22} />
                     </button>
 
                     <button
+                        type="button"
                         onClick={() => navigate(1)}
-                        style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: "50%",
-                            background: "rgba(0, 0, 0, 0.7)",
-                            border: "none",
-                            color: "#ffffff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            transition: "background-color 0.15s",
-                        }}
+                        className="navbar-history-btn"
                         title="Go forward"
                     >
                         <ChevronRight size={22} />
@@ -205,23 +178,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* 2. Center: Search Box */}
             <div className="navbar-center">
-                <div
-                    ref={dropdownRef}
-                    className="navbar-search-box"
-                    style={{ position: "relative", width: "100%" }}
-                >
-                    <div style={{ position: "relative" }}>
+                <div ref={dropdownRef} className="navbar-search-box">
+                    <div className="navbar-search-wrapper">
                         <Search
                             size={18}
-                            style={{
-                                position: "absolute",
-                                left: 14,
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: isSearchPage
-                                    ? "#ffffff"
-                                    : "var(--app-subtext)",
-                            }}
+                            className={`navbar-search-icon ${isSearchPage ? "active" : ""}`}
                         />
                         <input
                             type="text"
@@ -232,74 +193,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                             onFocus={() =>
                                 suggestions.length > 0 && setIsOpen(true)
                             }
-                            style={{
-                                width: "100%",
-                                height: 44,
-                                padding: "0 40px 0 44px",
-                                borderRadius: "var(--radius-pill)",
-                                background: "#242424",
-                                border: "1px solid transparent",
-                                color: "#ffffff",
-                                fontSize: 13,
-                                fontWeight: 500,
-                                outline: "none",
-                                transition:
-                                    "border-color 0.2s, background-color 0.2s",
-                            }}
-                            onFocusCapture={(e) => {
-                                e.currentTarget.style.borderColor = "#ffffff";
-                                e.currentTarget.style.backgroundColor =
-                                    "#2a2a2a";
-                            }}
-                            onBlurCapture={(e) => {
-                                e.currentTarget.style.borderColor =
-                                    "transparent";
-                                e.currentTarget.style.backgroundColor =
-                                    "#242424";
-                            }}
+                            className="navbar-search-input"
                         />
                         {isSearching && (
                             <Loader2
                                 size={16}
-                                className="animate-spin"
-                                style={{
-                                    position: "absolute",
-                                    right: 14,
-                                    top: "50%",
-                                    transform: "translateY(-50%)",
-                                    color: "var(--app-subtext)",
-                                }}
+                                className="animate-spin navbar-search-spinner"
                             />
                         )}
                     </div>
 
                     {/* Suggestions Dropdown */}
                     {isOpen && (
-                        <div
-                            className="animate-fade-in"
-                            style={{
-                                position: "absolute",
-                                top: "115%",
-                                left: 0,
-                                right: 0,
-                                borderRadius: "var(--radius-md)",
-                                padding: "6px 0",
-                                boxShadow: "0 16px 32px rgba(0, 0, 0, 0.7)",
-                                maxHeight: 320,
-                                overflowY: "auto",
-                                background: "#282828",
-                                zIndex: 100,
-                                border: "1px solid rgba(255, 255, 255, 0.1)",
-                            }}
-                        >
+                        <div className="navbar-suggestions-dropdown animate-fade-in">
                             {suggestions.length === 0 ? (
-                                <div
-                                    style={{
-                                        padding: "12px 16px",
-                                        color: "var(--app-subtext)",
-                                        fontSize: 13,
-                                    }}
-                                >
+                                <div className="navbar-suggestion-empty">
                                     No matching tracks found.
                                 </div>
                             ) : (
@@ -307,23 +215,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                     <div
                                         key={song.id}
                                         onClick={() => handleSelectSong(song)}
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 12,
-                                            padding: "8px 16px",
-                                            cursor: "pointer",
-                                            transition:
-                                                "background-color 0.15s",
-                                        }}
-                                        onMouseEnter={(e) =>
-                                            (e.currentTarget.style.backgroundColor =
-                                                "rgba(255, 255, 255, 0.1)")
-                                        }
-                                        onMouseLeave={(e) =>
-                                            (e.currentTarget.style.backgroundColor =
-                                                "transparent")
-                                        }
+                                        className="navbar-suggestion-item"
                                     >
                                         <SongCoverArt
                                             src={song.cover_art_url}
@@ -332,28 +224,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                                             borderRadius={4}
                                             iconSize={16}
                                         />
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div
-                                                style={{
-                                                    fontSize: 13,
-                                                    fontWeight: 600,
-                                                    color: "#ffffff",
-                                                    whiteSpace: "nowrap",
-                                                    overflow: "hidden",
-                                                    textOverflow: "ellipsis",
-                                                }}
-                                            >
+                                        <div className="navbar-suggestion-info">
+                                            <div className="navbar-suggestion-title">
                                                 {song.title}
                                             </div>
-                                            <div
-                                                style={{
-                                                    fontSize: 12,
-                                                    color: "var(--app-subtext)",
-                                                    whiteSpace: "nowrap",
-                                                    overflow: "hidden",
-                                                    textOverflow: "ellipsis",
-                                                }}
-                                            >
+                                            <div className="navbar-suggestion-artist">
                                                 {song.artist}
                                             </div>
                                         </div>
@@ -371,96 +246,29 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* 3. Right: Auth Profile / Log In */}
-            <div
-                className="navbar-right"
-                ref={profileDropdownRef}
-                style={{ position: "relative" }}
-            >
+            <div className="navbar-right" ref={profileDropdownRef}>
                 {isAuthenticated && user ? (
                     <>
-                        <div
+                        <button
+                            type="button"
                             onClick={() => setIsProfileOpen((prev) => !prev)}
-                            style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: "50%",
-                                background: isProfileOpen ? "#ffffff" : "#242424",
-                                color: isProfileOpen ? "#000000" : "#ffffff",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                cursor: "pointer",
-                                border: "2px solid rgba(255, 255, 255, 0.15)",
-                                transition: "all 0.15s ease",
-                            }}
+                            className={`navbar-profile-btn ${isProfileOpen ? "active" : ""}`}
                             title={user.email}
-                            onMouseEnter={(e) => {
-                                if (!isProfileOpen)
-                                    e.currentTarget.style.borderColor = "#ffffff";
-                            }}
-                            onMouseLeave={(e) => {
-                                if (!isProfileOpen)
-                                    e.currentTarget.style.borderColor =
-                                        "rgba(255, 255, 255, 0.15)";
-                            }}
                         >
-                            <span
-                                style={{
-                                    fontSize: 14,
-                                    fontWeight: 700,
-                                }}
-                            >
+                            <span className="navbar-profile-initial">
                                 {user.email.charAt(0).toUpperCase()}
                             </span>
-                        </div>
+                        </button>
 
                         {/* Profile Dropdown Menu */}
                         {isProfileOpen && (
-                            <div
-                                className="navbar-profile-dropdown animate-fade-in"
-                                style={{
-                                    position: "absolute",
-                                    top: "calc(100% + 8px)",
-                                    right: 0,
-                                    width: 220,
-                                    backgroundColor: "#282828",
-                                    borderRadius: 8,
-                                    padding: "6px 0",
-                                    boxShadow: "0 16px 28px rgba(0, 0, 0, 0.5)",
-                                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                                    zIndex: 100,
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        padding: "8px 14px",
-                                        borderBottom:
-                                            "1px solid rgba(255, 255, 255, 0.08)",
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            fontSize: 13,
-                                            fontWeight: 700,
-                                            color: "#ffffff",
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                        }}
-                                    >
+                            <div className="navbar-profile-dropdown animate-fade-in">
+                                <div className="navbar-dropdown-header">
+                                    <div className="navbar-dropdown-email">
                                         {user.email}
                                     </div>
                                     <div
-                                        style={{
-                                            fontSize: 11,
-                                            color: user.is_admin
-                                                ? "var(--app-green)"
-                                                : "var(--app-subtext)",
-                                            fontWeight: 600,
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.05em",
-                                            marginTop: 2,
-                                        }}
+                                        className={`navbar-dropdown-role ${user.is_admin ? "admin" : ""}`}
                                     >
                                         {user.is_admin
                                             ? "Administrator"
@@ -468,111 +276,38 @@ export const Navbar: React.FC<NavbarProps> = ({
                                     </div>
                                 </div>
 
+                                {user.is_admin && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsProfileOpen(false);
+                                            navigate("/admin/catalog");
+                                        }}
+                                        className="navbar-dropdown-item"
+                                    >
+                                        <Shield size={16} />
+                                        <span>Admin Console</span>
+                                    </button>
+                                )}
+
                                 <button
+                                    type="button"
                                     onClick={() => {
                                         setIsProfileOpen(false);
                                         navigate("/settings");
                                     }}
                                     className="navbar-dropdown-item"
-                                    style={{
-                                        width: "100%",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 10,
-                                        padding: "10px 14px",
-                                        background: "transparent",
-                                        border: "none",
-                                        color: "#ffffff",
-                                        fontSize: 13,
-                                        fontWeight: 500,
-                                        cursor: "pointer",
-                                        textAlign: "left",
-                                        transition: "background-color 0.15s",
-                                    }}
-                                    onMouseEnter={(e) =>
-                                        (e.currentTarget.style.backgroundColor =
-                                            "rgba(255, 255, 255, 0.08)")
-                                    }
-                                    onMouseLeave={(e) =>
-                                        (e.currentTarget.style.backgroundColor =
-                                            "transparent")
-                                    }
                                 >
                                     <Settings size={16} />
                                     <span>Settings</span>
                                 </button>
 
-                                {user.is_admin && (
-                                    <button
-                                        onClick={() => {
-                                            setIsProfileOpen(false);
-                                            navigate("/admin");
-                                        }}
-                                        className="navbar-dropdown-item"
-                                        style={{
-                                            width: "100%",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 10,
-                                            padding: "10px 14px",
-                                            background: "transparent",
-                                            border: "none",
-                                            color: "#ffffff",
-                                            fontSize: 13,
-                                            fontWeight: 500,
-                                            cursor: "pointer",
-                                            textAlign: "left",
-                                            transition: "background-color 0.15s",
-                                        }}
-                                        onMouseEnter={(e) =>
-                                            (e.currentTarget.style.backgroundColor =
-                                                "rgba(255, 255, 255, 0.08)")
-                                        }
-                                        onMouseLeave={(e) =>
-                                            (e.currentTarget.style.backgroundColor =
-                                                "transparent")
-                                        }
-                                    >
-                                        <ShieldCheck size={16} />
-                                        <span>Admin Console</span>
-                                    </button>
-                                )}
-
-                                <div
-                                    style={{
-                                        height: 1,
-                                        backgroundColor:
-                                            "rgba(255, 255, 255, 0.08)",
-                                        margin: "4px 0",
-                                    }}
-                                />
+                                <div className="navbar-dropdown-divider" />
 
                                 <button
+                                    type="button"
                                     onClick={handleLogout}
-                                    className="navbar-dropdown-item"
-                                    style={{
-                                        width: "100%",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 10,
-                                        padding: "10px 14px",
-                                        background: "transparent",
-                                        border: "none",
-                                        color: "#ff6b6b",
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        cursor: "pointer",
-                                        textAlign: "left",
-                                        transition: "background-color 0.15s",
-                                    }}
-                                    onMouseEnter={(e) =>
-                                        (e.currentTarget.style.backgroundColor =
-                                            "rgba(231, 76, 60, 0.15)")
-                                    }
-                                    onMouseLeave={(e) =>
-                                        (e.currentTarget.style.backgroundColor =
-                                            "transparent")
-                                    }
+                                    className="navbar-dropdown-item danger"
                                 >
                                     <LogOut size={16} />
                                     <span>Log out</span>
@@ -581,7 +316,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                         )}
                     </>
                 ) : (
-                    <button onClick={onOpenAuthModal} className="app-btn-pill">
+                    <button
+                        type="button"
+                        onClick={onOpenAuthModal}
+                        className="app-btn-pill"
+                    >
                         Log in
                     </button>
                 )}

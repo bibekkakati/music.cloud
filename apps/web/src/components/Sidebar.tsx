@@ -60,32 +60,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             <aside className={`app-sidebar ${isOpen ? "mobile-open" : ""}`}>
                 {/* Top Island: Brand & Core Navigation */}
-                <div
-                    className="panel"
-                    style={{
-                        padding: "16px 20px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 16,
-                    }}
-                >
+                <div className="panel sidebar-top-panel">
                     {/* Brand / Logo */}
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "4px 0",
-                        }}
-                    >
+                    <div className="sidebar-brand-row">
                         <Logo size={32} showText={true} />
 
                         {/* Mobile Close Button */}
                         {onClose && (
                             <button
+                                type="button"
                                 onClick={onClose}
-                                className="app-btn-ghost mobile-only-btn"
-                                style={{ color: "var(--app-subtext)" }}
+                                className="app-btn-ghost mobile-only-btn sidebar-brand-mobile-close"
                                 title="Close drawer"
                             >
                                 <X size={20} />
@@ -94,34 +79,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
 
                     {/* Nav Links */}
-                    <nav
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 8,
-                        }}
-                    >
+                    <nav className="sidebar-nav-group">
                         <NavLink
                             to="/"
-                            style={({ isActive }) => ({
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 16,
-                                color: isActive
-                                    ? "#ffffff"
-                                    : "var(--app-subtext)",
-                                fontWeight: 700,
-                                fontSize: 14,
-                                textDecoration: "none",
-                                padding: "6px 0",
-                                transition: "color 0.2s ease",
-                            })}
+                            className={({ isActive }) =>
+                                `sidebar-nav-link ${isActive ? "active" : ""}`
+                            }
                         >
                             {({ isActive }) => (
                                 <>
                                     <Home
-                                        size={24}
-                                        strokeWidth={isActive ? 2.8 : 2}
+                                        size={22}
+                                        strokeWidth={isActive ? 2.5 : 2}
                                     />
                                     <span>Home</span>
                                 </>
@@ -131,25 +100,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <NavLink
                             to="/search"
                             onClick={() => onClose && onClose()}
-                            style={({ isActive }) => ({
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 16,
-                                color: isActive
-                                    ? "#ffffff"
-                                    : "var(--app-subtext)",
-                                fontWeight: 700,
-                                fontSize: 14,
-                                textDecoration: "none",
-                                padding: "6px 0",
-                                transition: "color 0.2s ease",
-                            })}
+                            className={({ isActive }) =>
+                                `sidebar-nav-link ${isActive ? "active" : ""}`
+                            }
                         >
                             {({ isActive }) => (
                                 <>
                                     <Search
-                                        size={24}
-                                        strokeWidth={isActive ? 2.8 : 2}
+                                        size={22}
+                                        strokeWidth={isActive ? 2.5 : 2}
                                     />
                                     <span>Search</span>
                                 </>
@@ -159,56 +118,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
 
                 {/* Bottom Island: Your Library */}
-                <div
-                    className="panel"
-                    style={{
-                        flex: 1,
-                        display: "flex",
-                        flexDirection: "column",
-                        minHeight: 0,
-                    }}
-                >
+                <div className="panel sidebar-library-panel">
                     {/* Library Header */}
-                    <div
-                        style={{
-                            padding: "14px 16px 8px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                        }}
-                    >
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 12,
-                                color: "var(--app-subtext)",
-                                fontWeight: 700,
-                                fontSize: 14,
-                                cursor: "pointer",
-                                transition: "color 0.2s",
-                            }}
-                            onMouseEnter={(e) =>
-                                (e.currentTarget.style.color = "#fff")
-                            }
-                            onMouseLeave={(e) =>
-                                (e.currentTarget.style.color =
-                                    "var(--app-subtext)")
-                            }
+                    <div className="sidebar-library-header">
+                        <button
+                            type="button"
+                            className="sidebar-library-title-btn"
                         >
                             <Library size={22} />
                             <span>Your Library</span>
-                        </div>
+                        </button>
 
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 4,
-                            }}
-                        >
+                        <div className="sidebar-library-actions">
                             {isAuthenticated && (
                                 <button
+                                    type="button"
                                     onClick={onOpenCreatePlaylistModal}
                                     className="app-btn-ghost"
                                     title="Create playlist or folder"
@@ -221,20 +145,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     {/* Search bar inside library */}
                     {isAuthenticated && playlists.length > 0 && (
-                        <div
-                            style={{
-                                padding: "0 16px 8px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    position: "relative",
-                                    width: "100%",
-                                }}
-                            >
+                        <div className="sidebar-search-container">
+                            <div className="sidebar-search-box">
                                 <input
                                     type="text"
                                     placeholder="Search playlists..."
@@ -242,79 +154,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     onChange={(e) =>
                                         setLibrarySearch(e.target.value)
                                     }
-                                    style={{
-                                        width: "100%",
-                                        background: "#242424",
-                                        border: "none",
-                                        borderRadius: 4,
-                                        padding: "10px 28px 10px 10px",
-                                        color: "#fff",
-                                        fontSize: 12,
-                                        outline: "none",
-                                    }}
+                                    className="sidebar-search-input"
                                 />
                             </div>
                         </div>
                     )}
 
                     {/* Playlists List Items */}
-                    <div
-                        style={{
-                            flex: 1,
-                            overflowY: "auto",
-                            scrollBehavior: "smooth",
-                            padding: "0 8px 8px",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 2,
-                        }}
-                    >
+                    <div className="sidebar-library-list">
                         {!isAuthenticated ? (
-                            <div
-                                style={{
-                                    margin: "12px 8px",
-                                    padding: "20px 16px",
-                                    borderRadius: "var(--radius-md)",
-                                    background: "var(--app-card)",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    gap: 12,
-                                }}
-                            >
-                                <div style={{ fontWeight: 700, fontSize: 14 }}>
+                            <div className="sidebar-empty-box">
+                                <div className="sidebar-empty-title">
                                     Create your first playlist
                                 </div>
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        color: "var(--app-subtext)",
-                                        lineHeight: 1.4,
-                                    }}
-                                >
+                                <div className="sidebar-empty-desc">
                                     It's easy, we'll help you organize your
                                     music and stream high-fidelity audio.
                                 </div>
                                 <button
+                                    type="button"
                                     onClick={onOpenAuthModal}
-                                    className="app-btn-pill"
-                                    style={{
-                                        alignSelf: "flex-start",
-                                        padding: "8px 18px",
-                                        fontSize: 13,
-                                    }}
+                                    className="app-btn-pill sidebar-empty-login-btn"
                                 >
                                     Log In
                                 </button>
                             </div>
                         ) : filteredPlaylists.length === 0 ? (
-                            <div
-                                style={{
-                                    padding: "24px 12px",
-                                    textAlign: "center",
-                                    color: "var(--app-subtext)",
-                                    fontSize: 12,
-                                }}
-                            >
+                            <div className="sidebar-empty-text">
                                 {librarySearch
                                     ? "No matching playlists found."
                                     : 'No playlists yet. Click "+" to create one.'}
@@ -324,95 +190,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <NavLink
                                     key={pl.id}
                                     to={`/playlist/${pl.id}`}
-                                    style={({ isActive }) => ({
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 12,
-                                        padding: "8px 8px",
-                                        borderRadius: 6,
-                                        textDecoration: "none",
-                                        background: isActive
-                                            ? "#282828"
-                                            : "transparent",
-                                        transition: "background-color 0.15s",
-                                    })}
-                                    onMouseEnter={(e) => {
-                                        if (
-                                            !e.currentTarget.classList.contains(
-                                                "active",
-                                            )
-                                        ) {
-                                            e.currentTarget.style.backgroundColor =
-                                                "#1a1a1a";
-                                        }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        if (
-                                            !e.currentTarget.classList.contains(
-                                                "active",
-                                            )
-                                        ) {
-                                            e.currentTarget.style.backgroundColor =
-                                                "transparent";
-                                        }
-                                    }}
+                                    className={({ isActive }) =>
+                                        `sidebar-playlist-item ${isActive ? "active" : ""}`
+                                    }
                                 >
                                     {/* Playlist Icon / Thumbnail */}
                                     {isLikedPlaylist(
                                         pl.label,
                                         pl.is_deletable,
                                     ) ? (
-                                        <div
-                                            style={{
-                                                width: 48,
-                                                height: 48,
-                                                borderRadius: 4,
-                                                background:
-                                                    "linear-gradient(135deg, #450af5, #8e8ee5)",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                flexShrink: 0,
-                                            }}
-                                        >
+                                        <div className="sidebar-playlist-cover liked">
                                             <Heart
-                                                size={22}
+                                                size={20}
                                                 fill="#ffffff"
                                                 color="#ffffff"
                                             />
                                         </div>
                                     ) : (
-                                        <div
-                                            style={{
-                                                width: 48,
-                                                height: 48,
-                                                borderRadius: 4,
-                                                background: "#282828",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                color: "var(--app-subtext)",
-                                                flexShrink: 0,
-                                            }}
-                                        >
-                                            <Music size={22} />
+                                        <div className="sidebar-playlist-cover custom">
+                                            <Music size={20} />
                                         </div>
                                     )}
 
-                                    <div style={{ minWidth: 0, flex: 1 }}>
-                                        <div
-                                            style={{
-                                                fontSize: 14,
-                                                fontWeight: 600,
-                                                color: "#ffffff",
-                                                whiteSpace: "nowrap",
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 6,
-                                            }}
-                                        >
+                                    <div className="sidebar-playlist-info">
+                                        <div className="sidebar-playlist-name-row">
                                             <span>{pl.label}</span>
                                             {isLikedPlaylist(
                                                 pl.label,
@@ -422,24 +223,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                     size={13}
                                                     fill="#1ed760"
                                                     color="#1ed760"
-                                                    style={{
-                                                        transform:
-                                                            "rotate(45deg)",
-                                                        flexShrink: 0,
-                                                    }}
+                                                    className="sidebar-pin-icon"
                                                 />
                                             )}
                                         </div>
-                                        <div
-                                            style={{
-                                                fontSize: 12,
-                                                color: "var(--app-subtext)",
-                                                marginTop: 2,
-                                                whiteSpace: "nowrap",
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                            }}
-                                        >
+                                        <div className="sidebar-playlist-sub">
                                             Playlist • {pl.songs_count ?? 0}{" "}
                                             {pl.songs_count === 1
                                                 ? "song"
@@ -452,70 +240,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
 
                     {/* User Status & Settings Bar at bottom of sidebar */}
-                    <div
-                        style={{
-                            padding: "12px 16px",
-                            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                        }}
-                    >
+                    <div className="sidebar-footer-panel">
                         {isAuthenticated && user ? (
                             <NavLink
                                 to="/settings"
                                 onClick={() => onClose && onClose()}
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 10,
-                                    minWidth: 0,
-                                    textDecoration: "none",
-                                    color: "#ffffff",
-                                    flex: 1,
-                                }}
+                                className="sidebar-footer-user"
                             >
-                                <div
-                                    style={{
-                                        width: 28,
-                                        height: 28,
-                                        borderRadius: "50%",
-                                        background: "var(--app-green)",
-                                        color: "#000",
-                                        fontWeight: 800,
-                                        fontSize: 12,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        flexShrink: 0,
-                                    }}
-                                >
+                                <div className="sidebar-footer-avatar">
                                     {user.email.charAt(0).toUpperCase()}
                                 </div>
-                                <div
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: 600,
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                        flex: 1,
-                                    }}
-                                >
+                                <div className="sidebar-footer-name">
                                     {user.email.split("@")[0]}
                                 </div>
                             </NavLink>
                         ) : (
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 8,
-                                    fontSize: 13,
-                                    fontWeight: 600,
-                                    color: "var(--app-subtext)",
-                                }}
-                            >
+                            <div className="sidebar-guest-indicator">
                                 Guest Mode
                             </div>
                         )}
@@ -523,15 +263,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <NavLink
                             to="/settings"
                             onClick={() => onClose && onClose()}
-                            className="app-btn-ghost"
+                            className="app-btn-ghost sidebar-settings-btn"
                             title="Settings"
-                            style={{
-                                color: "var(--app-subtext)",
-                                padding: 4,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                            }}
                         >
                             <Settings size={18} />
                         </NavLink>

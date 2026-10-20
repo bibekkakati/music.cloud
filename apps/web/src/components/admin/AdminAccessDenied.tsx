@@ -12,55 +12,16 @@ export const AdminAccessDenied: React.FC<AdminAccessDeniedProps> = ({
     isAuthenticated,
 }) => {
     return (
-        <div
-            className="animate-fade-in"
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: "65vh",
-                padding: "40px 24px",
-                textAlign: "center",
-            }}
-        >
-            <div
-                style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: "50%",
-                    backgroundColor: "rgba(239, 68, 68, 0.12)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 20,
-                    border: "1px solid rgba(239, 68, 68, 0.25)",
-                }}
-            >
-                <ShieldAlert size={36} color="#ef4444" />
+        <div className="admin-denied-container animate-fade-in">
+            <div className="admin-denied-icon-box">
+                <ShieldAlert size={32} color="#ef4444" />
             </div>
 
-            <h1
-                style={{
-                    fontSize: 26,
-                    fontWeight: 800,
-                    color: "#ffffff",
-                    marginBottom: 12,
-                    letterSpacing: "-0.02em",
-                }}
-            >
+            <h1 className="admin-denied-title">
                 Admin Access Required
             </h1>
 
-            <p
-                style={{
-                    fontSize: 14,
-                    color: "var(--app-subtext)",
-                    maxWidth: 440,
-                    lineHeight: 1.6,
-                    marginBottom: 28,
-                }}
-            >
+            <p className="admin-denied-desc">
                 {isAuthenticated
                     ? `Signed in as ${userEmail}. This section requires administrator privileges to access.`
                     : "This page requires administrator access. Please sign in with an administrator account to proceed."}
@@ -68,14 +29,7 @@ export const AdminAccessDenied: React.FC<AdminAccessDeniedProps> = ({
 
             <Link
                 to="/"
-                className="app-btn-pill"
-                style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    textDecoration: "none",
-                    padding: "12px 28px",
-                }}
+                className="app-btn-pill admin-denied-btn"
             >
                 Back to Home
             </Link>
